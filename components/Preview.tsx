@@ -412,7 +412,6 @@ export function Preview({
   const current = frames.find((f) => f.id === top?.id) ?? frames[0];
   const peekFrame = peek ? frames.find((f) => f.id === peek.frameId) : undefined;
   const { w: frameW, h: frameH } = current ? frameSizeOf(current) : { w: PHONE_W, h: PHONE_H };
-  const phone = current ? isPhoneFrame(current) : true;
   const iphone = current ? isIphoneFrame(current) : false;
   /* every screen sits in the same bezel; only the corners tell a phone from a window */
   const radius = current ? frameRadius(current) : PHONE_R;
@@ -759,7 +758,7 @@ export function Preview({
                 >
                   <Screen frame={current} groups={groups} {...screenProps} />
                   {iphone && (current.chrome ?? true) && <IosChrome />}
-                  </motion.div>
+                </motion.div>
               </AnimatePresence>
             </motion.div>
             {peek && peekFrame && (
@@ -829,7 +828,7 @@ export function Preview({
                 maxWidth: wide ? undefined : 200,
               }}
             >
-              <Icon name={phone ? (isIphoneFrame(current) ? "phone_iphone" : "smartphone") : "desktop_windows"} size={20} />
+              <Icon name={iphone ? "phone_iphone" : "smartphone"} size={20} />
               <span style={{ ...label, flex: wide ? 1 : undefined, textAlign: "left" }}>{current.name || t("screen", lang)}</span>
               <Icon name={wide ? (picker ? "chevron_right" : "chevron_left") : picker ? "expand_more" : "expand_less"} size={18} />
             </button>

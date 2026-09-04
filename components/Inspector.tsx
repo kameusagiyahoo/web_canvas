@@ -30,7 +30,6 @@ import {
   frameSizeOf,
   halfWidth,
   isIphoneFrame,
-  isPhoneFrame,
   toggleIcon,
   iconSlotsOf,
   setIconSlot,
@@ -246,7 +245,7 @@ function FrameChips({
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
       {chip(null, t("none", lang), "block")}
       {back && chip(BACK_TARGET, t("goBack", lang), "arrow_back")}
-      {frames.map((f) => chip(f.id, f.name || t("screen", lang), isPhoneFrame(f) ? "smartphone" : "desktop_windows"))}
+      {frames.map((f) => chip(f.id, f.name || t("screen", lang), framePresetOf(f) === "desktop" ? "desktop_windows" : "smartphone"))}
     </div>
   );
 }
@@ -389,7 +388,7 @@ export function FrameInspector({
           color: p.onSecondaryContainer,
         }}
       >
-        <Icon name={isPhoneFrame(frame) ? "smartphone" : "desktop_windows"} size={20} />
+        <Icon name={framePresetOf(frame) === "desktop" ? "desktop_windows" : "smartphone"} size={20} />
         <span style={{ fontSize: 14, fontWeight: 600, flex: 1, minWidth: 0 }}>{t("screen", lang)}</span>
         <IconBtn icon="play_arrow" p={p} onClick={onPreview} title={t("previewFrom", lang)} size={32} fill />
         <IconBtn icon="content_copy" p={p} onClick={onDuplicate} title={t("duplicate", lang)} size={32} />
@@ -411,7 +410,7 @@ export function FrameInspector({
         </Section>
       )}
       <Section id="frame-name" icon="label" title={t("name", lang)} p={p}>
-        <Field value={frame.name} onChange={(name) => onChange({ name })} placeholder={t("screenName", lang)} p={p} icon={isPhoneFrame(frame) ? "smartphone" : "desktop_windows"} />
+        <Field value={frame.name} onChange={(name) => onChange({ name })} placeholder={t("screenName", lang)} p={p} icon={framePresetOf(frame) === "desktop" ? "desktop_windows" : "smartphone"} />
       </Section>
       <Section id="frame-note" icon="notes" title={t("description", lang)} p={p}>
         <AiField ai={ai} history={frame.noteHistory} onRestore={() => onChange(popHistory(frame.note, frame.noteHistory, "note", "noteHistory"))} p={p} value={frame.note ?? ""} onChange={(note) => onChange({ note: note || undefined })} placeholder={t("screenDescription", lang)} />
