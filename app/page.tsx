@@ -94,6 +94,7 @@ import { ThemeContext, ensureFontLoaded } from "@/lib/theme";
 import { BottomSheet, MobileActionBar, MobileInspector, MobileLang, MobileSettings } from "@/components/Mobile";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, isLang, setGlobalLang, t } from "@/lib/i18n";
+import { useHost } from "@/lib/host";
 
 /** the dragged part's own travel: a little lag reads as weight */
 const CARRY = {
@@ -291,6 +292,8 @@ const LEFT_TABS: { key: LeftTab; icon: string; title: "parts" | "layers" | "colo
 ];
 
 export default function Page() {
+  // Optional host hooks; every default below is the standalone behaviour. See lib/host.ts.
+  const host = useHost();
   /* ---------- document ---------- */
   const [groups, setGroups] = useState<Group[]>(seed);
   const [frames, setFrames] = useState<Frame[]>(SEED_FRAMES);
@@ -488,15 +491,20 @@ export default function Page() {
     // React's development double-run would otherwise read back its own first save
     if (loadedRef.current) return;
     try {
-      const d = localStorage.getItem(DOC_KEY);
-      if (d) {
+      const hosted = host.loadDoc?.();
+      const d = hosted ? null : localStorage.getItem(DOC_KEY);
+      if (hosted) {
+        hadDocRef.current = true;
+        applyDoc(hosted, false);
+      } else if (d) {
         hadDocRef.current = true;
         applyDoc(JSON.parse(d) as Partial<Doc>, false);
         // frame mode is decided by the device (media-query effect), not restored
       }
-      const u = localStorage.getItem(UI_KEY);
-      if (u) {
-        const ui = JSON.parse(u);
+      const stored = localStorage.getItem(UI_KEY);
+      // `JSON.parse` is untyped here as it was before; every field is checked individually below.
+      const ui = host.loadUi?.() ?? (stored ? JSON.parse(stored) : null);
+      if (ui) {
         if (ui.view) setView(ui.view);
         if (typeof ui.leftOpen === "boolean") setLeftOpen(ui.leftOpen);
         if (typeof ui.rightOpen === "boolean") setRightOpen(ui.rightOpen);
@@ -592,29 +600,18 @@ export default function Page() {
   useEffect(() => {
     if (!loadedRef.current) return;
     try {
-      localStorage.setItem(
-        DOC_KEY,
-        JSON.stringify({ groups, frames, paletteKey, frame, title, brief, promptEdit, platform: platform ?? undefined, customPalette: customPalette ?? undefined, dynamicColor, theme }),
-      );
+      const payload = { groups, frames, paletteKey, frame, title, brief, promptEdit, platform: platform ?? undefined, customPalette: customPalette ?? undefined, dynamicColor, theme };
+      if (host.saveDoc) host.saveDoc(payload as Partial<Doc>);
+      else localStorage.setItem(DOC_KEY, JSON.stringify(payload));
     } catch {}
   }, [groups, frames, paletteKey, frame, title, brief, promptEdit, platform, customPalette, dynamicColor, theme]);
 
   useEffect(() => {
     if (!loadedRef.current) return;
     try {
-      localStorage.setItem(
-        UI_KEY,
-        JSON.stringify({
-          view,
-          leftOpen,
-          rightOpen,
-          leftW,
-          rightW,
-          favorites,
-          mode,
-          lang,
-        }),
-      );
+      const ui = { view, leftOpen, rightOpen, leftW, rightW, favorites, mode, lang };
+      if (host.saveUi) host.saveUi(ui);
+      else localStorage.setItem(UI_KEY, JSON.stringify(ui));
     } catch {}
   }, [
     view,
@@ -3145,7 +3142,10 @@ export default function Page() {
             onLangSheet={() => setSheet(sheet === "lang" ? null : "lang")}
             onPrompt={async () => {
               try {
-                await navigator.clipboard.writeText(effectivePrompt(doc, widths, lang));
+                const text = effectivePrompt(doc, widths, lang);
+                // A host returning true has taken the prompt; one that only observes still gets a copy.
+                if (host.onExport?.(text, doc) === true) return;
+                await navigator.clipboard.writeText(text);
                 showToast(t("copied", lang), 1400, "check");
               } catch {}
             }}
