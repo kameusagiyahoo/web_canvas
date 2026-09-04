@@ -1392,9 +1392,14 @@ export type FrameMode = "blank" | "phone";
 export type Platform = "android" | "web" | "ios";
 export const DEFAULT_PLATFORM: Platform = "android";
 export const isPlatform = (v: unknown): v is Platform => v === "android" || v === "web" || v === "ios";
-/** The target the prompt assumes when the author has not picked one: the web as
- *  soon as a desktop screen exists, Android otherwise. */
-export const defaultPlatformOf = (frames: Frame[], mode: FrameMode): Platform => (mode === "phone" && frames.some((f) => !isPhoneFrame(f)) ? "web" : DEFAULT_PLATFORM);
+/** The target the prompt assumes when the author has not picked one: iOS when every
+ *  screen is an iPhone frame, the web as soon as a desktop screen exists, Android otherwise. */
+export const defaultPlatformOf = (frames: Frame[], mode: FrameMode): Platform => {
+  if (mode !== "phone") return DEFAULT_PLATFORM;
+  if (frames.some((f) => framePresetOf(f) === "desktop")) return "web";
+  if (frames.length > 0 && frames.every(isIphoneFrame)) return "ios";
+  return DEFAULT_PLATFORM;
+};
 
 export type Doc = {
   groups: Group[];

@@ -199,7 +199,7 @@ const UI = {
   iphoneFrame: { ja: "iPhone", en: "iPhone", zh: "iPhone" },
   desktopFrame: { ja: "デスクトップ", en: "Desktop", zh: "桌面" },
   deviceChrome: { ja: "デバイス表示", en: "Device chrome", zh: "设备外观" },
-  deviceChromeToggle: { ja: "Dynamic Island とステータスバー", en: "Dynamic Island & status bar", zh: "灵动岛与状态栏" },
+  deviceChromeToggle: { ja: "Dynamic Island とデバイス表示", en: "Dynamic Island & device chrome", zh: "灵动岛与设备外观" },
   // mobile
   mobileNote: { ja: "フル機能は PC のブラウザで使えます", en: "Full features on a desktop browser", zh: "完整功能请在电脑浏览器中使用" },
   addButton: { ja: "ボタンを追加", en: "Add button", zh: "添加按钮" },

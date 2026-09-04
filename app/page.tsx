@@ -76,7 +76,7 @@ import {
   isIphoneFrame,
 } from "@/lib/tokens";
 import { Icon, M3Node, M3Static, MeasuredContent } from "@/components/M3Node";
-import { IosChrome } from "@/components/IosChrome";
+import { IosScreenChrome, IosSideButtons } from "@/components/IosChrome";
 import { LayersPanel } from "@/components/Layers";
 import { FrameInspector, FrameSizePicker, Inspector } from "@/components/Inspector";
 import { Preview } from "@/components/Preview";
@@ -2883,10 +2883,14 @@ export default function Page() {
                           width: w + BEZEL * 2,
                           height: h + BEZEL * 2,
                           borderRadius: radius + BEZEL,
-                          background: p.inverseSurface,
+                          background: isIphoneFrame(f)
+                            ? "linear-gradient(145deg, #4a4d52 0%, #1c1d20 30%, #0a0a0b 60%, #2a2c30 100%)"
+                            : p.inverseSurface,
                           boxShadow: on
                             ? `0 0 0 3px ${p.primary}, 0 18px 50px rgba(0,0,0,0.16)`
-                            : "0 18px 50px rgba(0,0,0,0.14)",
+                            : isIphoneFrame(f)
+                              ? "0 18px 50px rgba(0,0,0,0.35), inset 0 0 0 2px #3a3d42, inset 0 0 14px rgba(0,0,0,0.8)"
+                              : "0 18px 50px rgba(0,0,0,0.14)",
                           cursor: handMode ? "grab" : "move",
                           transition: `box-shadow 120ms, ${SIZE_TRANSITION}`,
                         }}
@@ -2909,8 +2913,9 @@ export default function Page() {
                           {groups
                             .filter((g) => frameOf.get(g.id) === f.id)
                             .map((g) => renderGroup(g, f.x, f.y))}
-                          {isIphoneFrame(f) && (f.chrome ?? true) && <IosChrome />}
+                          {isIphoneFrame(f) && (f.chrome ?? true) && <IosScreenChrome />}
                         </div>
+                        {isIphoneFrame(f) && (f.chrome ?? true) && <IosSideButtons />}
                       </div>
                     </div>
                   );

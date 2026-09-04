@@ -845,9 +845,8 @@ const GENERAL: Record<Lang, (string | ((pl: Platform) => string))[]> = {
     (pl: Platform) => `コンポーネントは ${pl === "web" ? "Material Web" : pl === "ios" ? "SwiftUI の標準部品（List、NavigationStack、TabView、シートなど）で、コントロールは iOS の見た目に従い、フレームワークが用意している部品を独自描画しない" : "Jetpack Compose の material3（Expressive API を含む最新版）"} の標準部品を使い、ライブラリにある部品を独自描画しない。`,
     "色は必ず上のカラースキームのロール名（primary、surfaceContainer など）で参照し、ハードコードした色を使わない。",
     "余白は画面端 16dp、部品同士は 8〜16dp を基本にし、タイポグラフィは M3 の型（titleLarge、bodyMedium など）を使う。",
-    "「横一列に並べる」と書いた部品は必ず 1 つの Row（横並びコンテナ）に入れて同じ行に置き、縦に積んだり次の行に折り返したりしない。行の高さは一番高い部品に合わせ、他は縦中央に揃える。",
-    "「〜の中に重ねて配置」と書いた部品は、その容器（ボックスやカード）を背景にした Box の上に重ねて描く。重なりは意図したものなので、レイアウトの都合で分離したり順序を変えたりしない。前後関係は記述の順（後に書いたものが前面）に従う。",
-    "タップできる部品にはリップルと軽い縮小のフィードバックを付ける。「戻る」は入ったときの遷移を逆再生し、システムの戻る操作（戻るジェスチャー・戻るボタン）でも同じ動きにする。",
+    (pl: Platform) => `「横一列に並べる」と書いた部品は${pl === "ios" ? "必ず 1 つの HStack に入れて同じ行に置き、縦に積んだり次の行に折り返したりしない。行の高さは一番高い部品に合わせ、他は縦中央に揃える。「〜の中に重ねて配置」と書いた部品は ZStack で重ねる（容器が背面、後に書いたものが前面）。重なりは意図したものなので、レイアウトの都合で分離したり順序を変えたりしない。" : "必ず 1 つの Row（横並びコンテナ）に入れて同じ行に置き、縦に積んだり次の行に折り返したりしない。行の高さは一番高い部品に合わせ、他は縦中央に揃える。「〜の中に重ねて配置」と書いた部品は、その容器（ボックスやカード）を背景にした Box の上に重ねて描く。重なりは意図したものなので、レイアウトの都合で分離したり順序を変えたりしない。前後関係は記述の順（後に書いたものが前面）に従う。"}`,
+    (pl: Platform) => (pl === "ios" ? "タップできる部品には iOS 本来のフィードバック（タッチ時のハイライトや不透明度の変化）を付ける。「戻る」はナビゲーションスタックを pop し、システムのエッジスワイプジェスチャーでも同じ動きにする。" : "タップできる部品にはリップルと軽い縮小のフィードバックを付ける。「戻る」は入ったときの遷移を逆再生し、システムの戻る操作（戻るジェスチャー・戻るボタン）でも同じ動きにする。"),
     "アイコンは Material Symbols Rounded を使う。",
     (pl: Platform) => `${pl === "web" ? "ブラウザでの" : pl === "ios" ? "シミュレータや実機での" : "エミュレータや実機での"}動作検証は不要。実装が終わったら${pl === "web" ? "production build を実行し、その出力" : pl === "ios" ? "完全な Xcode プロジェクトのソース" : "署名済みの release APK "}を成果物として提供する。`,
   ],
@@ -859,8 +858,7 @@ const GENERAL: Record<Lang, (string | ((pl: Platform) => string))[]> = {
     (pl: Platform) => `Use the standard components from ${pl === "web" ? "Material Web" : pl === "ios" ? "SwiftUI (native iOS components — List, NavigationStack, TabView, sheets, and so on); give controls their iOS look and do not custom-draw parts the framework provides" : "Jetpack Compose material3 (latest, including the Expressive APIs)"}; do not custom-draw parts the library provides.`,
     "Always reference colors through the scheme roles above (primary, surfaceContainer, …) instead of hard-coded values.",
     "Keep 16dp screen margins and 8–16dp between parts, and use the M3 type styles (titleLarge, bodyMedium, …).",
-    "Parts described as \"in one row\" must share a single Row (horizontal container) on the same line; never stack them vertically or wrap them. The row is as tall as its tallest part and the others are vertically centered in it.",
-    "Parts described as \"layered inside\" a container are drawn on top of that container (a Box with the container as its background). The overlap is intentional: do not separate or reorder them for layout reasons. Later items in the description are drawn in front of earlier ones.",
+    (pl: Platform) => (pl === "ios" ? "Parts described as \"in one row\" share a single HStack on the same line; never stack them vertically or wrap them, and vertically center the shorter parts. Parts described as \"layered inside\" a container are drawn with a ZStack (container behind, later items in front); do not separate or reorder the overlap for layout reasons." : "Parts described as \"in one row\" must share a single Row (horizontal container) on the same line; never stack them vertically or wrap them. The row is as tall as its tallest part and the others are vertically centered in it. Parts described as \"layered inside\" a container are drawn on top of that container (a Box with the container as its background). The overlap is intentional: do not separate or reorder them for layout reasons. Later items in the description are drawn in front of earlier ones."),
     (pl: Platform) => (pl === "ios" ? "Give every tappable part its native iOS feedback (highlight or opacity change on touch). \"Back\" pops the navigation stack with the system edge-swipe gesture working too." : "Give every tappable part ripple plus a slight press-scale. \"Back\" plays the entry transition in reverse, and the system back gesture / button must do the same."),
     "Use Material Symbols Rounded for icons.",
     (pl: Platform) => `Do not verify ${pl === "web" ? "in a browser" : pl === "ios" ? "on a simulator or a device" : "on an emulator or a device"}. When the implementation is done, ${pl === "web" ? "run the production build and provide its output" : pl === "ios" ? "provide the complete Xcode project source" : "produce a signed release APK"} as the deliverable.`,
@@ -873,9 +871,8 @@ const GENERAL: Record<Lang, (string | ((pl: Platform) => string))[]> = {
     (pl: Platform) => `组件使用 ${pl === "web" ? "Material Web" : pl === "ios" ? "SwiftUI 标准组件（List、NavigationStack、TabView、sheet 等），控件遵循 iOS 的外观，不要自行绘制框架已提供的组件" : "Jetpack Compose material3（包含 Expressive API 的最新版）"} 的标准组件，库里已有的组件不要自行绘制。`,
     "颜色必须通过上面配色方案的角色名（primary、surfaceContainer 等）引用，不要写死颜色值。",
     "屏幕边缘留 16dp，组件之间 8〜16dp，排版使用 M3 的字体样式（titleLarge、bodyMedium 等）。",
-    "写明“横向排成一行”的组件必须放进同一个 Row（横向容器）并在同一行显示，不要竖着堆叠或换行。行高以最高的组件为准，其余组件垂直居中。",
-    "写明“内部叠放”的组件要绘制在该容器（容器框或卡片）之上（以容器为背景的 Box）。这种叠放是有意为之，不要因布局原因拆开或调整顺序。前后关系按描述顺序，后写的在前面。",
-    "可点击的组件加涟漪和轻微缩放反馈。“返回”反向播放进入时的过渡动画，系统返回手势／返回键也要做同样的效果。",
+    (pl: Platform) => `写明“横向排成一行”的组件${pl === "ios" ? "必须放进同一个 HStack 并在同一行显示，不要竖着堆叠或换行，行高以最高的组件为准，其余垂直居中。写明“内部叠放”的组件用 ZStack 绘制（容器在背面，后写的在前面）。这种叠放是有意为之，不要因布局原因拆开或调整顺序。" : "必须放进同一个 Row（横向容器）并在同一行显示，不要竖着堆叠或换行。行高以最高的组件为准，其余组件垂直居中。写明“内部叠放”的组件要绘制在该容器（容器框或卡片）之上（以容器为背景的 Box）。这种叠放是有意为之，不要因布局原因拆开或调整顺序。前后关系按描述顺序，后写的在前面。"}`,
+    (pl: Platform) => (pl === "ios" ? "可点击的组件使用 iOS 原生的反馈（触摸时高亮或透明度变化）。“返回”弹出导航栈，系统边缘滑动手势也要有同样的效果。" : "可点击的组件加涟漪和轻微缩放反馈。“返回”反向播放进入时的过渡动画，系统返回手势／返回键也要做同样的效果。"),
     "图标使用 Material Symbols Rounded。",
     (pl: Platform) => `不需要在${pl === "web" ? "浏览器" : "模拟器或真机"}上验证。实现完成后${pl === "web" ? "运行 production build 并提供其输出" : pl === "ios" ? "提供完整的 Xcode 工程源码" : "生成已签名的 release APK "}作为交付物。`,
   ],
@@ -923,7 +920,9 @@ const PH = {
     target: (vp: Viewport, pl: Platform, dark: boolean, both: boolean) =>
       `${
         vp === "phone"
-          ? "想定はスマホの縦画面（412×892dp）で、"
+          ? pl === "ios"
+            ? "想定は iPhone の縦画面（402×874pt）で、"
+            : "想定はスマホの縦画面（412×892dp）で、"
           : vp === "desktop"
             ? pl === "web"
               ? "想定はデスクトップのブラウザ画面（基準 1280×800）で、"
@@ -967,7 +966,9 @@ const PH = {
     target: (vp: Viewport, pl: Platform, dark: boolean, both: boolean) =>
       `${
         vp === "phone"
-          ? "Target a portrait phone screen (412×892dp)"
+          ? pl === "ios"
+            ? "Target a portrait iPhone screen (402×874pt)"
+            : "Target a portrait phone screen (412×892dp)"
           : vp === "desktop"
             ? pl === "web"
               ? "Target a desktop browser viewport (1280×800 reference)"
@@ -985,7 +986,7 @@ const PH = {
       pl === "web"
         ? "Use dynamic color: where the browser or OS exposes the user's accent color, generate the Material 3 scheme from it as the seed, and fall back to the colors below where it is unavailable."
         : pl === "ios"
-          ? "Use dynamic color: map the app's accent to the system tint so controls follow the user's iOS accent color, and fall back to the colors below where it is unavailable."
+          ? "Use dynamic color: derive the app's accent from the environment's tint (SwiftUI's Color.accentColor follows the user's system accent), and fall back to the colors below where it is unavailable."
           : "Use dynamic color: on Android 12+ apply the scheme generated from the user's wallpaper (dynamicLightColorScheme / dynamicDarkColorScheme), and fall back to the colors below where it is unavailable.",
     colorIntro: (label: string, fallback: boolean, th: Theme) => {
       const scheme = `Material 3 ${th.bothModes ? "light and dark color schemes" : `${th.dark ? "dark" : "light"} color scheme`}${th.contrast === "high" ? " (high contrast)" : th.contrast === "medium" ? " (medium contrast)" : ""}`;
@@ -1011,7 +1012,9 @@ const PH = {
     target: (vp: Viewport, pl: Platform, dark: boolean, both: boolean) =>
       `${
         vp === "phone"
-          ? "目标为竖屏手机（412×892dp）"
+          ? pl === "ios"
+            ? "目标为竖屏 iPhone 屏幕（402×874pt）"
+            : "目标为竖屏手机（412×892dp）"
           : vp === "desktop"
             ? pl === "web"
               ? "目标为桌面浏览器视口（以 1280×800 为基准）"

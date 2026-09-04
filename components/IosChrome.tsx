@@ -1,8 +1,10 @@
-/** Real-iOS device chrome drawn over an iPhone screen: Dynamic Island, status
- *  bar (9:41, cellular / wifi / battery) and the home indicator. Purely visual:
+/** Real-iOS device chrome drawn over an iPhone screen. Two layers:
+ *  `IosScreenChrome` sits inside the screen (Dynamic Island, status bar, home
+ *  indicator) and is clipped with it; `IosSideButtons` sits outside the screen
+ *  on the bezel, where the physical buttons are. Both are purely visual:
  *  pointer-events pass through to the UI underneath. */
 
-export function IosChrome() {
+export function IosScreenChrome() {
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 60, pointerEvents: "none" }}>
       {/* Dynamic Island */}
@@ -86,11 +88,20 @@ export function IosChrome() {
           mixBlendMode: "difference",
         }}
       />
-      {/* side buttons: volume up/down (left), action + power (right) */}
-      <div style={{ position: "absolute", left: -3, top: 190, width: 3, height: 30, borderRadius: "2px 0 0 2px", background: "#2a2c30" }} />
-      <div style={{ position: "absolute", left: -3, top: 240, width: 3, height: 52, borderRadius: "2px 0 0 2px", background: "#2a2c30" }} />
-      <div style={{ position: "absolute", left: -3, top: 305, width: 3, height: 52, borderRadius: "2px 0 0 2px", background: "#2a2c30" }} />
-      <div style={{ position: "absolute", right: -3, top: 260, width: 3, height: 88, borderRadius: "0 2px 2px 0", background: "#2a2c30" }} />
+    </div>
+  );
+}
+
+/** the physical buttons on the titanium frame: action button and volume rocker
+ *  on the left, power on the right. Mounted on the bezel layer (outside the
+ *  screen's overflow-hidden wrapper) so they are not clipped away. */
+export function IosSideButtons() {
+  return (
+    <div style={{ position: "absolute", inset: -10, pointerEvents: "none" }}>
+      <div style={{ position: "absolute", left: 1, top: 200, width: 3, height: 30, borderRadius: "2px 0 0 2px", background: "#2a2c30" }} />
+      <div style={{ position: "absolute", left: 1, top: 250, width: 3, height: 52, borderRadius: "2px 0 0 2px", background: "#2a2c30" }} />
+      <div style={{ position: "absolute", left: 1, top: 315, width: 3, height: 52, borderRadius: "2px 0 0 2px", background: "#2a2c30" }} />
+      <div style={{ position: "absolute", right: 1, top: 270, width: 3, height: 88, borderRadius: "0 2px 2px 0", background: "#2a2c30" }} />
     </div>
   );
 }

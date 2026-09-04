@@ -245,7 +245,7 @@ function FrameChips({
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
       {chip(null, t("none", lang), "block")}
       {back && chip(BACK_TARGET, t("goBack", lang), "arrow_back")}
-      {frames.map((f) => chip(f.id, f.name || t("screen", lang), framePresetOf(f) === "desktop" ? "desktop_windows" : "smartphone"))}
+      {frames.map((f) => chip(f.id, f.name || t("screen", lang), framePresetOf(f) === "desktop" ? "desktop_windows" : framePresetOf(f) === "iphone" ? "phone_iphone" : "smartphone"))}
     </div>
   );
 }
