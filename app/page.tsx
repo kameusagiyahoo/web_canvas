@@ -73,8 +73,10 @@ import {
   uniformRadii,
   FULL_WIDTH,
   fitHeight,
+  isIphoneFrame,
 } from "@/lib/tokens";
 import { Icon, M3Node, M3Static, MeasuredContent } from "@/components/M3Node";
+import { IosChrome } from "@/components/IosChrome";
 import { LayersPanel } from "@/components/Layers";
 import { FrameInspector, FrameSizePicker, Inspector } from "@/components/Inspector";
 import { Preview } from "@/components/Preview";
@@ -2907,6 +2909,7 @@ export default function Page() {
                           {groups
                             .filter((g) => frameOf.get(g.id) === f.id)
                             .map((g) => renderGroup(g, f.x, f.y))}
+                          {isIphoneFrame(f) && (f.chrome ?? true) && <IosChrome />}
                         </div>
                       </div>
                     </div>
