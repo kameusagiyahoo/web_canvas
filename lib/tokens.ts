@@ -21,6 +21,10 @@ export const SETTLE_MS = 340;
 export const PHONE_W = 412;
 export const PHONE_H = 892;
 export const PHONE_R = 40;
+/** iPhone screen for the "iphone" frame preset (pt; iPhone 16 Pro geometry) */
+export const IPHONE_W = 402;
+export const IPHONE_H = 874;
+export const IPHONE_R = 46;
 export const DESKTOP_W = 1280;
 export const DESKTOP_H = 800;
 export const DESKTOP_R = 28;
@@ -1210,21 +1214,25 @@ export type Frame = {
   swipe?: Partial<Record<SwipeDir, string>>;
 };
 
-export type FramePreset = "phone" | "desktop";
+export type FramePreset = "phone" | "iphone" | "desktop";
 export const frameSizeOf = (f: Frame) => ({ w: f.w ?? PHONE_W, h: f.h ?? PHONE_H });
 export const isPhoneFrame = (f: Frame) => {
   const { w, h } = frameSizeOf(f);
-  return w === PHONE_W && h === PHONE_H;
+  return (w === PHONE_W && h === PHONE_H) || (w === IPHONE_W && h === IPHONE_H);
 };
-export const framePresetOf = (f: Frame): FramePreset => (isPhoneFrame(f) ? "phone" : "desktop");
+export const isIphoneFrame = (f: Frame) => {
+  const { w, h } = frameSizeOf(f);
+  return w === IPHONE_W && h === IPHONE_H;
+};
+export const framePresetOf = (f: Frame): FramePreset => (isIphoneFrame(f) ? "iphone" : isPhoneFrame(f) ? "phone" : "desktop");
 export const framePresetPatch = (preset: FramePreset): Pick<Frame, "w" | "h"> =>
-  preset === "desktop" ? { w: DESKTOP_W, h: DESKTOP_H } : { w: undefined, h: undefined };
+  preset === "desktop" ? { w: DESKTOP_W, h: DESKTOP_H } : preset === "iphone" ? { w: IPHONE_W, h: IPHONE_H } : { w: undefined, h: undefined };
 export const frameRect = (f: Frame) => {
   const { w, h } = frameSizeOf(f);
   return { l: f.x, t: f.y, r: f.x + w, b: f.y + h };
 };
 /** the corner radius of a screen: a phone's rounded glass, a flatter window for the desktop */
-export const frameRadius = (f: Frame) => (isPhoneFrame(f) ? PHONE_R : DESKTOP_R);
+export const frameRadius = (f: Frame) => (isPhoneFrame(f) ? (isIphoneFrame(f) ? IPHONE_R : PHONE_R) : DESKTOP_R);
 
 /** parts that span the screen edge to edge and follow its width when it changes */
 export const FULL_WIDTH: Kind[] = ["topAppBar", "bottomNav", "tabs"];
@@ -1379,9 +1387,9 @@ export type Group = {
 export type FrameMode = "blank" | "phone";
 
 /** where the generated prompt asks for the app to be built */
-export type Platform = "android" | "web";
+export type Platform = "android" | "web" | "ios";
 export const DEFAULT_PLATFORM: Platform = "android";
-export const isPlatform = (v: unknown): v is Platform => v === "android" || v === "web";
+export const isPlatform = (v: unknown): v is Platform => v === "android" || v === "web" || v === "ios";
 /** The target the prompt assumes when the author has not picked one: the web as
  *  soon as a desktop screen exists, Android otherwise. */
 export const defaultPlatformOf = (frames: Frame[], mode: FrameMode): Platform => (mode === "phone" && frames.some((f) => !isPhoneFrame(f)) ? "web" : DEFAULT_PLATFORM);

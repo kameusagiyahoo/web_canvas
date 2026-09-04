@@ -83,6 +83,7 @@ export function PromptPanel({
       <Segmented<Platform>
         options={[
           { key: "android", icon: "android", label: "Android", title: t("targetAndroid", lang) },
+          { key: "ios", icon: "phone_iphone", label: "iOS", title: t("targetIos", lang) },
           { key: "web", icon: "language", label: "Web", title: t("targetWeb", lang) },
         ]}
         value={doc.platform ?? defaultPlatformOf(doc.frames, doc.frame)}

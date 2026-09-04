@@ -180,6 +180,7 @@ const UI = {
   targetPlatform: { ja: "実装先", en: "Target", zh: "目标平台" },
   targetAndroid: { ja: "Android のネイティブアプリとして作る", en: "Build as a native Android app", zh: "作为 Android 原生应用构建" },
   targetWeb: { ja: "ブラウザで動く Web アプリとして作る", en: "Build as a web app that runs in the browser", zh: "作为在浏览器中运行的 Web 应用构建" },
+  targetIos: { ja: "iOS のネイティブアプリとして作る", en: "Build as a native iOS app", zh: "作为 iOS 原生应用构建" },
   copyPrompt: { ja: "プロンプトをコピー", en: "Copy prompt", zh: "复制提示词" },
   // preview
   back: { ja: "戻る", en: "Back", zh: "返回" },
@@ -195,6 +196,7 @@ const UI = {
   copySuffix: { ja: " コピー", en: " copy", zh: " 副本" },
   frameSize: { ja: "画面サイズ", en: "Screen size", zh: "屏幕尺寸" },
   phoneFrame: { ja: "スマホ", en: "Phone", zh: "手机" },
+  iphoneFrame: { ja: "iPhone", en: "iPhone", zh: "iPhone" },
   desktopFrame: { ja: "デスクトップ", en: "Desktop", zh: "桌面" },
   // mobile
   mobileNote: { ja: "フル機能は PC のブラウザで使えます", en: "Full features on a desktop browser", zh: "完整功能请在电脑浏览器中使用" },

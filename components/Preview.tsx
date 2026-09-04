@@ -16,6 +16,9 @@ import {
   PHONE_H,
   PHONE_R,
   PHONE_W,
+  IPHONE_H,
+  IPHONE_R,
+  IPHONE_W,
   Palette,
   SLIDE_SPEC,
   STATUS_BAR_H,
@@ -30,6 +33,7 @@ import {
   frameRadius,
   frameSizeOf,
   groupsInFrame,
+  isIphoneFrame,
   isPhoneFrame,
   normalizeTheme,
   toggleIcon,
@@ -408,6 +412,7 @@ export function Preview({
   const peekFrame = peek ? frames.find((f) => f.id === peek.frameId) : undefined;
   const { w: frameW, h: frameH } = current ? frameSizeOf(current) : { w: PHONE_W, h: PHONE_H };
   const phone = current ? isPhoneFrame(current) : true;
+  const iphone = current ? isIphoneFrame(current) : false;
   /* every screen sits in the same bezel; only the corners tell a phone from a window */
   const radius = current ? frameRadius(current) : PHONE_R;
   const outerW = frameW + BEZEL * 2;
@@ -748,6 +753,91 @@ export function Preview({
                   style={{ position: "absolute", inset: 0 }}
                 >
                   <Screen frame={current} groups={groups} {...screenProps} />
+                  {iphone && (
+                    <div style={{ position: "absolute", inset: 0, zIndex: 60, pointerEvents: "none" }}>
+                      {/* Dynamic Island */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 11,
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          width: 122,
+                          height: 36,
+                          borderRadius: 20,
+                          background: "#000",
+                        }}
+                      >
+                        {/* front camera lens */}
+                        <div
+                          style={{
+                            position: "absolute",
+                            right: 12,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            width: 12,
+                            height: 12,
+                            borderRadius: "50%",
+                            background: "radial-gradient(circle at 35% 35%, #1c2b3a 0%, #06090d 55%, #000 100%)",
+                            boxShadow: "inset 0 0 2px rgba(90,140,190,0.55)",
+                          }}
+                        />
+                      </div>
+                      {/* status bar: time on the left, radios on the right (iOS style) */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: 54,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "14px 32px 0 36px",
+                          boxSizing: "border-box",
+                          fontFamily: "-apple-system, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif",
+                        }}
+                      >
+                        <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: 0.2, color: "#fff", mixBlendMode: "difference" }}>9:41</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, filter: "invert(1)", mixBlendMode: "difference" }}>
+                          {/* cellular bars */}
+                          <svg width="18" height="12" viewBox="0 0 18 12" fill="#000">
+                            <rect x="0" y="7.5" width="3" height="4.5" rx="1" />
+                            <rect x="5" y="5" width="3" height="7" rx="1" />
+                            <rect x="10" y="2.5" width="3" height="9.5" rx="1" />
+                            <rect x="15" y="0" width="3" height="12" rx="1" />
+                          </svg>
+                          {/* wifi */}
+                          <svg width="17" height="12" viewBox="0 0 17 12" fill="#000">
+                            <path d="M8.5 12 5.9 8.9a4.1 4.1 0 0 1 5.2 0L8.5 12Z" />
+                            <path d="M8.5 6.3c-1.8 0-3.5.7-4.8 1.9L2.2 6.4a9.1 9.1 0 0 1 12.6 0l-1.5 1.8a6.9 6.9 0 0 0-4.8-1.9Z" />
+                            <path d="M8.5 2.4c-2.8 0-5.5 1.1-7.5 3L-.5 3.6a12.9 12.9 0 0 1 18 0l-1.5 1.8a10.7 10.7 0 0 0-7.5-3Z" transform="translate(0 0.2)" />
+                          </svg>
+                          {/* battery */}
+                          <svg width="27" height="13" viewBox="0 0 27 13" fill="none">
+                            <rect x="0.5" y="0.5" width="23" height="12" rx="3.8" stroke="#000" strokeOpacity="0.4" />
+                            <rect x="2" y="2" width="20" height="9" rx="2.4" fill="#000" />
+                            <path d="M25.5 4.5v4a2.2 2.2 0 0 0 0-4Z" fill="#000" fillOpacity="0.4" />
+                          </svg>
+                        </span>
+                      </div>
+                      {/* home indicator */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: 8,
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          width: 140,
+                          height: 5,
+                          borderRadius: 3,
+                          background: "#fff",
+                          mixBlendMode: "difference",
+                        }}
+                      />
+                    </div>
+                  )}
                 </motion.div>
               </AnimatePresence>
             </motion.div>
@@ -818,7 +908,7 @@ export function Preview({
                 maxWidth: wide ? undefined : 200,
               }}
             >
-              <Icon name={phone ? "smartphone" : "desktop_windows"} size={20} />
+              <Icon name={phone ? (isIphoneFrame(current) ? "phone_iphone" : "smartphone") : "desktop_windows"} size={20} />
               <span style={{ ...label, flex: wide ? 1 : undefined, textAlign: "left" }}>{current.name || t("screen", lang)}</span>
               <Icon name={wide ? (picker ? "chevron_right" : "chevron_left") : picker ? "expand_more" : "expand_less"} size={18} />
             </button>
@@ -878,7 +968,7 @@ export function Preview({
                         }}
                       >
                         <span style={{ width: 18, display: "inline-flex" }}>
-                          {on ? <Icon name="check" size={18} /> : <Icon name={isPhoneFrame(f) ? "smartphone" : "desktop_windows"} size={18} />}
+                          {on ? <Icon name="check" size={18} /> : <Icon name={isIphoneFrame(f) ? "phone_iphone" : isPhoneFrame(f) ? "smartphone" : "desktop_windows"} size={18} />}
                         </span>
                         {f.name || t("screen", lang)}
                       </button>
