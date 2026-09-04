@@ -491,8 +491,11 @@ export default function Page() {
     // React's development double-run would otherwise read back its own first save
     if (loadedRef.current) return;
     try {
-      const hosted = host.loadDoc?.();
-      const d = hosted ? null : localStorage.getItem(DOC_KEY);
+      // Branch on whether the host SUPPLIED a loader, not on what it returned: a host that
+      // returns null is saying "no saved document", which must start fresh rather than fall
+      // back to this browser's unrelated standalone copy.
+      const hosted = host.loadDoc ? host.loadDoc() : null;
+      const d = host.loadDoc ? null : localStorage.getItem(DOC_KEY);
       if (hosted) {
         hadDocRef.current = true;
         applyDoc(hosted, false);
@@ -501,9 +504,10 @@ export default function Page() {
         applyDoc(JSON.parse(d) as Partial<Doc>, false);
         // frame mode is decided by the device (media-query effect), not restored
       }
-      const stored = localStorage.getItem(UI_KEY);
+      // Same rule as the document above: only read localStorage when no loader was supplied.
+      const stored = host.loadUi ? null : localStorage.getItem(UI_KEY);
       // `JSON.parse` is untyped here as it was before; every field is checked individually below.
-      const ui = host.loadUi?.() ?? (stored ? JSON.parse(stored) : null);
+      const ui = host.loadUi ? host.loadUi() : stored ? JSON.parse(stored) : null;
       if (ui) {
         if (ui.view) setView(ui.view);
         if (typeof ui.leftOpen === "boolean") setLeftOpen(ui.leftOpen);
@@ -3143,8 +3147,13 @@ export default function Page() {
             onPrompt={async () => {
               try {
                 const text = effectivePrompt(doc, widths, lang);
-                // A host returning true has taken the prompt; one that only observes still gets a copy.
-                if (host.onExport?.(text, doc) === true) return;
+                // A host returning true has taken the prompt; one that only observes still gets a
+                // copy. Its own failure is caught here so a broken hook cannot also break copying.
+                let handled = false;
+                try {
+                  handled = host.onExport?.(text, doc) === true;
+                } catch {}
+                if (handled) return;
                 await navigator.clipboard.writeText(text);
                 showToast(t("copied", lang), 1400, "check");
               } catch {}
