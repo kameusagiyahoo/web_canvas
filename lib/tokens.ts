@@ -24,7 +24,7 @@ export const PHONE_R = 40;
 /** iPhone screen for the "iphone" frame preset (pt; iPhone 16 Pro geometry) */
 export const IPHONE_W = 402;
 export const IPHONE_H = 874;
-export const IPHONE_R = 46;
+export const IPHONE_R = 55;
 export const DESKTOP_W = 1280;
 export const DESKTOP_H = 800;
 export const DESKTOP_R = 28;
@@ -1212,6 +1212,8 @@ export type Frame = {
   noteHistory?: string[];
   /** frame ids reached by swiping in each direction */
   swipe?: Partial<Record<SwipeDir, string>>;
+  /** iPhone frames only: hide the device chrome (Dynamic Island, status bar, home indicator) */
+  chrome?: boolean;
 };
 
 export type FramePreset = "phone" | "iphone" | "desktop";

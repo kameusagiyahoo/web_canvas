@@ -40,7 +40,8 @@ const validFrame = (frame: unknown) =>
   Number.isFinite(frame.y) &&
   (frame.w === undefined || (Number.isFinite(frame.w) && (frame.w as number) > 0)) &&
   (frame.h === undefined || (Number.isFinite(frame.h) && (frame.h as number) > 0)) &&
-  (frame.note === undefined || typeof frame.note === "string");
+  (frame.note === undefined || typeof frame.note === "string") &&
+  (frame.chrome === undefined || typeof frame.chrome === "boolean");
 
 /** whether a parsed file has the shape of a document the editor can open */
 export const isProject = (value: unknown): value is Doc =>

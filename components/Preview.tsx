@@ -708,8 +708,12 @@ export function Preview({
             touchAction: "none",
             transformOrigin: "0 0",
             borderRadius: shellRadius,
-            background: p.inverseSurface,
-            boxShadow: "0 30px 80px rgba(0,0,0,0.22)",
+            background: iphone
+              ? "linear-gradient(145deg, #4a4d52 0%, #1c1d20 30%, #0a0a0b 60%, #2a2c30 100%)"
+              : p.inverseSurface,
+            boxShadow: iphone
+              ? "0 30px 80px rgba(0,0,0,0.35), inset 0 0 0 2px #3a3d42, inset 0 0 14px rgba(0,0,0,0.8)"
+              : "0 30px 80px rgba(0,0,0,0.22)",
           }}
         >
           <motion.div
@@ -753,7 +757,7 @@ export function Preview({
                   style={{ position: "absolute", inset: 0 }}
                 >
                   <Screen frame={current} groups={groups} {...screenProps} />
-                  {iphone && (
+                  {iphone && (current.chrome ?? true) && (
                     <div style={{ position: "absolute", inset: 0, zIndex: 60, pointerEvents: "none" }}>
                       {/* Dynamic Island */}
                       <div
@@ -836,6 +840,11 @@ export function Preview({
                           mixBlendMode: "difference",
                         }}
                       />
+                      {/* side buttons: volume up/down (left), action + power (right) */}
+                      <div style={{ position: "absolute", left: -3, top: 190, width: 3, height: 30, borderRadius: "2px 0 0 2px", background: "#2a2c30" }} />
+                      <div style={{ position: "absolute", left: -3, top: 240, width: 3, height: 52, borderRadius: "2px 0 0 2px", background: "#2a2c30" }} />
+                      <div style={{ position: "absolute", left: -3, top: 305, width: 3, height: 52, borderRadius: "2px 0 0 2px", background: "#2a2c30" }} />
+                      <div style={{ position: "absolute", right: -3, top: 260, width: 3, height: 88, borderRadius: "0 2px 2px 0", background: "#2a2c30" }} />
                     </div>
                   )}
                 </motion.div>

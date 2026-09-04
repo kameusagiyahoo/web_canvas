@@ -29,6 +29,7 @@ import {
   framePresetOf,
   frameSizeOf,
   halfWidth,
+  isIphoneFrame,
   isPhoneFrame,
   toggleIcon,
   iconSlotsOf,
@@ -397,6 +398,18 @@ export function FrameInspector({
       <Section id="frame-size" icon="aspect_ratio" title={t("frameSize", lang)} p={p}>
         <FrameSizePicker frame={frame} palette={p} onChange={onSize} />
       </Section>
+      {isIphoneFrame(frame) && (
+        <Section id="frame-chrome" icon="device_hub" title={t("deviceChrome", lang)} p={p}>
+          <Toggle
+            on={frame.chrome ?? true}
+            onChange={(chrome) => onChange({ chrome })}
+            p={p}
+            icon="phone_iphone"
+            label={t("deviceChromeToggle", lang)}
+            grow
+          />
+        </Section>
+      )}
       <Section id="frame-name" icon="label" title={t("name", lang)} p={p}>
         <Field value={frame.name} onChange={(name) => onChange({ name })} placeholder={t("screenName", lang)} p={p} icon={isPhoneFrame(frame) ? "smartphone" : "desktop_windows"} />
       </Section>
