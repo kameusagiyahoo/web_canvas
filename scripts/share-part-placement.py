@@ -1,3 +1,4 @@
+# One-shot migration script. It is removed after the verified refactor is committed.
 from pathlib import Path
 
 path = Path("app/page.tsx")
