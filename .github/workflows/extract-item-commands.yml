@@ -1,0 +1,37 @@
+name: Extract item commands
+
+on:
+  push:
+    paths:
+      - scripts/extract-item-commands.py
+      - .github/workflows/extract-item-commands.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: python scripts/extract-item-commands.py
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - run: git rm scripts/extract-item-commands.py .github/workflows/extract-item-commands.yml
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/page.tsx
+          git commit -m "Refactor item delete and duplicate commands"
+          git push
