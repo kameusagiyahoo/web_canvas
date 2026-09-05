@@ -28,7 +28,7 @@ describe("deleteFrameFromDocument", () => {
     const b = { ...frame("b", 600), swipe: { left: "a" } } as Frame;
     const onA = group("on-a", 16);
     const onB = group("on-b", 616);
-    onB.items[0] = { ...onB.items[0], action: { to: "a" } };
+    onB.items[0] = { ...onB.items[0], action: { to: "a", transition: "slide" } };
 
     const result = deleteFrameFromDocument([a, b], [onA, onB], {}, "a");
 
