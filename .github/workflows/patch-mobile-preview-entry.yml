@@ -23,16 +23,8 @@ jobs:
 
           mobile = Path('components/MobileScreens.tsx')
           text = mobile.read_text()
-          text = text.replace(
-              '  onAdd,\n  onRename,',
-              '  onAdd,\n  onPreview,\n  onRename,',
-              1,
-          )
-          text = text.replace(
-              '  onAdd: () => void;\n  onRename: (id: string, name: string) => void;',
-              '  onAdd: () => void;\n  onPreview: (id: string) => void;\n  onRename: (id: string, name: string) => void;',
-              1,
-          )
+          text = text.replace('  onAdd,\n  onRename,', '  onAdd,\n  onPreview,\n  onRename,', 1)
+          text = text.replace('  onAdd: () => void;\n  onRename: (id: string, name: string) => void;', '  onAdd: () => void;\n  onPreview: (id: string) => void;\n  onRename: (id: string, name: string) => void;', 1)
           anchor = '''                <button
                   type="button"
                   onClick={() => startRename(frame)}'''
