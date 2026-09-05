@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# One-shot migration: keep Page UI semantics while delegating stack transitions.
 page = Path("app/page.tsx")
 text = page.read_text()
 
