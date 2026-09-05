@@ -206,6 +206,21 @@ export function fitCanvasView(args: {
   };
 }
 
+/** Centers one frame in the current canvas viewport without changing zoom. */
+export function centerFrameViewAtZoom(
+  frame: Frame,
+  viewportWidth: number,
+  viewportHeight: number,
+  zoom: number,
+): CanvasView {
+  const { w, h } = frameSizeOf(frame);
+  return {
+    x: viewportWidth / 2 - (frame.x + w / 2) * zoom,
+    y: viewportHeight / 2 - (frame.y + h / 2) * zoom,
+    z: zoom,
+  };
+}
+
 /** Camera used when mobile screen switching focuses one frame. */
 export function focusFrameView(
   frame: Frame,
