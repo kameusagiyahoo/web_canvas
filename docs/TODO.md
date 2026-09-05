@@ -20,13 +20,16 @@
 - [ ] Stop adding unrelated responsibilities directly to `app/page.tsx`.
 - [x] Extract frame/screen document commands into testable helpers.
 - [x] Extract layer/reordering document commands into testable helpers.
+- [x] Extract reusable bounded undo/redo stack helpers with unit tests.
 - [ ] Wire the existing `app/page.tsx` frame/layer callers to the extracted command helpers incrementally.
+- [ ] Wire `app/page.tsx` history refs to the extracted history helpers without changing undo semantics.
 - [ ] Keep undo/redo behavior consistent for desktop and mobile commands.
 - [ ] Avoid parallel mobile-only business logic when an existing desktop operation can be shared.
 
 ## Priority A — Reliability
 
 - [x] Add focused tests for extracted frame/screen and layer operations.
+- [x] Add focused tests for the extracted history stack operations.
 - [ ] Add E2E coverage for core project flows: edit, save/export, import, multi-screen management and preview.
 - [ ] Add project format/version migration strategy before the `Doc` schema changes substantially.
 - [ ] Review localStorage failure/size behavior and recovery UX.
