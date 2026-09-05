@@ -25,6 +25,8 @@
 - [x] Wire `app/page.tsx` history refs to the extracted history helpers without changing undo semantics.
 - [x] Separate project JSON serialization/parsing from browser download/file APIs.
 - [x] Extract preview start resolution and camera calculations into testable helpers.
+- [x] Extract document/UI/draft localStorage access into tested storage helpers.
+- [x] Centralize safe browser storage access and quota/unavailable failure classification.
 - [ ] Keep undo/redo behavior consistent for desktop and mobile commands.
 - [ ] Avoid parallel mobile-only business logic when an existing desktop operation can be shared.
 
@@ -33,9 +35,10 @@
 - [x] Add focused tests for extracted frame/screen and layer operations.
 - [x] Add focused tests for the extracted history stack operations.
 - [x] Add focused tests for project serialization/parsing and preview session helpers.
+- [x] Add focused tests for editor storage parsing, draft recovery and failure classification.
 - [ ] Add E2E coverage for core project flows: edit, save/export, import, multi-screen management and preview.
 - [ ] Add project format/version migration strategy before the `Doc` schema changes substantially.
-- [ ] Review localStorage failure/size behavior and recovery UX.
+- [ ] Surface storage write failures/recovery guidance in the editor UX.
 
 ## Priority A — Project metadata
 
