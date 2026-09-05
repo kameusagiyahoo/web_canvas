@@ -88,6 +88,7 @@ import { AiActionKey, AiPanel, aiErrorText } from "@/components/AiPanel";
 import { TidyState } from "@/components/ui";
 import { AiSettings, DEFAULT_AI, hasKey, isSecureUrl, loadAiSettings, proposeBehavior, proposeDescription, pushHistory, saveAiSettings } from "@/lib/ai";
 import { barSlotOf, carryFrame, pullInto, tidyFrame } from "@/lib/tidy";
+import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/history";
 import { isProject, readProject, saveProject } from "@/lib/project";
 import { hasShareHash, readShareHash } from "@/lib/share";
 import { LoadingIndicator } from "@/components/Loading";
@@ -481,9 +482,13 @@ export default function Page() {
 
   const snapshot = useCallback((withMeta = false) => {
     setQuickUndo(false);
-    pastRef.current.push(current(withMeta));
-    if (pastRef.current.length > HISTORY_MAX) pastRef.current.shift();
-    futureRef.current = [];
+    const next = pushUndoHistory(
+      { past: pastRef.current, future: futureRef.current },
+      current(withMeta),
+      HISTORY_MAX,
+    );
+    pastRef.current = next.past;
+    futureRef.current = next.future;
     bumpHistory((v) => v + 1);
   }, []);
 
@@ -522,18 +527,30 @@ export default function Page() {
 
   const undo = useCallback(() => {
     setQuickUndo(false);
-    const prev = pastRef.current.pop();
+    const prev = pastRef.current[pastRef.current.length - 1];
     if (!prev) return;
-    futureRef.current.push(current(!!prev.meta));
-    restore(prev);
+    const step = undoHistory(
+      { past: pastRef.current, future: futureRef.current },
+      current(!!prev.meta),
+    );
+    if (!step.value) return;
+    pastRef.current = step.state.past;
+    futureRef.current = step.state.future;
+    restore(step.value);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const redo = useCallback(() => {
-    const next = futureRef.current.pop();
+    const next = futureRef.current[futureRef.current.length - 1];
     if (!next) return;
-    pastRef.current.push(current(!!next.meta));
-    restore(next);
+    const step = redoHistory(
+      { past: pastRef.current, future: futureRef.current },
+      current(!!next.meta),
+    );
+    if (!step.value) return;
+    pastRef.current = step.state.past;
+    futureRef.current = step.state.future;
+    restore(step.value);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
