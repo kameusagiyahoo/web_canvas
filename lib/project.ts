@@ -51,6 +51,19 @@ const validFrame = (frame: unknown) =>
 export const isProject = (value: unknown): value is Doc =>
   isRecord(value) && Array.isArray(value.groups) && Array.isArray(value.frames) && value.groups.every(validGroup) && value.frames.every(validFrame) && (value.platform === undefined || isPlatform(value.platform));
 
+/** pure JSON encoder used by downloads today and future cloud/project stores later */
+export const serializeProject = (doc: Doc) => JSON.stringify(doc, null, 2);
+
+/** pure parser/validator so project loading can be tested without File/browser APIs */
+export const parseProjectText = (text: string): Doc | null => {
+  try {
+    const next: unknown = JSON.parse(text);
+    return isProject(next) ? next : null;
+  } catch {
+    return null;
+  }
+};
+
 /** the file name a project is saved under: m3e-canvas, followed by the app's name when it has one */
 export const projectFileName = (doc: Doc) => {
   const name = doc.title
@@ -63,7 +76,7 @@ export const projectFileName = (doc: Doc) => {
 
 /** hands the document to the browser as a JSON download */
 export function saveProject(doc: Doc) {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" }));
+  const url = URL.createObjectURL(new Blob([serializeProject(doc)], { type: "application/json" }));
   const a = document.createElement("a");
   a.href = url;
   a.download = projectFileName(doc);
@@ -73,10 +86,5 @@ export function saveProject(doc: Doc) {
 
 /** reads a chosen file back into a document, or null when it is not one */
 export async function readProject(file: File): Promise<Doc | null> {
-  try {
-    const next: unknown = JSON.parse(await file.text());
-    return isProject(next) ? next : null;
-  } catch {
-    return null;
-  }
+  return parseProjectText(await file.text());
 }
