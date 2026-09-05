@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { Group, makeItem } from "@/lib/tokens";
-import { reorderFrameGroups, reorderItemsInGroup } from "@/lib/layer-commands";
+import { Group, makeItem } from "./tokens";
+import { reorderFrameGroups, reorderItemsInGroup } from "./layer-commands";
 
 const group = (id: string): Group => ({ id, x: 0, y: 0, axis: "x", items: [{ ...makeItem("button"), id: `${id}-item` }] });
 
