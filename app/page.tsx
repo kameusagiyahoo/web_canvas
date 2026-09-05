@@ -2399,7 +2399,7 @@ const changeFrame = (f: FrameMode) => {
       changeFrame("phone");
     }
     queueMicrotask(() => {
-      const id = startId ?? selectedFrameId ?? framesRef.current[0]?.id ?? null;
+      const id = startId ?? selectedFrameId ?? layersFrameId ?? framesRef.current[0]?.id ?? null;
       const f = framesRef.current.find((x) => x.id === id);
       const r = canvasRect();
       if (f && r) {
@@ -3643,6 +3643,11 @@ const changeFrame = (f: FrameMode) => {
                       setLayersFrameId(next?.id ?? null);
                       if (next) focusFrame(next.id);
                     }
+                  }}
+                  onPreview={(id) => {
+                    setSheet(null);
+                    setLayersFrameId(id);
+                    openPreview(id);
                   }}
                 />
               </BottomSheet>
