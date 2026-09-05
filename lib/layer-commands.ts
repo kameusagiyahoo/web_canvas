@@ -1,4 +1,4 @@
-import { explodeGroup, Group } from "@/lib/tokens";
+import { explodeGroup, Group } from "./tokens";
 
 /** Reorder only the groups that belong to one screen. `topFirst` is the UI order. */
 export function reorderFrameGroups(allGroups: Group[], topFirst: string[]): Group[] | null {
