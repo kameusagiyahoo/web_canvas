@@ -27,8 +27,8 @@
 - [x] Extract preview start resolution and camera calculations into testable helpers.
 - [x] Extract document/UI/draft localStorage access into tested storage helpers.
 - [x] Centralize safe browser storage access and quota/unavailable failure classification.
-- [ ] Keep undo/redo behavior consistent for desktop and mobile commands.
-- [ ] Avoid parallel mobile-only business logic when an existing desktop operation can be shared.
+- [x] Keep undo/redo behavior consistent for desktop and mobile commands.
+- [x] Avoid parallel mobile-only business logic when an existing desktop operation can be shared.
 
 ## Priority A — Reliability
 
