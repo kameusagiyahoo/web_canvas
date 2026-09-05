@@ -20,8 +20,10 @@
 - [ ] Stop adding unrelated responsibilities directly to `app/page.tsx`.
 - [x] Extract frame/screen document commands into testable helpers.
 - [x] Extract layer/reordering document commands into testable helpers.
+- [x] Extract item delete/duplicate document commands into testable helpers.
 - [x] Extract reusable bounded undo/redo stack helpers with unit tests.
 - [x] Wire the existing `app/page.tsx` frame/layer callers to the extracted command helpers incrementally.
+- [x] Wire `app/page.tsx` item delete/duplicate callers to the extracted command helpers.
 - [x] Wire `app/page.tsx` history refs to the extracted history helpers without changing undo semantics.
 - [x] Separate project JSON serialization/parsing from browser download/file APIs.
 - [x] Extract preview start resolution and camera calculations into testable helpers.
@@ -33,6 +35,7 @@
 ## Priority A — Reliability
 
 - [x] Add focused tests for extracted frame/screen and layer operations.
+- [x] Add focused tests for extracted item delete/duplicate operations.
 - [x] Add focused tests for the extracted history stack operations.
 - [x] Add focused tests for project serialization/parsing and preview session helpers.
 - [x] Add focused tests for editor storage parsing, draft recovery and failure classification.
