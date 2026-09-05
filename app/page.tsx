@@ -91,6 +91,7 @@ import { deleteItemsFromGroups, duplicateItemSelection, patchItemInGroups } from
 import { groupItemSelection, nudgeFrameWithGroups, nudgeItemGroups, ungroupFreeGroup } from "@/lib/group-commands";
 import { itemRectsOfGroups, marqueeHitIds, selectionRect } from "@/lib/canvas-selection";
 import { dragCarriedGroupsFromOrigins, dragFrameFromOrigin, dragGroupFromOrigin } from "@/lib/canvas-drag";
+import { clientToWorld, fitCanvasView, focusFrameView as focusCanvasFrameView, panViewFromOrigin, pinchViewFromOrigin, wheelPanView, zoomViewAt } from "@/lib/canvas-viewport";
 import { findAlignmentGuide, findMagneticSnap, restPosition, type Guide, type Snap } from "@/lib/canvas-magnet";
 import { detachItemForDrag, insertItemAtSnap } from "@/lib/part-drag";
 import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX as nextFrameDocumentX } from "@/lib/frame-commands";
@@ -814,87 +815,41 @@ export default function Page() {
 
   /* ---------- coordinates ---------- */
   const canvasRect = () => canvasRef.current?.getBoundingClientRect();
-  const toWorld = (clientX: number, clientY: number) => {
-    const r = canvasRect();
-    const v = viewRef.current;
-    return {
-      x: (clientX - (r?.left ?? 0) - v.x) / v.z,
-      y: (clientY - (r?.top ?? 0) - v.y) / v.z,
-    };
-  };
+  const toWorld = (clientX: number, clientY: number) =>
+    clientToWorld(clientX, clientY, canvasRect(), viewRef.current);
   const inBin = (clientX: number) =>
     !mobileRef.current && clientX >= 0 && clientX <= (leftOpenRef.current ? leftWRef.current : RAIL_W);
 
   const setZoomAt = useCallback((nz: number, cx?: number, cy?: number) => {
-    const r = canvasRect();
-    const v = viewRef.current;
-    const z = clamp(nz, MIN_Z, MAX_Z);
-    const px = cx === undefined ? (r?.width ?? 0) / 2 : cx - (r?.left ?? 0);
-    const py = cy === undefined ? (r?.height ?? 0) / 2 : cy - (r?.top ?? 0);
-    setView({
-      x: px - ((px - v.x) * z) / v.z,
-      y: py - ((py - v.y) * z) / v.z,
-      z,
-    });
+    setView(
+      zoomViewAt(
+        viewRef.current,
+        nz,
+        canvasRect(),
+        MIN_Z,
+        MAX_Z,
+        cx,
+        cy,
+      ),
+    );
   }, []);
 
   const fit = useCallback(() => {
     const r = canvasRect();
     if (!r) return;
-    const gs = groupsRef.current;
-    let x0 = -BEZEL;
-    let y0 = -BEZEL - FRAME_LABEL_H;
-    let x1 = PHONE_W + BEZEL;
-    let y1 = PHONE_H + BEZEL;
-    const fs = framesRef.current;
-    if (frameRef.current === "phone" && fs.length > 0) {
-      x0 = Math.min(...fs.map((f) => f.x)) - BEZEL;
-      y0 = Math.min(...fs.map((f) => f.y)) - BEZEL - FRAME_LABEL_H;
-      x1 = Math.max(...fs.map((f) => frameRect(f).r)) + BEZEL;
-      y1 = Math.max(...fs.map((f) => frameRect(f).b)) + BEZEL;
-    }
-    if (frameRef.current === "blank") {
-      if (gs.length === 0) {
-        setView({ x: 48, y: 48, z: 1 });
-        return;
-      }
-      x0 = Infinity;
-      y0 = Infinity;
-      x1 = -Infinity;
-      y1 = -Infinity;
-      for (const g of gs) {
-        for (const pl of layoutOf(g, widthsRef.current)) {
-          x0 = Math.min(x0, pl.x);
-          y0 = Math.min(y0, pl.y);
-          x1 = Math.max(x1, pl.x + pl.w);
-          y1 = Math.max(y1, pl.y + pl.h);
-        }
-      }
-    }
-    const mobile = mobileRef.current;
-    const pad = mobile ? 14 : 40;
-    const top = mobile ? 96 : 84; // keep the floating toolbar clear of the frame
-    const bottom = mobile ? 96 : pad;
-    if (mobile) {
-      // a phone zooms to the screen's width and starts at its top; the rest scrolls
-      const z = clamp((r.width - pad * 2) / (x1 - x0), MIN_Z, MAX_Z);
-      setView({ x: (r.width - (x1 - x0) * z) / 2 - x0 * z, y: top - y0 * z, z });
-      return;
-    }
-    const z = clamp(
-      Math.min(
-        (r.width - pad * 2) / (x1 - x0),
-        (r.height - top - bottom) / (y1 - y0),
-        1,
-      ),
-      MIN_Z,
-      MAX_Z,
+    setView(
+      fitCanvasView({
+        groups: groupsRef.current,
+        frames: framesRef.current,
+        widths: widthsRef.current,
+        frameMode: frameRef.current,
+        viewportWidth: r.width,
+        viewportHeight: r.height,
+        mobile: mobileRef.current,
+        minZoom: MIN_Z,
+        maxZoom: MAX_Z,
+      }),
     );
-    setView({
-      x: (r.width - (x1 - x0) * z) / 2 - x0 * z,
-      y: top + (r.height - top - bottom - (y1 - y0) * z) / 2 - y0 * z,
-      z,
-    });
   }, []);
   const fitRef = useRef(fit);
   fitRef.current = fit;
@@ -904,15 +859,7 @@ export default function Page() {
     const r = canvasRect();
     const f = framesRef.current.find((x) => x.id === id);
     if (!r || !f) return;
-    const { w } = frameSizeOf(f);
-    const pad = 14;
-    const top = 96;
-    const z = clamp((r.width - pad * 2) / (w + BEZEL * 2), MIN_Z, MAX_Z);
-    setView({
-      x: (r.width - w * z) / 2 - f.x * z,
-      y: top - (f.y - BEZEL - FRAME_LABEL_H) * z,
-      z,
-    });
+    setView(focusCanvasFrameView(f, r.width, MIN_Z, MAX_Z));
   }, []);
 
   /* touch: two fingers pinch-zoom and pan, cancelling whatever one finger started */
@@ -946,17 +893,17 @@ export default function Page() {
       if (!pinch || touchesRef.current.size < 2) return;
       const [a, b] = [...touchesRef.current.values()];
       const r = canvasRef.current?.getBoundingClientRect();
-      const d = Math.hypot(a.x - b.x, a.y - b.y);
-      const z = clamp((pinch.z0 * d) / Math.max(1, pinch.d0), MIN_Z, MAX_Z);
-      const mx = (a.x + b.x) / 2;
-      const my = (a.y + b.y) / 2;
-      const px = pinch.mx - (r?.left ?? 0);
-      const py = pinch.my - (r?.top ?? 0);
-      setView({
-        x: px - ((px - pinch.vx) * z) / pinch.z0 + (mx - pinch.mx),
-        y: py - ((py - pinch.vy) * z) / pinch.z0 + (my - pinch.my),
-        z,
-      });
+      setView(
+        pinchViewFromOrigin(
+          pinch,
+          a,
+          b,
+          r?.left ?? 0,
+          r?.top ?? 0,
+          MIN_Z,
+          MAX_Z,
+        ),
+      );
     };
     const up = (e: PointerEvent) => {
       if (e.pointerType !== "touch") return;
@@ -986,7 +933,7 @@ export default function Page() {
           e.clientY,
         );
       } else {
-        setView((v) => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
+        setView((v) => wheelPanView(v, e.deltaX, e.deltaY));
       }
     };
     el.addEventListener("wheel", onWheel, { passive: false });
@@ -1393,11 +1340,16 @@ export default function Page() {
       const g = gestureRef.current;
       if (!g) return;
       if (g.kind === "pan") {
-        setView((v) => ({
-          ...v,
-          x: g.vx + (e.clientX - g.sx),
-          y: g.vy + (e.clientY - g.sy),
-        }));
+        setView((v) =>
+          panViewFromOrigin(
+            { x: g.vx, y: g.vy },
+            g.sx,
+            g.sy,
+            e.clientX,
+            e.clientY,
+            v.z,
+          ),
+        );
         return;
       }
       if (g.kind === "group") {
