@@ -4,9 +4,12 @@ import { parseProjectText, projectFileName, serializeProject } from "./project";
 
 const doc = {
   title: "Demo / App",
+  paletteKey: "baseline",
+  frame: "phone",
+  brief: "",
   groups: [],
   frames: [{ id: "home", name: "Home", x: 0, y: 0 }],
-} as Doc;
+} as unknown as Doc;
 
 describe("project serialization", () => {
   it("round-trips a valid document through pure JSON helpers", () => {
@@ -14,7 +17,7 @@ describe("project serialization", () => {
   });
 
   it("rejects malformed JSON and invalid document shapes", () => {
-    expect(parseProjectText("{" )).toBeNull();
+    expect(parseProjectText("{")).toBeNull();
     expect(parseProjectText(JSON.stringify({ groups: "bad", frames: [] }))).toBeNull();
   });
 
