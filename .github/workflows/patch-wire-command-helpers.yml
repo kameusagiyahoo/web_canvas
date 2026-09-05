@@ -1,0 +1,213 @@
+name: Patch command helper wiring
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Wire page callers to extracted command helpers
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          page = Path('app/page.tsx')
+          text = page.read_text()
+
+          tidy_import = 'import { barSlotOf, carryFrame, pullInto, tidyFrame } from "@/lib/tidy";\n'
+          command_imports = (
+              'import { reorderFrameGroups, reorderItemsInGroup } from "@/lib/layer-commands";\n'
+              'import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX as nextFrameDocumentX } from "@/lib/frame-commands";\n'
+          )
+          if command_imports not in text:
+              if tidy_import not in text:
+                  raise SystemExit('tidy import anchor not found')
+              text = text.replace(tidy_import, tidy_import + command_imports, 1)
+
+          old_next = '''  const nextFrameX = () =>
+    framesRef.current.length
+      ? Math.max(...framesRef.current.map((f) => frameRect(f).r)) + FRAME_GAP
+      : 0;
+'''
+          new_next = '''  const nextFrameX = () => nextFrameDocumentX(framesRef.current);
+'''
+          if old_next not in text:
+              raise SystemExit('nextFrameX block not found')
+          text = text.replace(old_next, new_next, 1)
+
+          old_delete = '''  /** a screen takes everything on it along, and links into it are dropped */
+  const deleteFrame = useCallback(
+    (id: string) => {
+      snapshot();
+      const gone = new Set(
+        groupsRef.current
+          .filter((g) => frameOfGroup(g, framesRef.current, widthsRef.current)?.id === id)
+          .map((g) => g.id),
+      );
+      setFrames((fs) =>
+        fs
+          .filter((f) => f.id !== id)
+          .map((f) => {
+            if (!f.swipe) return f;
+            const swipe = Object.fromEntries(Object.entries(f.swipe).filter(([, to]) => to !== id));
+            return { ...f, swipe: Object.keys(swipe).length ? swipe : undefined };
+          }),
+      );
+      setGroups((gs) =>
+        gs
+          .filter((g) => !gone.has(g.id))
+          .map((g) => ({
+            ...g,
+            items: g.items.map((it) => {
+              const next = { ...it };
+              if (next.action?.to === id) next.action = undefined;
+              if (next.actions) {
+                const actions = Object.fromEntries(Object.entries(next.actions).filter(([, a]) => a.to !== id));
+                next.actions = Object.keys(actions).length ? actions : undefined;
+              }
+              return next;
+            }),
+          })),
+      );
+      setSelectedFrameId(null);
+      setSelectedIds((cur) => cur.filter((x) => !groupsRef.current.some((g) => gone.has(g.id) && g.items.some((it) => it.id === x))));
+    },
+    [snapshot],
+  );
+'''
+          new_delete = '''  /** a screen takes everything on it along, and links into it are dropped */
+  const deleteFrame = useCallback(
+    (id: string) => {
+      snapshot();
+      const result = deleteFrameFromDocument(framesRef.current, groupsRef.current, widthsRef.current, id);
+      setFrames(result.frames);
+      setGroups(result.groups);
+      setSelectedFrameId(null);
+      setSelectedIds((cur) => cur.filter((x) => !groupsRef.current.some((g) => result.removedGroupIds.has(g.id) && g.items.some((it) => it.id === x))));
+    },
+    [snapshot],
+  );
+'''
+          if old_delete not in text:
+              raise SystemExit('deleteFrame block not found')
+          text = text.replace(old_delete, new_delete, 1)
+
+          old_duplicate = '''  const duplicateFrame = (id: string) => {
+    const f = framesRef.current.find((x) => x.id === id);
+    if (!f) return;
+    snapshot();
+    const nf: Frame = {
+      ...f,
+      id: uid(),
+      name: `${f.name}${t("copySuffix")}`,
+      x: nextFrameX(),
+    };
+    const dx = nf.x - f.x;
+    const copies = groupsRef.current
+      .filter(
+        (g) => frameOfGroup(g, framesRef.current, widthsRef.current)?.id === id,
+      )
+      .map((g) => {
+        const idMap = new Map(g.items.map((it) => [it.id, uid()]));
+        const pos = g.pos
+          ? Object.fromEntries(Object.entries(g.pos).map(([id, o]) => [idMap.get(id) ?? id, o]))
+          : undefined;
+        return {
+          ...g,
+          id: uid(),
+          x: g.x + dx,
+          pos,
+          items: g.items.map((it) => ({
+            ...it,
+            id: idMap.get(it.id)!,
+            tabs: it.tabs?.map((t) => ({ ...t })),
+          })),
+        };
+      });
+    setFrames((fs) => [...fs, nf]);
+    setGroups((gs) => [...gs, ...copies]);
+    setSelectedFrameId(nf.id);
+  };
+'''
+          new_duplicate = '''  const duplicateFrame = (id: string) => {
+    const result = duplicateFrameInDocument(framesRef.current, groupsRef.current, widthsRef.current, id, {
+      makeId: uid,
+      copySuffix: t("copySuffix"),
+    });
+    if (!result) return;
+    snapshot();
+    setFrames(result.frames);
+    setGroups(result.groups);
+    setSelectedFrameId(result.frame.id);
+  };
+'''
+          if old_duplicate not in text:
+              raise SystemExit('duplicateFrame block not found')
+          text = text.replace(old_duplicate, new_duplicate, 1)
+
+          old_layers = '''  const reorderLayers = (topFirst: string[]) => {
+    const inFrame = new Set(topFirst);
+    const byId = new Map(groupsRef.current.map((g) => [g.id, g]));
+    const ordered = [...topFirst].reverse().map((id) => byId.get(id)).filter((g): g is Group => !!g);
+    if (ordered.length !== inFrame.size) return;
+    layerSnapshot("layers:" + (layersFrame?.id ?? ""));
+    for (const id of inFrame) instantRef.current.add(id);
+    setGroups((gs) => [...gs.filter((g) => !inFrame.has(g.id)), ...ordered]);
+  };
+'''
+          new_layers = '''  const reorderLayers = (topFirst: string[]) => {
+    const next = reorderFrameGroups(groupsRef.current, topFirst);
+    if (!next) return;
+    layerSnapshot("layers:" + (layersFrame?.id ?? ""));
+    for (const id of topFirst) instantRef.current.add(id);
+    setGroups(next);
+  };
+'''
+          if old_layers not in text:
+              raise SystemExit('reorderLayers block not found')
+          text = text.replace(old_layers, new_layers, 1)
+
+          start = text.find('  const reorderGroupItems = (groupId: string, order: string[]) => {')
+          end_marker = '\n  const renderGroup = (g: Group, ox: number, oy: number) => {'
+          end = text.find(end_marker, start)
+          if start < 0 or end < 0:
+              raise SystemExit('reorderGroupItems block not found')
+          new_group_items = '''  const reorderGroupItems = (groupId: string, order: string[]) => {
+    const g = groupsRef.current.find((x) => x.id === groupId);
+    if (!g) return;
+    const next = reorderItemsInGroup(g, order, widthsRef.current);
+    if (!next) return;
+    layerSnapshot("layers:items:" + groupId);
+    instantRef.current.add(groupId);
+    setGroups((gs) => gs.map((x) => (x.id === groupId ? next : x)));
+  };
+'''
+          text = text[:start] + new_group_items + text[end:]
+
+          page.write_text(text)
+          PY
+      - name: Validate
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+      - name: Remove one-shot workflow
+        run: git rm .github/workflows/patch-wire-command-helpers.yml
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/page.tsx .github/workflows/patch-wire-command-helpers.yml
+          git commit -m "Refactor page to use shared command helpers"
+          git push
