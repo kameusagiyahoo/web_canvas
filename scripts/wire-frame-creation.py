@@ -1,3 +1,4 @@
+# One-shot refactor trigger: frame creation + centering boundary.
 from pathlib import Path
 
 path = Path("app/page.tsx")
