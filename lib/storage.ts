@@ -23,9 +23,10 @@ export type StoredEditorUi = {
   lang?: Lang;
 };
 
+export type StorageFailureReason = "quota" | "unavailable";
 export type StorageWriteResult =
   | { ok: true }
-  | { ok: false; reason: "quota" | "unavailable" };
+  | { ok: false; reason: StorageFailureReason };
 
 export type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
