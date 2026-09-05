@@ -93,6 +93,7 @@ import { reorderFrameGroups, reorderItemsInGroup } from "@/lib/layer-commands";
 import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX as nextFrameDocumentX } from "@/lib/frame-commands";
 import { previewCameraForFrame, resolvePreviewStartId } from "@/lib/preview-session";
 import { STORAGE_KEYS, clearStoredDraft, getBrowserStorage, readStoredDocument, readStoredDraft, readStoredUi, saveStoredDocument, saveStoredDraft, saveStoredUi } from "@/lib/storage";
+import type { StorageFailureReason } from "@/lib/storage";
 import { isProject, readProject, saveProject } from "@/lib/project";
 import { hasShareHash, readShareHash } from "@/lib/share";
 import { LoadingIndicator } from "@/components/Loading";
@@ -104,6 +105,7 @@ import { ThemeContext, ensureFontLoaded, ensureLangFontLoaded } from "@/lib/them
 import { BottomSheet, MobileActionBar, MobileInspector, MobileLang, MobileSettings } from "@/components/Mobile";
 import { MobileScreens } from "@/components/MobileScreens";
 import { MobileParts } from "@/components/MobileParts";
+import { StorageWarning } from "@/components/StorageWarning";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
 
@@ -256,7 +258,7 @@ const seed = (lang: Lang = getLang()): Group[] => {
   ];
 };
 
-/** The phone version starts with buttons only: that is all it edits. */
+/** Lightweight first-run content for a phone-sized editor. */
 const mobileSeed = (lang: Lang = getLang()): Group[] => {
   const text = SEED_TEXT[lang];
   const mk = (k: Kind) => makeItem(k);
@@ -360,6 +362,7 @@ export default function Page() {
   /** frame being rendered offscreen for the PNG export */
   const [exportFrame, setExportFrame] = useState<Frame | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [storageWarning, setStorageWarning] = useState<StorageFailureReason | null>(null);
   const [title, setTitle] = useState("");
   const [brief, setBrief] = useState("");
   const [promptEdit, setPromptEdit] = useState<string | undefined>(undefined);
@@ -707,7 +710,7 @@ export default function Page() {
     };
   }, []);
 
-  /* everyone works on phone screens; a phone gets one fixed screen and the select tool only */
+  /* Mobile keeps the canvas in phone-screen mode while sharing the same document model. */
   useEffect(() => {
     const mq = window.matchMedia(
       "(max-width: 840px), (pointer: coarse) and (max-width: 1024px)",
@@ -743,7 +746,7 @@ export default function Page() {
 
   useEffect(() => {
     if (!loadedRef.current || editAccess !== "editable") return;
-    saveStoredDocument(getBrowserStorage(), {
+    const result = saveStoredDocument(getBrowserStorage(), {
       groups,
       frames,
       paletteKey,
@@ -756,6 +759,7 @@ export default function Page() {
       dynamicColor,
       theme,
     });
+    setStorageWarning(result.ok ? null : result.reason);
   }, [editAccess, groups, frames, paletteKey, frame, title, brief, promptEdit, platform, customPalette, dynamicColor, theme]);
 
   useEffect(() => {
@@ -3649,6 +3653,16 @@ const changeFrame = (f: FrameMode) => {
               </BottomSheet>
             )}
           </AnimatePresence>
+
+          {storageWarning && (
+            <StorageWarning
+              reason={storageWarning}
+              lang={lang}
+              palette={p}
+              onExport={() => saveProject(docRef.current)}
+              onDismiss={() => setStorageWarning(null)}
+            />
+          )}
 
           {toast && (
             <div
