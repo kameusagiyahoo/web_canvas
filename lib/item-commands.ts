@@ -1,12 +1,94 @@
 import {
   GAP,
+  PHONE_MARGIN,
   collapseFree,
   connectSpecOf,
+  frameOfGroup,
+  frameSizeOf,
   layoutOf,
   sizeOf,
+  type Frame,
   type Group,
   type Item,
 } from "./tokens";
+
+export type PatchItemResult = {
+  groups: Group[];
+  shiftedGroupIds: string[];
+};
+
+/**
+ * Applies an item patch without React state. When a lone item is resized on a
+ * phone canvas, keep the alignment the author established against its frame:
+ * centre alignment stays centred and a far edge aligned to the screen or its
+ * content margin stays anchored there.
+ */
+export function patchItemInGroups(
+  groups: Group[],
+  itemId: string,
+  patch: Partial<Item>,
+  frames: Frame[],
+  widths: Record<string, number>,
+  preservePhoneAlignment: boolean,
+): PatchItemResult | null {
+  const resizes = "size" in patch || "size2" in patch;
+  const shiftedGroupIds: string[] = [];
+  let found = false;
+
+  const shiftForAxis = (
+    pos: number,
+    beforeLen: number,
+    afterLen: number,
+    frameStart: number,
+    frameLen: number,
+  ) => {
+    const delta = afterLen - beforeLen;
+    if (delta === 0) return 0;
+    const near = (value: number, target: number) => Math.abs(value - target) <= 1;
+    if (near(pos + beforeLen / 2, frameStart + frameLen / 2)) {
+      return -Math.round(delta / 2);
+    }
+    if (
+      near(pos + beforeLen, frameStart + frameLen - PHONE_MARGIN) ||
+      near(pos + beforeLen, frameStart + frameLen)
+    ) {
+      return -delta;
+    }
+    return 0;
+  };
+
+  const next = groups.map((group) => {
+    const index = group.items.findIndex((item) => item.id === itemId);
+    if (index < 0) return group;
+    found = true;
+
+    const before = group.items[index];
+    const after = { ...before, ...patch };
+    let dx = 0;
+    let dy = 0;
+
+    if (resizes && preservePhoneAlignment && group.items.length === 1) {
+      const frame = frameOfGroup(group, frames, widths);
+      if (frame) {
+        const frameSize = frameSizeOf(frame);
+        const beforeSize = sizeOf(before, widths);
+        const afterSize = sizeOf(after, widths);
+        dx = shiftForAxis(group.x, beforeSize.w, afterSize.w, frame.x, frameSize.w);
+        dy = shiftForAxis(group.y, beforeSize.h, afterSize.h, frame.y, frameSize.h);
+      }
+    }
+
+    if (dx || dy) shiftedGroupIds.push(group.id);
+    return {
+      ...group,
+      x: group.x + dx,
+      y: group.y + dy,
+      items: group.items.map((item, i) => (i === index ? after : item)),
+    };
+  });
+
+  return found ? { groups: next, shiftedGroupIds } : null;
+}
 
 export type DeleteItemsResult = {
   groups: Group[];
