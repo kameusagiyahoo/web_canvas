@@ -18,13 +18,15 @@
 ## Priority S — Maintainability
 
 - [ ] Stop adding unrelated responsibilities directly to `app/page.tsx`.
-- [ ] Extract frame/screen commands when implementing mobile screen management.
+- [x] Extract frame/screen document commands into testable helpers.
+- [x] Extract layer/reordering document commands into testable helpers.
+- [ ] Wire the existing `app/page.tsx` frame/layer callers to the extracted command helpers incrementally.
 - [ ] Keep undo/redo behavior consistent for desktop and mobile commands.
 - [ ] Avoid parallel mobile-only business logic when an existing desktop operation can be shared.
 
 ## Priority A — Reliability
 
-- [ ] Add focused tests for extracted frame/screen operations.
+- [x] Add focused tests for extracted frame/screen and layer operations.
 - [ ] Add E2E coverage for core project flows: edit, save/export, import, multi-screen management and preview.
 - [ ] Add project format/version migration strategy before the `Doc` schema changes substantially.
 - [ ] Review localStorage failure/size behavior and recovery UX.
