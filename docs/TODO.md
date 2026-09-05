@@ -36,7 +36,7 @@
 - [x] Add focused tests for the extracted history stack operations.
 - [x] Add focused tests for project serialization/parsing and preview session helpers.
 - [x] Add focused tests for editor storage parsing, draft recovery and failure classification.
-- [ ] Add E2E coverage for core project flows: edit, save/export, import, multi-screen management and preview.
+- [x] Add E2E coverage for core project flows: edit, save/export, import, multi-screen management and preview.
 - [x] Add project format/version migration strategy before the `Doc` schema changes substantially.
 - [x] Surface storage write failures/recovery guidance in the editor UX.
 
