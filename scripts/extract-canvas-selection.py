@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Re-run after correcting the geometry expectation in the focused unit test.
 path = Path("app/page.tsx")
 text = path.read_text()
 
