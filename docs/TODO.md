@@ -19,6 +19,7 @@
 
 - [ ] Stop adding unrelated responsibilities directly to `app/page.tsx`.
 - [x] Extract frame/screen document commands into testable helpers.
+- [x] Extract frame preset resizing, dependent screen shifts and part re-layout into the shared frame command boundary.
 - [x] Extract initial/next frame creation and new-frame camera centering into testable helpers.
 - [x] Extract layer/reordering document commands into testable helpers.
 - [x] Extract item delete/duplicate document commands into testable helpers.
@@ -53,6 +54,7 @@
 ## Priority A — Reliability
 
 - [x] Add focused tests for extracted frame/screen and layer operations.
+- [x] Add focused tests for frame preset resize no-op and dependent screen/group shifting.
 - [x] Add focused tests for initial/next frame placement and frame-centering camera behavior.
 - [x] Add focused tests for extracted item delete/duplicate operations.
 - [x] Add focused tests for extracted item patch/resize-alignment operations.

@@ -1,12 +1,16 @@
 import {
   Frame,
+  FramePreset,
   FRAME_GAP,
   Group,
   PHONE_W,
   frameOfGroup,
+  framePresetPatch,
   frameRect,
+  frameSizeOf,
   groupBounds,
 } from "./tokens";
+import { carryFrame } from "./tidy";
 
 export type DeleteFrameResult = {
   frames: Frame[];
@@ -69,6 +73,34 @@ export function createNextFrame(
     x: nextFrameX(frames as Frame[]),
     y: frames[0]?.y ?? 0,
   };
+}
+
+export type ResizeFramePresetResult = {
+  frames: Frame[];
+  groups: Group[];
+};
+
+/**
+ * Applies a phone/desktop preset as one document mutation. The layout rules in
+ * carryFrame keep following screens separated, adapt owned parts, and re-tidy
+ * the resized screen. UI history/animation/platform state stays in the caller.
+ */
+export function resizeFrameToPreset(
+  frames: Frame[],
+  groups: Group[],
+  widths: Record<string, number>,
+  frameId: string,
+  preset: FramePreset,
+): ResizeFramePresetResult | null {
+  const current = frames.find((frame) => frame.id === frameId);
+  if (!current) return null;
+
+  const next: Frame = { ...current, ...framePresetPatch(preset) };
+  const before = frameSizeOf(current);
+  const after = frameSizeOf(next);
+  if (before.w === after.w && before.h === after.h) return null;
+
+  return carryFrame(groups, current, next, frames, widths);
 }
 
 /**

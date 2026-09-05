@@ -31,7 +31,6 @@ import {
   FRAME_LABEL_H,
   FrameMode,
   frameOfGroup,
-  framePresetPatch,
   frameRadius,
   frameRect,
   frameSizeOf,
@@ -83,7 +82,7 @@ import { LangMenu } from "@/components/Menus";
 import { AiActionKey, AiPanel, aiErrorText } from "@/components/AiPanel";
 import { TidyState } from "@/components/ui";
 import { AiSettings, DEFAULT_AI, hasKey, isSecureUrl, loadAiSettings, proposeBehavior, proposeDescription, pushHistory, saveAiSettings } from "@/lib/ai";
-import { carryFrame, tidyFrame } from "@/lib/tidy";
+import { tidyFrame } from "@/lib/tidy";
 import { placePickedItem } from "@/lib/part-placement";
 import { appendDroppedGroup, placeDroppedItem } from "@/lib/drop-placement";
 import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/history";
@@ -95,7 +94,7 @@ import { dragCarriedGroupsFromOrigins, dragFrameFromOrigin, dragGroupFromOrigin 
 import { centerFrameViewAtZoom, clientToWorld, fitCanvasView, focusFrameView as focusCanvasFrameView, panViewFromOrigin, pinchViewFromOrigin, wheelPanView, zoomViewAt } from "@/lib/canvas-viewport";
 import { findAlignmentGuide, findMagneticSnap, restPosition, type Guide, type Snap } from "@/lib/canvas-magnet";
 import { detachItemForDrag, insertItemAtSnap } from "@/lib/part-drag";
-import { createInitialPhoneFrame, createNextFrame, deleteFrameFromDocument, duplicateFrameInDocument } from "@/lib/frame-commands";
+import { createInitialPhoneFrame, createNextFrame, deleteFrameFromDocument, duplicateFrameInDocument, resizeFrameToPreset } from "@/lib/frame-commands";
 import { previewCameraForFrame, resolvePreviewStartId } from "@/lib/preview-session";
 import { STORAGE_KEYS, clearStoredDraft, getBrowserStorage, readStoredDocument, readStoredDraft, readStoredUi, saveStoredDocument, saveStoredDraft, saveStoredUi } from "@/lib/storage";
 import type { StorageFailureReason } from "@/lib/storage";
@@ -1760,16 +1759,15 @@ const changeFrame = (f: FrameMode) => {
   };
 
   const setFramePreset = (id: string, preset: FramePreset) => {
-    const current = framesRef.current.find((f) => f.id === id);
-    if (!current) return;
-    const next = { ...current, ...framePresetPatch(preset) };
-    const before = frameSizeOf(current);
-    const after = frameSizeOf(next);
-    if (before.w === after.w && before.h === after.h) return;
     const frames = framesRef.current;
-    /* the screens to the right move over, parts take the sizes the new screen calls for,
-     * and the screen is laid out again by the tidy rules */
-    const laid = carryFrame(groupsRef.current, current, next, frames, widthsRef.current);
+    const laid = resizeFrameToPreset(
+      frames,
+      groupsRef.current,
+      widthsRef.current,
+      id,
+      preset,
+    );
+    if (!laid) return;
     /* a target the author never picked follows the screens */
     if (platform === defaultPlatformOf(frames, frameRef.current)) setPlatform(null);
     snapshot();

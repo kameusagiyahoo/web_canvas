@@ -6,6 +6,7 @@ import {
   deleteFrameFromDocument,
   duplicateFrameInDocument,
   nextFrameX,
+  resizeFrameToPreset,
 } from "./frame-commands";
 
 const frame = (id: string, x: number): Frame => ({ id, name: id, x, y: 0 });
@@ -50,6 +51,34 @@ describe("frame creation", () => {
       x: nextFrameX([a, b]),
       y: 80,
     });
+  });
+});
+
+describe("resizeFrameToPreset", () => {
+  it("expands a screen and shifts later screens with their owned groups", () => {
+    const a = frame("a", 0);
+    const b = frame("b", 600);
+    const onB = group("on-b", 616);
+
+    const result = resizeFrameToPreset([a, b], [onB], {}, "a", "desktop");
+
+    expect(result).not.toBeNull();
+    const resized = result!.frames.find((item) => item.id === "a")!;
+    const movedB = result!.frames.find((item) => item.id === "b")!;
+    const shift = (resized.w ?? 0) - 412;
+    expect(resized.w).toBeGreaterThan(412);
+    expect(movedB.x).toBe(b.x + shift);
+    expect(result!.groups.find((item) => item.id === "on-b")?.x).toBe(
+      onB.x + shift,
+    );
+  });
+
+  it("returns null when the requested preset already matches", () => {
+    expect(resizeFrameToPreset([frame("a", 0)], [], {}, "a", "phone")).toBeNull();
+  });
+
+  it("returns null for an unknown screen", () => {
+    expect(resizeFrameToPreset([], [], {}, "missing", "desktop")).toBeNull();
   });
 });
 

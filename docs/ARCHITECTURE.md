@@ -44,7 +44,7 @@ The type/model definitions and layout constants are centered in `lib/tokens.ts`.
 
 The main extracted boundaries are now:
 
-- `lib/frame-commands.ts` — screen/frame document mutations
+- `lib/frame-commands.ts` — screen/frame creation, preset resizing and document mutations
 - `lib/layer-commands.ts` — layer ordering
 - `lib/item-commands.ts` — item delete/duplicate/patch operations
 - `lib/group-commands.ts` — group/ungroup and nudge operations
