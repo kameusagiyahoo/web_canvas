@@ -54,17 +54,19 @@ async function openSeeded(page: Page) {
   await expect(page.getByTitle("Preview (P)")).toBeVisible();
 }
 
+async function storedFrameCount(page: Page) {
+  return page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    return raw ? (JSON.parse(raw).frames?.length ?? 0) : 0;
+  });
+}
+
 test("adds a screen and persists the shared document model", async ({ page }) => {
   await openSeeded(page);
 
   await page.getByTitle("Add screen").click();
 
-  await expect.poll(async () =>
-    page.evaluate(() => {
-      const raw = localStorage.getItem("m3e:doc");
-      return raw ? (JSON.parse(raw).frames?.length ?? 0) : 0;
-    }),
-  ).toBe(3);
+  await expect.poll(() => storedFrameCount(page)).toBe(3);
 });
 
 test("preview follows a configured screen action", async ({ page }) => {
@@ -81,6 +83,25 @@ test("preview follows a configured screen action", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(preview).toBeHidden();
   await expect(page.getByTitle("Preview (P)")).toBeVisible();
+});
+
+test("mobile screen edits use the same undo and redo history", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openSeeded(page);
+
+  await page.getByRole("button", { name: "Screen", exact: true }).first().click();
+  await page.getByRole("button", { name: "Screen", exact: true }).last().click();
+  await expect.poll(() => storedFrameCount(page)).toBe(3);
+
+  const undo = page.getByTitle("Undo");
+  const redo = page.getByTitle("Redo");
+  await expect(undo).toBeEnabled();
+  await undo.click();
+  await expect.poll(() => storedFrameCount(page)).toBe(2);
+
+  await expect(redo).toBeEnabled();
+  await redo.click();
+  await expect.poll(() => storedFrameCount(page)).toBe(3);
 });
 
 test("exports a versioned project and imports another one", async ({ page }) => {
