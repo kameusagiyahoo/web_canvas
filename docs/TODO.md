@@ -21,8 +21,8 @@
 - [x] Extract frame/screen document commands into testable helpers.
 - [x] Extract layer/reordering document commands into testable helpers.
 - [x] Extract reusable bounded undo/redo stack helpers with unit tests.
-- [ ] Wire the existing `app/page.tsx` frame/layer callers to the extracted command helpers incrementally.
-- [ ] Wire `app/page.tsx` history refs to the extracted history helpers without changing undo semantics.
+- [x] Wire the existing `app/page.tsx` frame/layer callers to the extracted command helpers incrementally.
+- [x] Wire `app/page.tsx` history refs to the extracted history helpers without changing undo semantics.
 - [ ] Keep undo/redo behavior consistent for desktop and mobile commands.
 - [ ] Avoid parallel mobile-only business logic when an existing desktop operation can be shared.
 
