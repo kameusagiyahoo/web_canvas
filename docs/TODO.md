@@ -23,6 +23,8 @@
 - [x] Extract reusable bounded undo/redo stack helpers with unit tests.
 - [x] Wire the existing `app/page.tsx` frame/layer callers to the extracted command helpers incrementally.
 - [x] Wire `app/page.tsx` history refs to the extracted history helpers without changing undo semantics.
+- [x] Separate project JSON serialization/parsing from browser download/file APIs.
+- [x] Extract preview start resolution and camera calculations into testable helpers.
 - [ ] Keep undo/redo behavior consistent for desktop and mobile commands.
 - [ ] Avoid parallel mobile-only business logic when an existing desktop operation can be shared.
 
@@ -30,6 +32,7 @@
 
 - [x] Add focused tests for extracted frame/screen and layer operations.
 - [x] Add focused tests for the extracted history stack operations.
+- [x] Add focused tests for project serialization/parsing and preview session helpers.
 - [ ] Add E2E coverage for core project flows: edit, save/export, import, multi-screen management and preview.
 - [ ] Add project format/version migration strategy before the `Doc` schema changes substantially.
 - [ ] Review localStorage failure/size behavior and recovery UX.
