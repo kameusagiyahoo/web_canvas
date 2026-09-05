@@ -1,0 +1,127 @@
+name: Patch mobile parts picker
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-mobile-parts.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Wire mobile parts picker
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('app/page.tsx')
+          text = path.read_text()
+
+          old = 'import { MobileScreens } from "@/components/MobileScreens";'
+          new = old + '\nimport { MobileParts } from "@/components/MobileParts";'
+          if old not in text:
+              raise SystemExit('MobileScreens import not found')
+          text = text.replace(old, new, 1)
+
+          old = 'useState<"edit" | "screens" | "settings" | "lang" | null>(null)'
+          new = 'useState<"edit" | "parts" | "screens" | "settings" | "lang" | null>(null)'
+          if old not in text:
+              raise SystemExit('sheet state not found')
+          text = text.replace(old, new, 1)
+
+          pattern = re.compile(r'  /\*\* phone UI: the plus button drops a new button.*?\n  const addButton = \(\) => \{.*?\n  \};\n\n  const changeFrame', re.S)
+          replacement = '''  /** Phone UI: add any Material part to the selected screen. */
+          const addPart = (kind: Kind) => {
+            const item = makeItem(kind);
+            const f = framesRef.current.find((x) => x.id === selectedFrameId) ?? framesRef.current[0];
+            const baseSize = sizeOf(item, widthsRef.current);
+            let placedItem = item;
+            let x = 0;
+            let y = 0;
+
+            if (f) {
+              const frameSize = frameSizeOf(f);
+              const isBar = FULL_WIDTH.includes(kind);
+              const slot = barSlotOf(groupsRef.current, f, framesRef.current, widthsRef.current);
+              if (slot) {
+                placedItem = isBar
+                  ? carryItemSize(item, { w: PHONE_W, h: PHONE_H }, { w: slot.w, h: frameSize.h })
+                  : fitHeight(item, frameSize.h);
+              }
+              const sz = sizeOf(placedItem, widthsRef.current);
+              x = isBar && slot ? slot.x : f.x + Math.max(FRAME_MARGIN, (frameSize.w - sz.w) / 2);
+              y = f.y + FRAME_MARGIN;
+
+              const taken = (yy: number) =>
+                itemRects().some((o) => o.l < x + sz.w && o.r > x && o.t < yy + sz.h && o.b > yy);
+              let tries = 0;
+              while (taken(y) && y + sz.h + FRAME_MARGIN < f.y + frameSize.h && tries++ < 20) {
+                y += sz.h + 12;
+              }
+
+              const dropped: Group = {
+                id: uid(),
+                x: Math.round(x),
+                y: Math.round(y),
+                axis: connectSpecOf(placedItem)?.axis ?? "x",
+                items: [placedItem],
+              };
+              const inside = pullInto(dropped, f, widthsRef.current);
+              snapshot();
+              setGroups((gs) => [...gs, inside]);
+            } else {
+              const r = canvasRect();
+              const v = viewRef.current;
+              x = ((r?.width ?? 0) / 2 - v.x) / v.z - baseSize.w / 2;
+              y = ((r?.height ?? 0) / 2 - v.y) / v.z - baseSize.h / 2;
+              snapshot();
+              setGroups((gs) => [
+                ...gs,
+                { id: uid(), x: Math.round(x), y: Math.round(y), axis: connectSpecOf(item)?.axis ?? "x", items: [item] },
+              ]);
+            }
+
+            setSelectedIds([placedItem.id]);
+            setSelectedFrameId(null);
+            setSheet(null);
+          };
+
+          const changeFrame'''
+          text, n = pattern.subn(replacement, text, count=1)
+          if n != 1:
+              raise SystemExit(f'addButton block replacement count={n}')
+
+          old = 'onClick={addButton}'
+          new = 'onClick={() => setSheet("parts")}'
+          if old not in text:
+              raise SystemExit('mobile plus handler not found')
+          text = text.replace(old, new, 1)
+
+          anchor = '''          <AnimatePresence>\n            {isMobile && sheet === "edit" && selected && ('''
+          insert = '''          <AnimatePresence>\n            {isMobile && sheet === "parts" && (\n              <BottomSheet key="parts" p={p} onClose={() => setSheet(null)}>\n                <MobileParts palette={p} onAdd={addPart} />\n              </BottomSheet>\n            )}\n            {isMobile && sheet === "edit" && selected && ('''
+          if anchor not in text:
+              raise SystemExit('AnimatePresence mobile anchor not found')
+          text = text.replace(anchor, insert, 1)
+
+          path.write_text(text)
+          PY
+
+      - name: Remove one-shot workflow
+        run: git rm .github/workflows/patch-mobile-parts.yml
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/page.tsx
+          git commit -m "Enable mobile Material parts picker"
+          git push
