@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# One-shot wiring for the mobile screen picker -> preview flow.
 page = Path("app/page.tsx")
 text = page.read_text()
 
