@@ -1,4 +1,12 @@
-import { Frame, FRAME_GAP, Group, frameOfGroup, frameRect } from "./tokens";
+import {
+  Frame,
+  FRAME_GAP,
+  Group,
+  PHONE_W,
+  frameOfGroup,
+  frameRect,
+  groupBounds,
+} from "./tokens";
 
 export type DeleteFrameResult = {
   frames: Frame[];
@@ -8,7 +16,59 @@ export type DeleteFrameResult = {
 
 /** X position used by newly-created or duplicated screens. */
 export function nextFrameX(frames: Frame[]): number {
-  return frames.length ? Math.max(...frames.map((frame) => frameRect(frame).r)) + FRAME_GAP : 0;
+  return frames.length
+    ? Math.max(...frames.map((frame) => frameRect(frame).r)) + FRAME_GAP
+    : 0;
+}
+
+export type CreateFrameOptions = {
+  id: string;
+  name: string;
+};
+
+/**
+ * Creates the first phone screen around existing loose content using the legacy
+ * editor placement rules. Empty documents start at the world origin.
+ */
+export function createInitialPhoneFrame(
+  groups: readonly Group[],
+  widths: Record<string, number>,
+  options: CreateFrameOptions,
+): Frame {
+  let x = 0;
+  let y = 0;
+
+  if (groups.length > 0) {
+    const bounds = groups.map((group) => groupBounds(group, widths));
+    const left = Math.min(...bounds.map((rect) => rect.l));
+    const top = Math.min(...bounds.map((rect) => rect.t));
+    const right = Math.max(...bounds.map((rect) => rect.r));
+
+    x = Math.round(
+      Math.max(
+        left - 24,
+        right - PHONE_W + 24 > left ? left : left - 24,
+      ),
+    );
+    y = Math.round(top - 72);
+    x = Math.min(x, left);
+    y = Math.min(y, top);
+  }
+
+  return { id: options.id, name: options.name, x, y };
+}
+
+/** Creates the next screen after the current rightmost screen and aligns its top. */
+export function createNextFrame(
+  frames: readonly Frame[],
+  options: CreateFrameOptions,
+): Frame {
+  return {
+    id: options.id,
+    name: options.name,
+    x: nextFrameX(frames as Frame[]),
+    y: frames[0]?.y ?? 0,
+  };
 }
 
 /**
@@ -33,8 +93,13 @@ export function deleteFrameFromDocument(
     .filter((frame) => frame.id !== frameId)
     .map((frame) => {
       if (!frame.swipe) return frame;
-      const swipe = Object.fromEntries(Object.entries(frame.swipe).filter(([, target]) => target !== frameId));
-      return { ...frame, swipe: Object.keys(swipe).length ? swipe : undefined };
+      const swipe = Object.fromEntries(
+        Object.entries(frame.swipe).filter(([, target]) => target !== frameId),
+      );
+      return {
+        ...frame,
+        swipe: Object.keys(swipe).length ? swipe : undefined,
+      };
     });
 
   const nextGroups = groups
@@ -45,7 +110,11 @@ export function deleteFrameFromDocument(
         const next = { ...item };
         if (next.action?.to === frameId) next.action = undefined;
         if (next.actions) {
-          const actions = Object.fromEntries(Object.entries(next.actions).filter(([, action]) => action.to !== frameId));
+          const actions = Object.fromEntries(
+            Object.entries(next.actions).filter(
+              ([, action]) => action.to !== frameId,
+            ),
+          );
           next.actions = Object.keys(actions).length ? actions : undefined;
         }
         return next;
@@ -92,9 +161,16 @@ export function duplicateFrameInDocument(
   const copies = groups
     .filter((group) => frameOfGroup(group, frames, widths)?.id === frameId)
     .map((group) => {
-      const itemIds = new Map(group.items.map((item) => [item.id, options.makeId()]));
+      const itemIds = new Map(
+        group.items.map((item) => [item.id, options.makeId()]),
+      );
       const pos = group.pos
-        ? Object.fromEntries(Object.entries(group.pos).map(([id, offset]) => [itemIds.get(id) ?? id, offset]))
+        ? Object.fromEntries(
+            Object.entries(group.pos).map(([id, offset]) => [
+              itemIds.get(id) ?? id,
+              offset,
+            ]),
+          )
         : undefined;
       return {
         ...group,
