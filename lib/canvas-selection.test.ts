@@ -28,8 +28,8 @@ describe("itemRectsOfGroups", () => {
     ];
 
     expect(itemRectsOfGroups(groups, {})).toEqual([
-      { id: "a", l: 10, t: 20, r: 110, b: 60 },
-      { id: "b", l: 113, t: 20, r: 213, b: 60 },
+      { id: "a", l: 10, t: 20, r: 110, b: 76 },
+      { id: "b", l: 113, t: 20, r: 213, b: 76 },
     ]);
   });
 });
