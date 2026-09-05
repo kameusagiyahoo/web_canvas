@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { Frame, Group, makeItem } from "@/lib/tokens";
-import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX } from "@/lib/frame-commands";
+import { Frame, Group, makeItem } from "./tokens";
+import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX } from "./frame-commands";
 
 const frame = (id: string, x: number): Frame => ({ id, name: id, x, y: 0 });
 
