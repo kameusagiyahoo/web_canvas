@@ -894,6 +894,22 @@ export default function Page() {
   const fitRef = useRef(fit);
   fitRef.current = fit;
 
+  /** Mobile screen switching keeps one screen framed at a readable width. */
+  const focusFrame = useCallback((id: string) => {
+    const r = canvasRect();
+    const f = framesRef.current.find((x) => x.id === id);
+    if (!r || !f) return;
+    const { w } = frameSizeOf(f);
+    const pad = 14;
+    const top = 96;
+    const z = clamp((r.width - pad * 2) / (w + BEZEL * 2), MIN_Z, MAX_Z);
+    setView({
+      x: (r.width - w * z) / 2 - f.x * z,
+      y: top - (f.y - BEZEL - FRAME_LABEL_H) * z,
+      z,
+    });
+  }, []);
+
   /* touch: two fingers pinch-zoom and pan, cancelling whatever one finger started */
   const onTouchCapture = (e: React.PointerEvent) => {
     if (e.pointerType !== "touch") return;
@@ -2017,7 +2033,7 @@ export default function Page() {
   /** Phone UI: add any Material part to the selected screen. */
 const addPart = (kind: Kind) => {
   const item = makeItem(kind);
-  const f = framesRef.current.find((x) => x.id === selectedFrameId) ?? framesRef.current[0];
+  const f = framesRef.current.find((x) => x.id === (selectedFrameId ?? layersFrameId)) ?? framesRef.current[0];
   const baseSize = sizeOf(item, widthsRef.current);
   let placedItem = item;
   let x = 0;
@@ -3601,13 +3617,14 @@ const changeFrame = (f: FrameMode) => {
               <BottomSheet key="screens" p={p} onClose={() => setSheet(null)}>
                 <MobileScreens
                   frames={frames}
-                  selectedId={selectedFrameId}
+                  selectedId={selectedFrameId ?? layersFrameId ?? frames[0]?.id ?? null}
                   palette={p}
                   onSelect={(id) => {
                     setSelectedIds([]);
                     setSelectedLinkId(null);
                     setSelectedFrameId(id);
                     setLayersFrameId(id);
+                    focusFrame(id);
                     setSheet(null);
                   }}
                   onAdd={() => {
@@ -3616,7 +3633,14 @@ const changeFrame = (f: FrameMode) => {
                   }}
         onRename={(id, name) => patchFrame(id, { name })}
         onDuplicate={(id) => duplicateFrame(id)}
-        onDelete={(id) => deleteFrame(id)}
+        onDelete={(id) => {
+                    const next = framesRef.current.find((f) => f.id !== id);
+                    deleteFrame(id);
+                    if (layersFrameId === id) {
+                      setLayersFrameId(next?.id ?? null);
+                      if (next) focusFrame(next.id);
+                    }
+                  }}
                 />
               </BottomSheet>
             )}
