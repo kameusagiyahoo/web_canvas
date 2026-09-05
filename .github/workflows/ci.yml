@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
 
+# Read-only: this also runs on pull requests from forks.
 permissions:
   contents: read
 
@@ -28,71 +29,3 @@ jobs:
       - run: npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
-
-  patch-mobile-preview:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 2
-      - name: Patch mobile preview workflow
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          mobile = Path('components/MobileScreens.tsx')
-          text = mobile.read_text()
-          if '  onPreview,\n' not in text:
-              text = text.replace('  onAdd,\n  onRename,', '  onAdd,\n  onPreview,\n  onRename,', 1)
-          if '  onPreview: (id: string) => void;\n' not in text:
-              text = text.replace('  onAdd: () => void;\n  onRename: (id: string, name: string) => void;', '  onAdd: () => void;\n  onPreview: (id: string) => void;\n  onRename: (id: string, name: string) => void;', 1)
-          if 'onClick={() => onPreview(frame.id)}' not in text:
-              anchor = '                <button\n                  type="button"\n                  onClick={() => startRename(frame)}'
-              insert = '''                <button
-                  type="button"
-                  onClick={() => onPreview(frame.id)}
-                  aria-label={lang === "ja" ? "この画面からプレビュー" : "Preview from this screen"}
-                  className="m3-press"
-                  style={{ width: 42, height: 42, border: "none", borderRadius: 21, background: on ? p.primary : "transparent", color: on ? p.onPrimary : "inherit", display: "grid", placeItems: "center", cursor: "pointer" }}
-                >
-                  <Icon name="play_arrow" size={22} />
-                </button>
-'''
-              if anchor not in text:
-                  raise SystemExit('MobileScreens action anchor not found')
-              text = text.replace(anchor, insert + anchor, 1)
-          mobile.write_text(text)
-
-          page = Path('app/page.tsx')
-          text = page.read_text()
-          if 'onPreview={(id) =>' not in text:
-              anchor = '''                  onAdd={() => {
-                    addFrame();
-                    setSheet(null);
-                  }}
-        onRename={(id, name) => patchFrame(id, { name })}'''
-              replacement = '''                  onAdd={() => {
-                    addFrame();
-                    setSheet(null);
-                  }}
-                  onPreview={(id) => {
-                    setSheet(null);
-                    openPreview(id);
-                  }}
-        onRename={(id, name) => patchFrame(id, { name })}'''
-              if anchor not in text:
-                  raise SystemExit('MobileScreens wiring anchor not found')
-              text = text.replace(anchor, replacement, 1)
-          page.write_text(text)
-          PY
-          git checkout HEAD^ -- .github/workflows/ci.yml
-          git rm -f .github/workflows/patch-mobile-preview-entry.yml || true
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add components/MobileScreens.tsx app/page.tsx .github/workflows/ci.yml
-          git commit -m "Add preview launch from mobile screen list"
-          git push
