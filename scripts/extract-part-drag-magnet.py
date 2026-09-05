@@ -22,7 +22,9 @@ type Guide = { x?: number; y?: number; gx?: number; gy?: number };
 const GUIDE_PX = 7;
 const FRAME_MARGIN = PHONE_MARGIN;
 '''
-replacement_types = 'type View = { x: number; y: number; z: number };\n'
+replacement_types = '''type View = { x: number; y: number; z: number };
+const FRAME_MARGIN = PHONE_MARGIN;
+'''
 if local_types not in text:
     raise SystemExit("local Snap/Guide type block not found")
 text = text.replace(local_types, replacement_types, 1)
