@@ -2,8 +2,7 @@ name: Patch layer command extraction
 
 on:
   push:
-    paths:
-      - '.github/workflows/patch-layer-command-extraction.yml'
+    branches: [main]
 
 permissions:
   contents: write
@@ -59,7 +58,6 @@ jobs:
           end = text.find(end_marker, start)
           if start < 0 or end < 0:
               raise SystemExit('reorderGroupItems block not found')
-          old = text[start:end]
           new = '''  const reorderGroupItems = (groupId: string, order: string[]) => {
     const g = groupsRef.current.find((x) => x.id === groupId);
     if (!g) return;
