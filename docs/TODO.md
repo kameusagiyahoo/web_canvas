@@ -19,6 +19,7 @@
 
 - [ ] Stop adding unrelated responsibilities directly to `app/page.tsx`.
 - [x] Extract frame/screen document commands into testable helpers.
+- [x] Extract initial/next frame creation and new-frame camera centering into testable helpers.
 - [x] Extract layer/reordering document commands into testable helpers.
 - [x] Extract item delete/duplicate document commands into testable helpers.
 - [x] Extract item patch/resize-alignment document commands into testable helpers.
@@ -31,6 +32,7 @@
 - [x] Extract part-drag detach/snap mutations and magnetic snap/alignment-guide geometry into testable helpers.
 - [x] Extract reusable bounded undo/redo stack helpers with unit tests.
 - [x] Wire the existing `app/page.tsx` frame/layer callers to the extracted command helpers incrementally.
+- [x] Wire `app/page.tsx` frame creation and new-frame centering to shared frame/viewport helpers.
 - [x] Wire `app/page.tsx` item delete/duplicate callers to the extracted command helpers.
 - [x] Wire `app/page.tsx` item patch/resize-alignment callers to the extracted command helper.
 - [x] Wire `app/page.tsx` group/ungroup and item/frame nudge callers to the extracted command helpers.
@@ -51,6 +53,7 @@
 ## Priority A — Reliability
 
 - [x] Add focused tests for extracted frame/screen and layer operations.
+- [x] Add focused tests for initial/next frame placement and frame-centering camera behavior.
 - [x] Add focused tests for extracted item delete/duplicate operations.
 - [x] Add focused tests for extracted item patch/resize-alignment operations.
 - [x] Add focused tests for extracted group/ungroup and nudge operations.
