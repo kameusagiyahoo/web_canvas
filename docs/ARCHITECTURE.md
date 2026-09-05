@@ -55,6 +55,7 @@ The main extracted boundaries are now:
 - `lib/part-drag.ts` — detach/reinsert mutations during part dragging
 - `lib/canvas-viewport.ts` — client/world transforms, fit/focus, pan, wheel and pinch camera calculations
 - `lib/part-placement.ts` — shared frame-aware placement adaptation
+- `lib/drop-placement.ts` — free-drop viewport validation, target-frame resolution and finalized group placement
 - `lib/preview-session.ts` — preview start resolution and camera calculation
 - `lib/storage.ts` — safe browser persistence, restoration and failure classification
 - `lib/project.ts` — versioned project serialization, parsing and migration
@@ -91,13 +92,14 @@ pointer / wheel / touch events
 │ canvas-drag                  │  frame/group movement
 │ canvas-magnet                │  snap / guides
 │ part-drag                    │  detach / snap insertion
-│ part-placement               │  frame-aware placement
+│ part-placement               │  frame-aware sizing
+│ drop-placement               │  final free-drop validation / placement
 └──────────────────────────────┘
             ↓
        groups / frames
 ```
 
-`page.tsx` owns event attachment, refs, React state and animation timing; the geometry and document transformations are kept outside React so they can be unit tested.
+`page.tsx` owns event attachment, refs, React state, undo timing and animation timing; geometry, target-frame selection and document transformations are kept outside React so they can be unit tested.
 
 ## Persistence
 
