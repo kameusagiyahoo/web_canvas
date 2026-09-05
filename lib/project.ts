@@ -1,17 +1,37 @@
 import { Doc, KIND_ORDER, Kind, VARIANTS, isPlatform } from "./tokens";
 
-/* A project file is the Doc as JSON, nothing more. Reading one back only checks
- * the shape the editor relies on; the same migrations that run on a saved
- * document then bring an older file up to date. */
+/**
+ * Project files are versioned independently from the in-memory `Doc` model.
+ * Local autosave can keep storing `Doc` directly; exported files use an envelope
+ * so future schema changes can be migrated without breaking old downloads.
+ */
+export const PROJECT_FORMAT = "web-canvas-project" as const;
+export const CURRENT_PROJECT_VERSION = 1;
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
+export type ProjectEnvelope = {
+  format: typeof PROJECT_FORMAT;
+  version: number;
+  doc: unknown;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
 
 const KINDS = new Set<string>(KIND_ORDER);
 
 const validTabs = (tabs: unknown) =>
-  tabs === undefined || (Array.isArray(tabs) && tabs.every((tab) => isRecord(tab) && typeof tab.label === "string" && (typeof tab.icon === "string" || tab.icon === null || tab.icon === undefined)));
+  tabs === undefined ||
+  (Array.isArray(tabs) &&
+    tabs.every(
+      (tab) =>
+        isRecord(tab) &&
+        typeof tab.label === "string" &&
+        (typeof tab.icon === "string" || tab.icon === null || tab.icon === undefined),
+    ));
 
-const validCorners = (c: unknown) => c === undefined || (isRecord(c) && ["tl", "tr", "bl", "br"].every((k) => Number.isFinite(c[k])));
+const validCorners = (c: unknown) =>
+  c === undefined ||
+  (isRecord(c) && ["tl", "tr", "bl", "br"].every((k) => Number.isFinite(c[k])));
 
 const validItem = (item: unknown) =>
   isRecord(item) &&
@@ -47,18 +67,87 @@ const validFrame = (frame: unknown) =>
   (frame.h === undefined || (Number.isFinite(frame.h) && (frame.h as number) > 0)) &&
   (frame.note === undefined || typeof frame.note === "string");
 
-/** whether a parsed file has the shape of a document the editor can open */
-export const isProject = (value: unknown): value is Doc =>
-  isRecord(value) && Array.isArray(value.groups) && Array.isArray(value.frames) && value.groups.every(validGroup) && value.frames.every(validFrame) && (value.platform === undefined || isPlatform(value.platform));
+/**
+ * Version 0 is the historical raw `Doc` JSON format, before project files had
+ * an explicit envelope. Keep this recognizer separate so that a future latest
+ * schema can evolve without losing the ability to identify old downloads.
+ */
+const isLegacyProjectV0 = (value: unknown): value is Doc =>
+  isRecord(value) &&
+  Array.isArray(value.groups) &&
+  Array.isArray(value.frames) &&
+  value.groups.every(validGroup) &&
+  value.frames.every(validFrame) &&
+  (value.platform === undefined || isPlatform(value.platform));
+
+/** whether a value already has the latest document shape */
+export const isProject = (value: unknown): value is Doc => isLegacyProjectV0(value);
+
+const isEnvelope = (value: unknown): value is ProjectEnvelope =>
+  isRecord(value) &&
+  value.format === PROJECT_FORMAT &&
+  Number.isInteger(value.version) &&
+  typeof value.version === "number" &&
+  value.version >= 0 &&
+  "doc" in value;
+
+type ProjectMigration = (doc: unknown) => unknown;
+
+/**
+ * A migration keyed by N converts a version-N document to version N + 1.
+ * Version 0 -> 1 is intentionally an identity transform: version 1 introduces
+ * the envelope while keeping the same `Doc` payload.
+ */
+const MIGRATIONS: Partial<Record<number, ProjectMigration>> = {
+  0: (doc) => doc,
+};
+
+/**
+ * Convert either a legacy raw document or a versioned envelope to the latest
+ * in-memory `Doc`. Files from a future version are rejected rather than guessed.
+ */
+export function migrateProjectValue(value: unknown): Doc | null {
+  let version: number;
+  let doc: unknown;
+
+  if (isLegacyProjectV0(value)) {
+    version = 0;
+    doc = value;
+  } else if (isEnvelope(value)) {
+    version = value.version;
+    doc = value.doc;
+  } else {
+    return null;
+  }
+
+  if (version > CURRENT_PROJECT_VERSION) return null;
+
+  while (version < CURRENT_PROJECT_VERSION) {
+    const migrate = MIGRATIONS[version];
+    if (!migrate) return null;
+    doc = migrate(doc);
+    version += 1;
+  }
+
+  return isProject(doc) ? doc : null;
+}
 
 /** pure JSON encoder used by downloads today and future cloud/project stores later */
-export const serializeProject = (doc: Doc) => JSON.stringify(doc, null, 2);
+export const serializeProject = (doc: Doc) =>
+  JSON.stringify(
+    {
+      format: PROJECT_FORMAT,
+      version: CURRENT_PROJECT_VERSION,
+      doc,
+    },
+    null,
+    2,
+  );
 
-/** pure parser/validator so project loading can be tested without File/browser APIs */
+/** pure parser/validator/migrator so loading can be tested without File/browser APIs */
 export const parseProjectText = (text: string): Doc | null => {
   try {
-    const next: unknown = JSON.parse(text);
-    return isProject(next) ? next : null;
+    return migrateProjectValue(JSON.parse(text) as unknown);
   } catch {
     return null;
   }
@@ -76,7 +165,9 @@ export const projectFileName = (doc: Doc) => {
 
 /** hands the document to the browser as a JSON download */
 export function saveProject(doc: Doc) {
-  const url = URL.createObjectURL(new Blob([serializeProject(doc)], { type: "application/json" }));
+  const url = URL.createObjectURL(
+    new Blob([serializeProject(doc)], { type: "application/json" }),
+  );
   const a = document.createElement("a");
   a.href = url;
   a.download = projectFileName(doc);
@@ -84,7 +175,7 @@ export function saveProject(doc: Doc) {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-/** reads a chosen file back into a document, or null when it is not one */
+/** reads a chosen file back into the latest document, or null when it cannot be migrated */
 export async function readProject(file: File): Promise<Doc | null> {
   return parseProjectText(await file.text());
 }
