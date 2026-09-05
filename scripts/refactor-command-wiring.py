@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# One-shot migration: keep React coordination in Page and move document transforms to lib helpers.
 page = Path("app/page.tsx")
 text = page.read_text()
 
