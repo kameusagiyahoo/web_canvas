@@ -19,4 +19,10 @@ new = '''  const dialog = page.getByRole("alertdialog", { name: "Open this proje
   await dialog.getByRole("button", { name: "OK" }).click();'''
 if old not in text:
     raise SystemExit('Import confirmation selector not found')
-target.write_text(text.replace(old, new, 1))
+text = text.replace(old, new, 1)
+text = text.replace(
+    '''  await expect(page.locator('[data-frame="imported"]')).toBeVisible();''',
+    '''  await expect(page.locator('[data-frame="imported"]')).toHaveCount(1);''',
+    1,
+)
+target.write_text(text)
