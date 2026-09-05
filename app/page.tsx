@@ -3589,6 +3589,9 @@ export default function Page() {
                     addFrame();
                     setSheet(null);
                   }}
+        onRename={(id, name) => patchFrame(id, { name })}
+        onDuplicate={(id) => duplicateFrame(id)}
+        onDelete={(id) => deleteFrame(id)}
                 />
               </BottomSheet>
             )}
