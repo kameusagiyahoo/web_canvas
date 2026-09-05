@@ -1,3 +1,4 @@
+# Trigger the one-shot refactor now that its workflow is present.
 from pathlib import Path
 
 path = Path("app/page.tsx")
