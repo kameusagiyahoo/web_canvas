@@ -2,13 +2,18 @@
 
 ## Priority S — Mobile editing
 
-- [ ] Add a mobile Screens entry and bottom sheet.
-- [ ] List all document `Frame` objects on mobile.
-- [ ] Select/focus a frame from mobile.
-- [ ] Add a frame from mobile.
-- [ ] Rename, duplicate and safely delete frames from mobile.
-- [ ] Add parts to the active frame from mobile.
-- [ ] Keep desktop and mobile on the same `Doc`, `Frame`, `Group`, and `Item` data model.
+- [x] Add a mobile Screens entry and bottom sheet.
+- [x] List all document `Frame` objects on mobile.
+- [x] Select/focus a frame from mobile.
+- [x] Add a frame from mobile.
+- [x] Rename, duplicate and safely delete frames from mobile.
+- [x] Add parts to the active frame from mobile.
+- [x] Add mobile part size preset editing.
+- [x] Add mobile part screen-to-screen action editing and transition selection.
+- [x] Keep desktop and mobile on the same `Doc`, `Frame`, `Group`, and `Item` data model.
+- [ ] Add per-slot actions for tabs, navigation bars and app-bar icons on mobile.
+- [ ] Improve mobile preview/navigation workflow.
+- [ ] Add practical mobile layer/reordering controls.
 
 ## Priority S — Maintainability
 
@@ -38,7 +43,6 @@
 
 ## Priority B — Product direction
 
-- [ ] Improve screen-to-screen action editing on mobile.
 - [ ] Evaluate a visual navigation graph after basic mobile screen management works.
 - [ ] Consider cloud save/sync only after local/project-file workflows are stable.
 
