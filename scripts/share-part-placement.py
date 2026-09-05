@@ -1,5 +1,5 @@
 # One-shot migration script. It is removed after the verified refactor is committed.
-# Re-run after strengthening the mobile history E2E flow.
+# Re-run after fixing the mobile history E2E sheet-close label.
 from pathlib import Path
 
 path = Path("app/page.tsx")
