@@ -98,6 +98,7 @@ import { MotionPanel, ShapePanel, TypePanel } from "@/components/ThemePanel";
 import { ThemeContext, ensureFontLoaded, ensureLangFontLoaded } from "@/lib/theme";
 import { BottomSheet, MobileActionBar, MobileInspector, MobileLang, MobileSettings } from "@/components/Mobile";
 import { MobileScreens } from "@/components/MobileScreens";
+import { MobileParts } from "@/components/MobileParts";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
 
@@ -354,7 +355,7 @@ export default function Page() {
     futureRef.current = futureRef.current.map((snap) => translateSnapshot(snap, next));
   };
   const [isMobile, setIsMobile] = useState(false);
-  const [sheet, setSheet] = useState<"edit" | "screens" | "settings" | "lang" | null>(null);
+  const [sheet, setSheet] = useState<"edit" | "parts" | "screens" | "settings" | "lang" | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   /** frame being rendered offscreen for the PNG export */
   const [exportFrame, setExportFrame] = useState<Frame | null>(null);
@@ -2013,44 +2014,63 @@ export default function Page() {
   const ensureFrameRef = useRef(() => {});
   ensureFrameRef.current = ensureFrame;
 
-  /** phone UI: the plus button drops a new button where the view is looking,
-   *  kept inside the screen, and nudged down when that spot is already taken */
-  const addButton = () => {
+  /** Phone UI: add any Material part to the selected screen. */
+const addPart = (kind: Kind) => {
+  const item = makeItem(kind);
+  const f = framesRef.current.find((x) => x.id === selectedFrameId) ?? framesRef.current[0];
+  const baseSize = sizeOf(item, widthsRef.current);
+  let placedItem = item;
+  let x = 0;
+  let y = 0;
+
+  if (f) {
+    const frameSize = frameSizeOf(f);
+    const isBar = FULL_WIDTH.includes(kind);
+    const slot = barSlotOf(groupsRef.current, f, framesRef.current, widthsRef.current);
+    if (slot) {
+      placedItem = isBar
+        ? carryItemSize(item, { w: PHONE_W, h: PHONE_H }, { w: slot.w, h: frameSize.h })
+        : fitHeight(item, frameSize.h);
+    }
+    const sz = sizeOf(placedItem, widthsRef.current);
+    x = isBar && slot ? slot.x : f.x + Math.max(FRAME_MARGIN, (frameSize.w - sz.w) / 2);
+    y = f.y + FRAME_MARGIN;
+
+    const taken = (yy: number) =>
+      itemRects().some((o) => o.l < x + sz.w && o.r > x && o.t < yy + sz.h && o.b > yy);
+    let tries = 0;
+    while (taken(y) && y + sz.h + FRAME_MARGIN < f.y + frameSize.h && tries++ < 20) {
+      y += sz.h + 12;
+    }
+
+    const dropped: Group = {
+      id: uid(),
+      x: Math.round(x),
+      y: Math.round(y),
+      axis: connectSpecOf(placedItem)?.axis ?? "x",
+      items: [placedItem],
+    };
+    const inside = pullInto(dropped, f, widthsRef.current);
+    snapshot();
+    setGroups((gs) => [...gs, inside]);
+  } else {
     const r = canvasRect();
     const v = viewRef.current;
-    const item = makeItem("button");
-    const sz = sizeOf(item, widthsRef.current);
-    const f = framesRef.current[0];
-    let x = ((r?.width ?? 0) / 2 - v.x) / v.z - sz.w / 2;
-    let y = ((r?.height ?? 0) / 2 - v.y) / v.z - sz.h / 2;
-    if (f) {
-      const { w, h } = frameSizeOf(f);
-      const lx = f.x + Math.min(FRAME_MARGIN, (w - sz.w) / 2);
-      const ly = f.y + Math.min(FRAME_MARGIN, (h - sz.h) / 2);
-      x = clamp(x, lx, Math.max(lx, f.x + w - FRAME_MARGIN - sz.w));
-      y = clamp(y, ly, Math.max(ly, f.y + h - FRAME_MARGIN - sz.h));
-      const taken = (yy: number) =>
-        itemRects().some((o) => o.l < x + sz.w && o.r > x && o.t < yy + sz.h && o.b > yy);
-      let tries = 0;
-      while (taken(y) && y + sz.h * 2 < f.y + h && tries++ < 12) y += sz.h + 12;
-    }
+    x = ((r?.width ?? 0) / 2 - v.x) / v.z - baseSize.w / 2;
+    y = ((r?.height ?? 0) / 2 - v.y) / v.z - baseSize.h / 2;
     snapshot();
     setGroups((gs) => [
       ...gs,
-      {
-        id: uid(),
-        x: Math.round(x),
-        y: Math.round(y),
-        axis: "x",
-        items: [item],
-      },
+      { id: uid(), x: Math.round(x), y: Math.round(y), axis: connectSpecOf(item)?.axis ?? "x", items: [item] },
     ]);
-    setSelectedIds([item.id]);
-    setSelectedFrameId(null);
-    setSheet(null);
-  };
+  }
 
-  const changeFrame = (f: FrameMode) => {
+  setSelectedIds([placedItem.id]);
+  setSelectedFrameId(null);
+  setSheet(null);
+};
+
+const changeFrame = (f: FrameMode) => {
     if (f === frame) return;
     snapshot();
     setFrame(f);
@@ -3522,7 +3542,7 @@ export default function Page() {
 
           {isMobile && sheet === null && (
             <button
-              onClick={addButton}
+              onClick={() => setSheet("parts")}
               title={t("addButton", lang)}
               aria-label={t("addButton", lang)}
               className="m3-press"
@@ -3557,6 +3577,11 @@ export default function Page() {
           )}
 
           <AnimatePresence>
+            {isMobile && sheet === "parts" && (
+              <BottomSheet key="parts" p={p} onClose={() => setSheet(null)}>
+                <MobileParts palette={p} onAdd={addPart} />
+              </BottomSheet>
+            )}
             {isMobile && sheet === "edit" && selected && (
               <BottomSheet key="edit" p={p} onClose={() => setSheet(null)}>
                 <MobileInspector
