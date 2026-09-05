@@ -24,12 +24,14 @@
 - [x] Extract item patch/resize-alignment document commands into testable helpers.
 - [x] Extract group/ungroup and nudge document commands into testable helpers.
 - [x] Extract canvas item-rectangle and marquee-selection geometry into testable helpers.
+- [x] Extract frame/group drag coordinate updates into testable helpers.
 - [x] Extract reusable bounded undo/redo stack helpers with unit tests.
 - [x] Wire the existing `app/page.tsx` frame/layer callers to the extracted command helpers incrementally.
 - [x] Wire `app/page.tsx` item delete/duplicate callers to the extracted command helpers.
 - [x] Wire `app/page.tsx` item patch/resize-alignment callers to the extracted command helper.
 - [x] Wire `app/page.tsx` group/ungroup and item/frame nudge callers to the extracted command helpers.
 - [x] Wire `app/page.tsx` marquee selection to the extracted canvas-selection helpers.
+- [x] Wire `app/page.tsx` frame/group drag updates to the extracted canvas-drag helpers.
 - [x] Wire `app/page.tsx` history refs to the extracted history helpers without changing undo semantics.
 - [x] Separate project JSON serialization/parsing from browser download/file APIs.
 - [x] Extract preview start resolution and camera calculations into testable helpers.
@@ -45,6 +47,7 @@
 - [x] Add focused tests for extracted item patch/resize-alignment operations.
 - [x] Add focused tests for extracted group/ungroup and nudge operations.
 - [x] Add focused tests for extracted canvas selection geometry.
+- [x] Add focused tests for extracted canvas frame/group drag coordinates.
 - [x] Add focused tests for the extracted history stack operations.
 - [x] Add focused tests for project serialization/parsing and preview session helpers.
 - [x] Add focused tests for editor storage parsing, draft recovery and failure classification.
