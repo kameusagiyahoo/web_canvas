@@ -91,6 +91,7 @@ import { barSlotOf, carryFrame, pullInto, tidyFrame } from "@/lib/tidy";
 import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/history";
 import { reorderFrameGroups, reorderItemsInGroup } from "@/lib/layer-commands";
 import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX as nextFrameDocumentX } from "@/lib/frame-commands";
+import { previewCameraForFrame, resolvePreviewStartId } from "@/lib/preview-session";
 import { isProject, readProject, saveProject } from "@/lib/project";
 import { hasShareHash, readShareHash } from "@/lib/share";
 import { LoadingIndicator } from "@/components/Loading";
@@ -2399,22 +2400,25 @@ const changeFrame = (f: FrameMode) => {
       changeFrame("phone");
     }
     queueMicrotask(() => {
-      const id = startId ?? selectedFrameId ?? layersFrameId ?? framesRef.current[0]?.id ?? null;
+      const id = resolvePreviewStartId(framesRef.current, startId, selectedFrameId, layersFrameId);
       const f = framesRef.current.find((x) => x.id === id);
       const r = canvasRect();
       if (f && r) {
-        /* the preview's own fit and center, in window coordinates: its stage is sized for the
-         * largest screen and sits left of the control column, so the screen lands where the
-         * preview will show it */
-        const { w, h } = frameSizeOf(f);
         const wide = window.innerWidth >= 720;
-        const maxW = Math.max(...framesRef.current.map((x) => frameSizeOf(x).w)) + BEZEL * 2;
-        const maxH = Math.max(...framesRef.current.map((x) => frameSizeOf(x).h)) + BEZEL * 2;
-        const z = clamp(Math.min(1.4, (window.innerHeight - 32) / maxH, (window.innerWidth - (wide ? 236 : 16)) / maxW), MIN_Z, MAX_Z);
-        const cx = (window.innerWidth - (wide ? 220 : 0)) / 2 - r.left;
-        const cy = window.innerHeight / 2 - (wide ? 0 : 28) - r.top;
         viewBeforePreview.current = viewRef.current;
-        glide({ x: cx - (f.x + w / 2) * z, y: cy - (f.y + h / 2) * z, z });
+        glide(
+          previewCameraForFrame({
+            frame: f,
+            frames: framesRef.current,
+            canvasLeft: r.left,
+            canvasTop: r.top,
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight,
+            wide,
+            minZoom: MIN_Z,
+            maxZoom: MAX_Z,
+          }),
+        );
         window.setTimeout(() => setPreviewId(id), SETTLE_MS);
       } else {
         setPreviewId(id);
