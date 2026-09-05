@@ -97,6 +97,7 @@ import { ColorPanel } from "@/components/ColorPanel";
 import { MotionPanel, ShapePanel, TypePanel } from "@/components/ThemePanel";
 import { ThemeContext, ensureFontLoaded, ensureLangFontLoaded } from "@/lib/theme";
 import { BottomSheet, MobileActionBar, MobileInspector, MobileLang, MobileSettings } from "@/components/Mobile";
+import { MobileScreens } from "@/components/MobileScreens";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
 
@@ -353,7 +354,7 @@ export default function Page() {
     futureRef.current = futureRef.current.map((snap) => translateSnapshot(snap, next));
   };
   const [isMobile, setIsMobile] = useState(false);
-  const [sheet, setSheet] = useState<"edit" | "settings" | "lang" | null>(null);
+  const [sheet, setSheet] = useState<"edit" | "screens" | "settings" | "lang" | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   /** frame being rendered offscreen for the PNG export */
   const [exportFrame, setExportFrame] = useState<Frame | null>(null);
@@ -3494,6 +3495,33 @@ export default function Page() {
 
           {isMobile && sheet === null && (
             <button
+              onClick={() => setSheet("screens")}
+              title={t("screen", lang)}
+              aria-label={t("screen", lang)}
+              className="m3-press"
+              style={{
+                position: "absolute",
+                right: 88,
+                bottom: "calc(16px + var(--bottom-ui, 0px) + env(safe-area-inset-bottom))",
+                width: 64,
+                height: 64,
+                borderRadius: 20,
+                border: "none",
+                background: p.secondaryContainer,
+                color: p.onSecondaryContainer,
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+                zIndex: 46,
+                boxShadow: "0 6px 18px rgba(0,0,0,0.14)",
+              }}
+            >
+              <Icon name="view_carousel" size={30} />
+            </button>
+          )}
+
+          {isMobile && sheet === null && (
+            <button
               onClick={addButton}
               title={t("addButton", lang)}
               aria-label={t("addButton", lang)}
@@ -3541,6 +3569,26 @@ export default function Page() {
                   }}
                   onDuplicate={duplicateSelected}
                   onClose={() => setSheet(null)}
+                />
+              </BottomSheet>
+            )}
+            {isMobile && sheet === "screens" && (
+              <BottomSheet key="screens" p={p} onClose={() => setSheet(null)}>
+                <MobileScreens
+                  frames={frames}
+                  selectedId={selectedFrameId}
+                  palette={p}
+                  onSelect={(id) => {
+                    setSelectedIds([]);
+                    setSelectedLinkId(null);
+                    setSelectedFrameId(id);
+                    setLayersFrameId(id);
+                    setSheet(null);
+                  }}
+                  onAdd={() => {
+                    addFrame();
+                    setSheet(null);
+                  }}
                 />
               </BottomSheet>
             )}
