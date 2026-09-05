@@ -27,6 +27,7 @@
 - [x] Extract frame/group drag coordinate updates into testable helpers.
 - [x] Extract canvas coordinate transforms, fit/focus, pan, wheel and pinch viewport calculations into testable helpers.
 - [x] Extract free-drop viewport rejection, target-frame selection and finalized group placement into testable helpers.
+- [x] Extract mobile picker placement, occupied-row avoidance and no-frame centering into shared part-placement helpers.
 - [x] Extract part-drag detach/snap mutations and magnetic snap/alignment-guide geometry into testable helpers.
 - [x] Extract reusable bounded undo/redo stack helpers with unit tests.
 - [x] Wire the existing `app/page.tsx` frame/layer callers to the extracted command helpers incrementally.
@@ -37,6 +38,7 @@
 - [x] Wire `app/page.tsx` frame/group drag updates to the extracted canvas-drag helpers.
 - [x] Wire `app/page.tsx` coordinate transforms, fit/focus and pan/zoom gestures to the extracted canvas-viewport helpers.
 - [x] Wire `app/page.tsx` free-drop finalization to the extracted drop-placement helper.
+- [x] Wire mobile `addPart()` to shared part-placement rules instead of mobile-only positioning logic.
 - [x] Wire `app/page.tsx` part drag detach/snap and guide calculations to the extracted helpers.
 - [x] Wire `app/page.tsx` history refs to the extracted history helpers without changing undo semantics.
 - [x] Separate project JSON serialization/parsing from browser download/file APIs.
@@ -56,6 +58,7 @@
 - [x] Add focused tests for extracted canvas frame/group drag coordinates.
 - [x] Add focused tests for extracted canvas viewport coordinate, fit and gesture calculations.
 - [x] Add focused tests for free-drop viewport, target-frame and finalized placement behavior.
+- [x] Add focused tests for mobile picked-part frame adaptation, collision avoidance and no-frame centering.
 - [x] Add focused tests for extracted part drag and snap/alignment-guide behavior.
 - [x] Add focused tests for the extracted history stack operations.
 - [x] Add focused tests for project serialization/parsing and preview session helpers.
