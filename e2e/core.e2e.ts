@@ -94,7 +94,7 @@ test("mobile screen edits use the same undo and redo history", async ({ page }) 
   await expect(duplicate).toBeVisible();
   await duplicate.click();
   await expect.poll(() => storedFrameCount(page)).toBe(3);
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
 
   const undo = page.getByTitle("Undo");
   const redo = page.getByTitle("Redo");
