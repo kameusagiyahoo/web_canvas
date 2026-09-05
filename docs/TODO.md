@@ -13,7 +13,7 @@
 - [x] Keep desktop and mobile on the same `Doc`, `Frame`, `Group`, and `Item` data model.
 - [x] Add per-slot actions for tabs, navigation bars and app-bar icons on mobile.
 - [ ] Improve mobile preview/navigation workflow.
-- [ ] Add practical mobile layer/reordering controls.
+- [x] Add practical mobile layer/reordering controls.
 
 ## Priority S — Maintainability
 
