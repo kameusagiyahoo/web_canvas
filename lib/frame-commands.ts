@@ -1,4 +1,4 @@
-import { Frame, FRAME_GAP, Group, frameOfGroup, frameRect } from "@/lib/tokens";
+import { Frame, FRAME_GAP, Group, frameOfGroup, frameRect } from "./tokens";
 
 export type DeleteFrameResult = {
   frames: Frame[];
