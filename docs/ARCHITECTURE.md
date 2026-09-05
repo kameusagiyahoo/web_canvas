@@ -2,7 +2,7 @@
 
 ## Overview
 
-`web_canvas` is a client-side Next.js/React editor for composing Material 3-style screens. The current application is primarily implemented as a large client component in `app/page.tsx`, supported by presentation components in `components/` and domain/helper modules in `lib/`.
+`web_canvas` is a client-side Next.js/React editor for composing Material 3-style screens. `app/page.tsx` remains the main React coordinator, while document mutations, persistence, preview calculations and an increasing share of canvas geometry now live in independently testable modules under `lib/`.
 
 ## Runtime and deployment
 
@@ -38,25 +38,28 @@ Item
 
 The type/model definitions and layout constants are centered in `lib/tokens.ts`.
 
-## Main application responsibilities
+## Main application responsibility
 
-`app/page.tsx` currently coordinates many responsibilities:
+`app/page.tsx` is primarily the UI/controller boundary. It still coordinates React state, event lifecycles, animation and component composition, but domain calculations should no longer be added there when they can be expressed as reusable pure operations.
 
-- document state (`frames`, `groups`, theme, language, metadata)
-- selection
-- frame and item editing
-- drag/drop and pointer gestures
-- pan/zoom
-- alignment/snapping
-- undo/redo history
-- local persistence
-- project import/export orchestration
-- AI actions/settings
-- preview
-- desktop panel state
-- mobile sheet state
+The main extracted boundaries are now:
 
-This concentration is the main maintainability risk. It should be reduced incrementally as new features require shared logic.
+- `lib/frame-commands.ts` — screen/frame document mutations
+- `lib/layer-commands.ts` — layer ordering
+- `lib/item-commands.ts` — item delete/duplicate/patch operations
+- `lib/group-commands.ts` — group/ungroup and nudge operations
+- `lib/history.ts` — bounded undo/redo stack behavior
+- `lib/canvas-selection.ts` — item rectangles and marquee selection
+- `lib/canvas-drag.ts` — frame/group drag coordinate updates
+- `lib/canvas-magnet.ts` — magnetic snap and alignment-guide geometry
+- `lib/part-drag.ts` — detach/reinsert mutations during part dragging
+- `lib/canvas-viewport.ts` — client/world transforms, fit/focus, pan, wheel and pinch camera calculations
+- `lib/part-placement.ts` — shared frame-aware placement adaptation
+- `lib/preview-session.ts` — preview start resolution and camera calculation
+- `lib/storage.ts` — safe browser persistence, restoration and failure classification
+- `lib/project.ts` — versioned project serialization, parsing and migration
+
+This keeps desktop and mobile presentation different where useful while preserving one set of editing semantics.
 
 ## Presentation layer
 
@@ -68,55 +71,70 @@ Important component areas include:
 - `components/Layers.tsx` — layer presentation
 - `components/Preview.tsx` — interaction preview
 - `components/Mobile.tsx` — mobile inspector/settings/action bar and bottom sheets
+- `components/MobileScreens.tsx` — mobile screen management
+- `components/MobileParts.tsx` — mobile part selection
 - `components/AiPanel.tsx` — AI-related UI
 - theme/color panels — design-system controls
 
+## Canvas interaction boundary
+
+Canvas interaction is intentionally split between React orchestration and pure calculations.
+
+```text
+pointer / wheel / touch events
+            ↓
+       app/page.tsx
+            ↓
+┌──────────────────────────────┐
+│ canvas-viewport              │  coordinate transforms / camera
+│ canvas-selection             │  marquee geometry
+│ canvas-drag                  │  frame/group movement
+│ canvas-magnet                │  snap / guides
+│ part-drag                    │  detach / snap insertion
+│ part-placement               │  frame-aware placement
+└──────────────────────────────┘
+            ↓
+       groups / frames
+```
+
+`page.tsx` owns event attachment, refs, React state and animation timing; the geometry and document transformations are kept outside React so they can be unit tested.
+
 ## Persistence
 
-The current primary browser persistence is `localStorage`. `app/page.tsx` owns document persistence keys and restoration behavior.
+The current primary browser persistence is `localStorage`, accessed through `lib/storage.ts`. That module centralizes safe read/write/remove behavior, document/UI/draft storage, and unavailable/quota failure classification. The editor surfaces a recovery path when autosave fails.
 
-Project-file portability is already implemented separately in `lib/project.ts`:
-
-- `saveProject(doc)` exports the document as JSON.
-- `readProject(file)` parses and validates a project JSON file.
-
-Project JSON should remain the recovery/portability path even if cloud persistence is added later.
+Project-file portability is implemented in `lib/project.ts`. Project JSON uses an explicit format/version envelope and accepts legacy unversioned documents through the migration path. JSON export remains the recovery/portability mechanism even if cloud persistence is added later.
 
 ## History
 
-Undo/redo snapshots contain both `groups` and `frames`, with document metadata included for full-document replacement operations. New frame/screen operations should enter this same history path rather than implementing mobile-specific history.
+Undo/redo snapshots contain both `groups` and `frames`, with document metadata included for full-document replacement operations. Desktop and mobile commands enter this same history path rather than maintaining separate mobile history semantics.
+
+## Testing
+
+The project has two complementary levels of automated coverage:
+
+- Vitest for pure command, persistence, project, preview and canvas calculations.
+- Playwright for core browser flows including multi-screen editing, preview navigation, project export/import and mobile undo/redo.
+
+CI runs type checking, Vitest, the static build and Playwright coverage.
 
 ## AI layer
 
-AI provider configuration and calls live primarily in `lib/ai.ts` with UI in `components/AiPanel.tsx`. Provider keys are currently supplied in the browser. This is acceptable for the current local/static architecture but should be reconsidered before offering server-managed/shared AI functionality.
+AI provider configuration and calls live primarily in `lib/ai.ts` with UI in `components/AiPanel.tsx`. Provider keys are currently supplied in the browser. This should be reconsidered before the editor is offered as an untrusted/public shared service; a server-side boundary such as Cloudflare Workers is the likely next step when secure managed AI calls become a concrete requirement.
 
 ## Mobile strategy
 
-Mobile must not introduce a parallel document model. The same `Doc`, `Frame`, `Group`, and `Item` structures should be edited through mobile-specific presentation components.
-
-Near-term target:
+Mobile does not introduce a parallel document model. The same `Doc`, `Frame`, `Group`, and `Item` structures and shared commands are edited through mobile-specific presentation components.
 
 ```text
-Mobile Screens sheet
-        ↓
-shared frame operations
-        ↓
-frames / groups / history
-        ↑
-Desktop editor
+Mobile UI ─┐
+           ├─→ shared commands / geometry ─→ Doc / history
+Desktop UI ┘
 ```
 
-## Refactoring boundaries
+## Refactoring rule
 
-Extract behavior only when it creates a reusable or independently testable boundary. Current priority order:
-
-1. frame/screen operations
-2. shared selection/edit commands
-3. document/history commands
-4. persistence
-5. large canvas interaction concerns
-
-Avoid a wholesale rewrite of `app/page.tsx`; migrate one coherent responsibility at a time.
+Avoid a wholesale rewrite of `app/page.tsx`. Move one coherent responsibility at a time when it creates a reusable or independently testable boundary. New product work should prefer the extracted modules instead of rebuilding equivalent logic inside mobile or desktop components.
 
 ## Future backend boundary
 
