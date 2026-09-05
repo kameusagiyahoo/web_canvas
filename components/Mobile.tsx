@@ -301,7 +301,7 @@ export function MobileInspector({
       {spec.size && (
         <Row icon="straighten" label={t("size", lang)} p={p}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {spec.size.presets.map((value) => {
+            {(spec.size.presets ?? []).map((value) => {
               const on = item.size === value;
               return (
                 <button
