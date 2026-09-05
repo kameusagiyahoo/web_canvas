@@ -34,6 +34,7 @@
 - [x] Extract reusable bounded undo/redo stack helpers with unit tests.
 - [x] Wire the existing `app/page.tsx` frame/layer callers to the extracted command helpers incrementally.
 - [x] Wire `app/page.tsx` frame creation and new-frame centering to shared frame/viewport helpers.
+- [x] Wire `app/page.tsx` frame preset changes to the shared resize command while keeping history/animation/platform state in the UI layer.
 - [x] Wire `app/page.tsx` item delete/duplicate callers to the extracted command helpers.
 - [x] Wire `app/page.tsx` item patch/resize-alignment callers to the extracted command helper.
 - [x] Wire `app/page.tsx` group/ungroup and item/frame nudge callers to the extracted command helpers.
