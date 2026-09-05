@@ -3602,6 +3602,7 @@ const changeFrame = (f: FrameMode) => {
               <BottomSheet key="edit" p={p} onClose={() => setSheet(null)}>
                 <MobileInspector
                   item={selected}
+                  frames={frames}
                   palette={p}
                   onChange={patchSelected}
                   onDelete={() => {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, useDragControls } from "motion/react";
-import { CONTRASTS, Contrast, FONTS, Item, KIND_SPEC, NavTab, PALETTES, Palette, SHAPES, ShapeScale, Theme, defaultTabsFor, iconSlotsOf, setIconSlot } from "@/lib/tokens";
+import { BACK_TARGET, CONTRASTS, Contrast, FONTS, Frame, Item, KIND_SPEC, NavTab, PALETTES, Palette, SHAPES, ShapeScale, Theme, TRANSITIONS, Transition, defaultTabsFor, iconSlotsOf, setIconSlot } from "@/lib/tokens";
 import { ensureFontLoaded } from "@/lib/theme";
 import { KIND_TEXT, LANGS, Lang, t, useLang } from "@/lib/i18n";
 import { IconPicker } from "./IconPicker";
@@ -96,6 +96,7 @@ function Row({ icon, label, p, children }: { icon: string; label: string; p: Pal
 /** The compact phone editor: text, icon, style, state and a one-line note. */
 export function MobileInspector({
   item,
+  frames,
   palette: p,
   onChange,
   onDelete,
@@ -103,6 +104,8 @@ export function MobileInspector({
   onClose,
 }: {
   item: Item;
+  
+  frames: Frame[];
   palette: Palette;
   onChange: (patch: Partial<Item>) => void;
   onDelete: () => void;
@@ -294,6 +297,57 @@ export function MobileInspector({
           />
         </Row>
       )}
+
+      {spec.size && (
+        <Row icon="straighten" label={t("size", lang)} p={p}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {spec.size.presets.map((value) => {
+              const on = item.size === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  className="m3-press"
+                  onClick={() => onChange({ size: value })}
+                  style={{ minWidth: 54, height: 40, padding: "0 12px", borderRadius: 20, border: "none", background: on ? p.primary : p.surfaceContainerHigh, color: on ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                >
+                  {value}
+                </button>
+              );
+            })}
+          </div>
+        </Row>
+      )}
+
+      <Row icon="link" label={t("action", lang)} p={p}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <button type="button" className="m3-press" onClick={() => onChange({ action: undefined })} style={{ height: 40, padding: "0 12px", borderRadius: 20, border: "none", background: !item.action ? p.primary : p.surfaceContainerHigh, color: !item.action ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700 }}>
+            {t("none", lang)}
+          </button>
+          <button type="button" className="m3-press" onClick={() => onChange({ action: { to: BACK_TARGET, transition: "slide" } })} style={{ height: 40, padding: "0 12px", borderRadius: 20, border: "none", background: item.action?.to === BACK_TARGET ? p.primary : p.surfaceContainerHigh, color: item.action?.to === BACK_TARGET ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700 }}>
+            {t("goBack", lang)}
+          </button>
+          {frames.map((frame) => {
+            const on = item.action?.to === frame.id;
+            return (
+              <button key={frame.id} type="button" className="m3-press" onClick={() => onChange({ action: { to: frame.id, transition: item.action?.transition ?? "slide" } })} style={{ height: 40, maxWidth: 180, padding: "0 12px", borderRadius: 20, border: "none", background: on ? p.primary : p.surfaceContainerHigh, color: on ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {frame.name || t("screen", lang)}
+              </button>
+            );
+          })}
+        </div>
+        {item.action && item.action.to !== BACK_TARGET && (
+          <div style={{ marginTop: 8 }}>
+            <Segmented<Transition>
+              options={TRANSITIONS.map((tr) => ({ key: tr.key, icon: tr.icon, title: tr.label }))}
+              value={item.action.transition}
+              onChange={(transition) => onChange({ action: { ...item.action!, transition } })}
+              p={p}
+              height={40}
+            />
+          </div>
+        )}
+      </Row>
 
       <Row icon="bolt" label={t("behavior", lang)} p={p}>
         <Field value={item.note ?? ""} onChange={(note) => onChange({ note })} placeholder={["button", "fab", "iconButton", "extendedFab"].includes(item.kind) ? t("whenPressed", lang) : t("whatItDoes", lang)} p={p} icon="bolt" height={48} />
