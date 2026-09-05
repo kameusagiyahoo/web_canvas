@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  centerFrameViewAtZoom,
   clientToWorld,
   fitCanvasView,
   focusFrameView,
@@ -8,7 +9,7 @@ import {
   wheelPanView,
   zoomViewAt,
 } from "./canvas-viewport";
-import type { Frame, Group, Item } from "./tokens";
+import { frameSizeOf, type Frame, type Group, type Item } from "./tokens";
 
 const button: Item = {
   id: "button",
@@ -124,6 +125,16 @@ describe("canvas fitting", () => {
     expect(Number.isFinite(next.y)).toBe(true);
     expect(next.z).toBeGreaterThanOrEqual(0.25);
     expect(next.z).toBeLessThanOrEqual(3);
+  });
+
+  it("centers a frame in the viewport without changing the requested zoom", () => {
+    const frame: Frame = { id: "new", name: "New", x: 600, y: 80 };
+    const size = frameSizeOf(frame);
+    const next = centerFrameViewAtZoom(frame, 1000, 700, 1.25);
+
+    expect(next.z).toBe(1.25);
+    expect((frame.x + size.w / 2) * next.z + next.x).toBeCloseTo(500);
+    expect((frame.y + size.h / 2) * next.z + next.y).toBeCloseTo(350);
   });
 
   it("focuses one frame with a readable mobile-width camera", () => {
