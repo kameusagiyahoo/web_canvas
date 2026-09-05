@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { Frame, Group, makeItem } from "./tokens";
-import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX } from "./frame-commands";
+import { Frame, Group, groupBounds, makeItem } from "./tokens";
+import {
+  createInitialPhoneFrame,
+  createNextFrame,
+  deleteFrameFromDocument,
+  duplicateFrameInDocument,
+  nextFrameX,
+} from "./frame-commands";
 
 const frame = (id: string, x: number): Frame => ({ id, name: id, x, y: 0 });
 
@@ -10,6 +16,41 @@ const group = (id: string, x: number): Group => ({
   y: 120,
   axis: "x",
   items: [{ ...makeItem("button"), id: `${id}-item` }],
+});
+
+describe("frame creation", () => {
+  it("creates the first empty phone screen at the world origin", () => {
+    expect(
+      createInitialPhoneFrame([], {}, { id: "home", name: "Home" }),
+    ).toEqual({ id: "home", name: "Home", x: 0, y: 0 });
+  });
+
+  it("positions the first phone screen around existing loose content", () => {
+    const existing = group("g", 180);
+    existing.y = 260;
+    const bounds = groupBounds(existing, {});
+
+    const created = createInitialPhoneFrame([existing], {}, {
+      id: "home",
+      name: "Home",
+    });
+
+    expect(created.x).toBeLessThanOrEqual(bounds.l);
+    expect(created.y).toBe(Math.round(bounds.t - 72));
+  });
+
+  it("creates the next screen after the rightmost screen and aligns it to the first", () => {
+    const a = { ...frame("a", 0), y: 80 };
+    const b = { ...frame("b", 600), y: 140 };
+    const created = createNextFrame([a, b], { id: "c", name: "Screen 3" });
+
+    expect(created).toEqual({
+      id: "c",
+      name: "Screen 3",
+      x: nextFrameX([a, b]),
+      y: 80,
+    });
+  });
 });
 
 describe("nextFrameX", () => {
