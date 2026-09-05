@@ -54,7 +54,7 @@ The main extracted boundaries are now:
 - `lib/canvas-magnet.ts` — magnetic snap and alignment-guide geometry
 - `lib/part-drag.ts` — detach/reinsert mutations during part dragging
 - `lib/canvas-viewport.ts` — client/world transforms, fit/focus, pan, wheel and pinch camera calculations
-- `lib/part-placement.ts` — shared frame-aware placement adaptation
+- `lib/part-placement.ts` — shared frame-aware sizing plus mobile picker positioning, collision avoidance and no-frame centering
 - `lib/drop-placement.ts` — free-drop viewport validation, target-frame resolution and finalized group placement
 - `lib/preview-session.ts` — preview start resolution and camera calculation
 - `lib/storage.ts` — safe browser persistence, restoration and failure classification
@@ -82,9 +82,9 @@ Important component areas include:
 Canvas interaction is intentionally split between React orchestration and pure calculations.
 
 ```text
-pointer / wheel / touch events
-            ↓
-       app/page.tsx
+pointer / wheel / touch events       mobile Parts picker
+            ↓                              ↓
+       app/page.tsx  ──────────────────────┘
             ↓
 ┌──────────────────────────────┐
 │ canvas-viewport              │  coordinate transforms / camera
@@ -92,14 +92,14 @@ pointer / wheel / touch events
 │ canvas-drag                  │  frame/group movement
 │ canvas-magnet                │  snap / guides
 │ part-drag                    │  detach / snap insertion
-│ part-placement               │  frame-aware sizing
+│ part-placement               │  shared sizing / picker placement
 │ drop-placement               │  final free-drop validation / placement
 └──────────────────────────────┘
             ↓
        groups / frames
 ```
 
-`page.tsx` owns event attachment, refs, React state, undo timing and animation timing; geometry, target-frame selection and document transformations are kept outside React so they can be unit tested.
+`page.tsx` owns event attachment, refs, React state, undo timing and animation timing; geometry, target-frame selection, picker positioning and document transformations are kept outside React so they can be unit tested.
 
 ## Persistence
 
@@ -126,7 +126,7 @@ AI provider configuration and calls live primarily in `lib/ai.ts` with UI in `co
 
 ## Mobile strategy
 
-Mobile does not introduce a parallel document model. The same `Doc`, `Frame`, `Group`, and `Item` structures and shared commands are edited through mobile-specific presentation components.
+Mobile does not introduce a parallel document model. The same `Doc`, `Frame`, `Group`, and `Item` structures and shared commands are edited through mobile-specific presentation components. Mobile part creation uses `lib/part-placement.ts`, so frame sizing and placement semantics are not reimplemented inside the mobile UI.
 
 ```text
 Mobile UI ─┐
