@@ -92,6 +92,7 @@ import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/
 import { reorderFrameGroups, reorderItemsInGroup } from "@/lib/layer-commands";
 import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX as nextFrameDocumentX } from "@/lib/frame-commands";
 import { previewCameraForFrame, resolvePreviewStartId } from "@/lib/preview-session";
+import { STORAGE_KEYS, clearStoredDraft, getBrowserStorage, readStoredDocument, readStoredDraft, readStoredUi, saveStoredDocument, saveStoredDraft, saveStoredUi } from "@/lib/storage";
 import { isProject, readProject, saveProject } from "@/lib/project";
 import { hasShareHash, readShareHash } from "@/lib/share";
 import { LoadingIndicator } from "@/components/Loading";
@@ -131,11 +132,6 @@ const RAIL_W = 52;
 const MIN_Z = 0.25;
 const MAX_Z = 3;
 const HISTORY_MAX = 100;
-const DOC_KEY = "m3e:doc";
-/** the design a draft or a link replaced, until the author keeps or undoes it */
-const BEFORE_KEY = "m3e:doc:before";
-const DOC_LOCK = "m3e:doc:editor";
-const UI_KEY = "m3e:ui";
 
 type View = { x: number; y: number; z: number };
 type Snap = { groupId: string; index: number; pull: number };
@@ -578,7 +574,7 @@ export default function Page() {
     queueMicrotask(() => {
       if (!active) return;
       void navigator.locks
-        .request(DOC_LOCK, { ifAvailable: true }, async (lock) => {
+        .request(STORAGE_KEYS.editorLock, { ifAvailable: true }, async (lock) => {
           if (!active) return;
           if (!lock) {
             setEditAccess("readonly");
@@ -626,48 +622,42 @@ export default function Page() {
   useEffect(() => {
     // React's development double-run would otherwise read back its own first save
     if (loadedRef.current) return;
-    try {
-      const d = localStorage.getItem(DOC_KEY);
-      if (d) {
-        hadDocRef.current = true;
-        applyDoc(JSON.parse(d) as Partial<Doc>, false);
-        // frame mode is decided by the device (media-query effect), not restored
+    const storage = getBrowserStorage();
+    const storedDoc = readStoredDocument(storage);
+    if (storedDoc) {
+      hadDocRef.current = true;
+      applyDoc(storedDoc, false);
+      // frame mode is decided by the device (media-query effect), not restored
+    }
+    const before = readStoredDraft(storage, !!storedDoc);
+    if (before) setDraftBefore(before);
+
+    let initialLang: Lang = "ja";
+    const ui = readStoredUi(storage);
+    if (ui) {
+      if (ui.view) setView(ui.view);
+      if (ui.leftOpen !== undefined) setLeftOpen(ui.leftOpen);
+      if (ui.rightOpen !== undefined) setRightOpen(ui.rightOpen);
+      if (ui.leftW !== undefined) setLeftW(Math.max(RAIL_W + 244, ui.leftW));
+      if (ui.rightW !== undefined) setRightW(ui.rightW);
+      if (ui.favorites) setFavorites(ui.favorites);
+      if (ui.mode) setMode(ui.mode);
+      if (ui.lang) {
+        initialLang = ui.lang;
+        setLang(ui.lang);
       }
-      const before = d ? localStorage.getItem(BEFORE_KEY) : null;
-      if (!d) localStorage.removeItem(BEFORE_KEY);
-      if (before) {
-        const value: unknown = JSON.parse(before);
-        if (isProject(value)) setDraftBefore(value);
-        else localStorage.removeItem(BEFORE_KEY);
-      }
-      let initialLang: Lang = "ja";
-      const u = localStorage.getItem(UI_KEY);
-      if (u) {
-        const ui = JSON.parse(u);
-        if (ui.view) setView(ui.view);
-        if (typeof ui.leftOpen === "boolean") setLeftOpen(ui.leftOpen);
-        if (typeof ui.rightOpen === "boolean") setRightOpen(ui.rightOpen);
-        if (ui.leftW) setLeftW(Math.max(RAIL_W + 244, ui.leftW));
-        if (ui.rightW) setRightW(ui.rightW);
-        if (Array.isArray(ui.favorites)) setFavorites(ui.favorites);
-        if (ui.mode) setMode(ui.mode);
-        if (isLang(ui.lang)) {
-          initialLang = ui.lang;
-          setLang(ui.lang);
-        }
-      } else {
-        const nl = (navigator.language ?? "").toLowerCase();
-        initialLang = nl.startsWith("zh") ? "zh" : nl.startsWith("ko") ? "ko" : nl.startsWith("ja") ? "ja" : "en";
-        setLang(initialLang);
-        queueMicrotask(() => fitRef.current());
-      }
-      setGlobalLang(initialLang);
-      initialLangRef.current = initialLang;
-      if (!d) {
-        setGroups(seed(initialLang));
-        setFrames([{ ...SEED_FRAMES[0], name: t("home", initialLang) }]);
-      }
-    } catch {}
+    } else {
+      const nl = (navigator.language ?? "").toLowerCase();
+      initialLang = nl.startsWith("zh") ? "zh" : nl.startsWith("ko") ? "ko" : nl.startsWith("ja") ? "ja" : "en";
+      setLang(initialLang);
+      queueMicrotask(() => fitRef.current());
+    }
+    setGlobalLang(initialLang);
+    initialLangRef.current = initialLang;
+    if (!storedDoc) {
+      setGroups(seed(initialLang));
+      setFrames([{ ...SEED_FRAMES[0], name: t("home", initialLang) }]);
+    }
     setAiSettings(loadAiSettings());
     loadedRef.current = true;
   }, []);
@@ -753,41 +743,34 @@ export default function Page() {
 
   useEffect(() => {
     if (!loadedRef.current || editAccess !== "editable") return;
-    try {
-      localStorage.setItem(
-        DOC_KEY,
-        JSON.stringify({ groups, frames, paletteKey, frame, title, brief, promptEdit, platform: platform ?? undefined, customPalette: customPalette ?? undefined, dynamicColor, theme }),
-      );
-    } catch {}
+    saveStoredDocument(getBrowserStorage(), {
+      groups,
+      frames,
+      paletteKey,
+      frame,
+      title,
+      brief,
+      promptEdit,
+      platform: platform ?? undefined,
+      customPalette: customPalette ?? undefined,
+      dynamicColor,
+      theme,
+    });
   }, [editAccess, groups, frames, paletteKey, frame, title, brief, promptEdit, platform, customPalette, dynamicColor, theme]);
 
   useEffect(() => {
     if (!loadedRef.current) return;
-    try {
-      localStorage.setItem(
-        UI_KEY,
-        JSON.stringify({
-          view,
-          leftOpen,
-          rightOpen,
-          leftW,
-          rightW,
-          favorites,
-          mode,
-          lang,
-        }),
-      );
-    } catch {}
-  }, [
-    view,
-    leftOpen,
-    rightOpen,
-    leftW,
-    rightW,
-    favorites,
-    mode,
-    lang,
-  ]);
+    saveStoredUi(getBrowserStorage(), {
+      view,
+      leftOpen,
+      rightOpen,
+      leftW,
+      rightW,
+      favorites,
+      mode,
+      lang,
+    });
+  }, [view, leftOpen, rightOpen, leftW, rightW, favorites, mode, lang]);
 
   /* ---------- measurement (text-sized kinds) ---------- */
   const allItems = useMemo(() => {
@@ -1875,9 +1858,7 @@ export default function Page() {
       return;
     setDraftBefore(null);
     setQuickUndo(false);
-    try {
-      localStorage.removeItem(BEFORE_KEY);
-    } catch {}
+    clearStoredDraft(getBrowserStorage());
     snapshot();
     setGroups([]);
     setFrames([]);
@@ -1894,9 +1875,7 @@ export default function Page() {
     /* whatever was under review is over: a file, a clear or a new arrival replaces it */
     setDraftBefore(null);
     setQuickUndo(false);
-    try {
-      localStorage.removeItem(BEFORE_KEY);
-    } catch {}
+    clearStoredDraft(getBrowserStorage());
     applyDoc(next, true);
     if (!mobileRef.current) {
       const nextFrame = next.frame === "blank" ? "blank" : "phone";
@@ -1956,9 +1935,7 @@ export default function Page() {
     revealTimer.current = setTimeout(() => setRevealing(false), 900);
     importDoc(next);
     setDraftBefore(before);
-    try {
-      localStorage.setItem(BEFORE_KEY, JSON.stringify(before));
-    } catch {}
+    saveStoredDraft(getBrowserStorage(), before);
   };
 
   const startDraft = async (idea: string) => {
@@ -1984,9 +1961,7 @@ export default function Page() {
   const keepDraft = () => {
     setDraftBefore(null);
     setQuickUndo(true);
-    try {
-      localStorage.removeItem(BEFORE_KEY);
-    } catch {}
+    clearStoredDraft(getBrowserStorage());
   };
   const undoDraft = () => {
     if (draftBefore) {
