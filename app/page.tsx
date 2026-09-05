@@ -87,7 +87,8 @@ import { LangMenu } from "@/components/Menus";
 import { AiActionKey, AiPanel, aiErrorText } from "@/components/AiPanel";
 import { TidyState } from "@/components/ui";
 import { AiSettings, DEFAULT_AI, hasKey, isSecureUrl, loadAiSettings, proposeBehavior, proposeDescription, pushHistory, saveAiSettings } from "@/lib/ai";
-import { barSlotOf, carryFrame, pullInto, tidyFrame } from "@/lib/tidy";
+import { carryFrame, pullInto, tidyFrame } from "@/lib/tidy";
+import { adaptItemToFrame } from "@/lib/part-placement";
 import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/history";
 import { reorderFrameGroups, reorderItemsInGroup } from "@/lib/layer-commands";
 import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX as nextFrameDocumentX } from "@/lib/frame-commands";
@@ -1360,12 +1361,13 @@ export default function Page() {
       /* a bar spans the screen it lands on, beside its rail; any other part keeps its phone-sized
        * default (a list or a field as wide as a desktop is rarely what the author means), but no
        * taller than the screen */
-      const slot = targetFrame ? barSlotOf(groupsRef.current, targetFrame, framesRef.current, widthsRef.current) : null;
-      const isBar = FULL_WIDTH.includes(item.kind);
-      const placedItem = targetFrame && slot ? (isBar ? carryItemSize(item, { w: PHONE_W, h: PHONE_H }, { w: slot.w, h: frameSizeOf(targetFrame).h }) : fitHeight(item, frameSizeOf(targetFrame).h)) : item;
+      const adapted = targetFrame
+        ? adaptItemToFrame(item, targetFrame, groupsRef.current, framesRef.current, widthsRef.current)
+        : { item, slotX: null };
+      const placedItem = adapted.item;
       const dropped: Group = {
         id: uid(),
-        x: Math.round(isBar && slot ? slot.x : rawX),
+        x: Math.round(adapted.slotX ?? rawX),
         y: Math.round(rawY),
         axis: connectSpecOf(item)?.axis ?? "x",
         items: [placedItem],
@@ -2037,15 +2039,10 @@ const addPart = (kind: Kind) => {
 
   if (f) {
     const frameSize = frameSizeOf(f);
-    const isBar = FULL_WIDTH.includes(kind);
-    const slot = barSlotOf(groupsRef.current, f, framesRef.current, widthsRef.current);
-    if (slot) {
-      placedItem = isBar
-        ? carryItemSize(item, { w: PHONE_W, h: PHONE_H }, { w: slot.w, h: frameSize.h })
-        : fitHeight(item, frameSize.h);
-    }
+    const adapted = adaptItemToFrame(item, f, groupsRef.current, framesRef.current, widthsRef.current);
+    placedItem = adapted.item;
     const sz = sizeOf(placedItem, widthsRef.current);
-    x = isBar && slot ? slot.x : f.x + Math.max(FRAME_MARGIN, (frameSize.w - sz.w) / 2);
+    x = adapted.slotX ?? f.x + Math.max(FRAME_MARGIN, (frameSize.w - sz.w) / 2);
     y = f.y + FRAME_MARGIN;
 
     const taken = (yy: number) =>
