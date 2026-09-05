@@ -11,7 +11,7 @@
 - [x] Add mobile part size preset editing.
 - [x] Add mobile part screen-to-screen action editing and transition selection.
 - [x] Keep desktop and mobile on the same `Doc`, `Frame`, `Group`, and `Item` data model.
-- [ ] Add per-slot actions for tabs, navigation bars and app-bar icons on mobile.
+- [x] Add per-slot actions for tabs, navigation bars and app-bar icons on mobile.
 - [ ] Improve mobile preview/navigation workflow.
 - [ ] Add practical mobile layer/reordering controls.
 
