@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/patch-mobile-interactions.yml'
+      - '.github/trigger-mobile-interactions'
 
 permissions:
   contents: write
@@ -108,8 +109,10 @@ jobs:
           page.write_text(text)
           PY
 
-      - name: Remove one-shot workflow
-        run: git rm .github/workflows/patch-mobile-interactions.yml
+      - name: Remove one-shot workflow and trigger marker
+        run: |
+          git rm .github/workflows/patch-mobile-interactions.yml
+          git rm -f .github/trigger-mobile-interactions
 
       - name: Commit changes
         run: |
