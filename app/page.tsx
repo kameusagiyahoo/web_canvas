@@ -92,6 +92,7 @@ import { adaptItemToFrame } from "@/lib/part-placement";
 import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/history";
 import { reorderFrameGroups, reorderItemsInGroup } from "@/lib/layer-commands";
 import { deleteItemsFromGroups, duplicateItemSelection } from "@/lib/item-commands";
+import { groupItemSelection, nudgeFrameWithGroups, nudgeItemGroups, ungroupFreeGroup } from "@/lib/group-commands";
 import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX as nextFrameDocumentX } from "@/lib/frame-commands";
 import { previewCameraForFrame, resolvePreviewStartId } from "@/lib/preview-session";
 import { STORAGE_KEYS, clearStoredDraft, getBrowserStorage, readStoredDocument, readStoredDraft, readStoredUi, saveStoredDocument, saveStoredDraft, saveStoredUi } from "@/lib/storage";
@@ -1719,101 +1720,56 @@ export default function Page() {
   /** Pull the selected parts out of their runs into one free group that keeps
    *  their positions. It takes the layer slot of the topmost run involved. */
   const groupSelected = useCallback(() => {
-    const ids = new Set(selectedIds);
-    if (ids.size < 2) return;
-    const rects = new Map(itemRects().map((r) => [r.id, r]));
-    const picked: Item[] = [];
-    let top = -1;
-    groupsRef.current.forEach((g, i) => {
-      for (const it of g.items) if (ids.has(it.id)) {
-        picked.push(it);
-        top = i;
-      }
-    });
-    if (picked.length < 2) return;
-    const l = Math.min(...picked.map((it) => rects.get(it.id)!.l));
-    const t = Math.min(...picked.map((it) => rects.get(it.id)!.t));
-    const pos: Record<string, { x: number; y: number }> = {};
-    for (const it of picked) pos[it.id] = { x: rects.get(it.id)!.l - l, y: rects.get(it.id)!.t - t };
-    const ng: Group = { id: uid(), x: l, y: t, axis: "x", items: picked, free: true, pos };
+    const result = groupItemSelection(
+      groupsRef.current,
+      selectedIds,
+      widthsRef.current,
+      uid,
+    );
+    if (!result) return;
     snapshot();
-    setGroups((prev) => {
-      const out: Group[] = [];
-      prev.forEach((g, i) => {
-        if (g.free) {
-          const rest = g.items.filter((it) => !ids.has(it.id));
-          if (rest.length) out.push(collapseFree({ ...g, items: rest }, widthsRef.current));
-        } else {
-          let x = g.x;
-          let y = g.y;
-          let items = g.items;
-          while (items.length && ids.has(items[0].id)) {
-            const sz = sizeOf(items[0], widthsRef.current);
-            if (g.axis === "x") x += sz.w + GAP;
-            else y += sz.h + GAP;
-            items = items.slice(1);
-          }
-          items = items.filter((it) => !ids.has(it.id));
-          if (items.length) {
-            if (x !== g.x || y !== g.y) instantRef.current.add(g.id);
-            out.push({ ...g, x, y, items });
-          }
-        }
-        if (i === top) out.push(ng);
-      });
-      return out;
-    });
-    setSelectedIds(picked.map((it) => it.id));
-  }, [selectedIds, itemRects, snapshot]);
+    for (const id of result.shiftedGroupIds) instantRef.current.add(id);
+    setGroups(result.groups);
+    setSelectedIds(result.selectedIds);
+  }, [selectedIds, snapshot]);
 
   /** Split a free group back into single runs at their current positions, in the same layer slot. */
   const ungroupSelected = useCallback(() => {
     const g = selectedGroup;
     if (!g) return;
+    const result = ungroupFreeGroup(
+      groupsRef.current,
+      g.id,
+      widthsRef.current,
+      uid,
+    );
+    if (!result) return;
     snapshot();
-    const singles: Group[] = explodeGroup(g, widthsRef.current).map((run) => ({ ...run, id: uid() }));
-    for (const sg of singles) instantRef.current.add(sg.id);
-    setGroups((prev) => prev.flatMap((x) => (x.id === g.id ? singles : [x])));
+    for (const id of result.newGroupIds) instantRef.current.add(id);
+    setGroups(result.groups);
   }, [selectedGroup, snapshot]);
 
   const nudge = useCallback(
     (dx: number, dy: number) => {
       if (selectedIds.length === 0 && selectedFrameId) {
-        const f = framesRef.current.find((x) => x.id === selectedFrameId);
-        if (!f) return;
-        snapshotFor("nudge:frame:" + f.id);
-        const carried = new Set(
-          groupsRef.current
-            .filter(
-              (g) =>
-                frameOfGroup(g, framesRef.current, widthsRef.current)?.id ===
-                f.id,
-            )
-            .map((g) => g.id),
+        const result = nudgeFrameWithGroups(
+          framesRef.current,
+          groupsRef.current,
+          selectedFrameId,
+          widthsRef.current,
+          dx,
+          dy,
         );
-        for (const id of carried) instantRef.current.add(id);
-        setFrames((fs) =>
-          fs.map((x) =>
-            x.id === f.id ? { ...x, x: x.x + dx, y: x.y + dy } : x,
-          ),
-        );
-        setGroups((gs) =>
-          gs.map((g) =>
-            carried.has(g.id) ? { ...g, x: g.x + dx, y: g.y + dy } : g,
-          ),
-        );
+        if (!result) return;
+        snapshotFor("nudge:frame:" + selectedFrameId);
+        for (const id of result.movedGroupIds) instantRef.current.add(id);
+        setFrames(result.frames);
+        setGroups(result.groups);
         return;
       }
       if (selectedIds.length === 0) return;
-      const ids = new Set(selectedIds);
       snapshotFor("nudge:" + selectedIds.join(","));
-      setGroups((prev) =>
-        prev.map((g) =>
-          g.items.some((it) => ids.has(it.id))
-            ? { ...g, x: g.x + dx, y: g.y + dy }
-            : g,
-        ),
-      );
+      setGroups((prev) => nudgeItemGroups(prev, selectedIds, dx, dy));
     },
     [selectedIds, selectedFrameId, snapshotFor],
   );
