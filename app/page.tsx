@@ -93,6 +93,7 @@ import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/
 import { reorderFrameGroups, reorderItemsInGroup } from "@/lib/layer-commands";
 import { deleteItemsFromGroups, duplicateItemSelection, patchItemInGroups } from "@/lib/item-commands";
 import { groupItemSelection, nudgeFrameWithGroups, nudgeItemGroups, ungroupFreeGroup } from "@/lib/group-commands";
+import { itemRectsOfGroups, marqueeHitIds, selectionRect } from "@/lib/canvas-selection";
 import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX as nextFrameDocumentX } from "@/lib/frame-commands";
 import { previewCameraForFrame, resolvePreviewStartId } from "@/lib/preview-session";
 import { STORAGE_KEYS, clearStoredDraft, getBrowserStorage, readStoredDocument, readStoredDraft, readStoredUi, saveStoredDocument, saveStoredDraft, saveStoredUi } from "@/lib/storage";
@@ -1415,16 +1416,10 @@ export default function Page() {
   }, [drag, restPos, sizeRef, sx, sy]);
 
   /* ---------- pointer: canvas (pan / marquee) ---------- */
-  const itemRects = useCallback(() => {
-    const out: { id: string; l: number; t: number; r: number; b: number }[] =
-      [];
-    for (const g of groupsRef.current) {
-      for (const pl of layoutOf(g, widthsRef.current)) {
-        out.push({ id: pl.item.id, l: pl.x, t: pl.y, r: pl.x + pl.w, b: pl.y + pl.h });
-      }
-    }
-    return out;
-  }, []);
+  const itemRects = useCallback(
+    () => itemRectsOfGroups(groupsRef.current, widthsRef.current),
+    [],
+  );
 
   const clearSelection = () => {
     setSelectedIds([]);
@@ -1570,14 +1565,8 @@ export default function Page() {
       )
         g.moved = true;
       if (g.moved) {
-        const l = Math.min(g.x0, g.x1);
-        const r = Math.max(g.x0, g.x1);
-        const t = Math.min(g.y0, g.y1);
-        const b = Math.max(g.y0, g.y1);
-        const hit = itemRects()
-          .filter((it) => it.l < r && it.r > l && it.t < b && it.b > t)
-          .map((it) => it.id);
-        setSelectedIds(hit);
+        const marquee = selectionRect(g.x0, g.y0, g.x1, g.y1);
+        setSelectedIds(marqueeHitIds(itemRects(), marquee));
       }
       setGesture({ ...g });
     };
