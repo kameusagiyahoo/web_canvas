@@ -14,6 +14,7 @@ export function MobileScreens({
   onRename,
   onDuplicate,
   onDelete,
+  onPreview,
 }: {
   frames: Frame[];
   selectedId: string | null;
@@ -23,6 +24,7 @@ export function MobileScreens({
   onRename: (id: string, name: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
+  onPreview: (id: string) => void;
 }) {
   const lang = useLang();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -47,6 +49,8 @@ export function MobileScreens({
     setEditingId(null);
     setName("");
   };
+
+  const activeId = selectedId ?? frames[0]?.id ?? null;
 
   return (
     <div>
@@ -83,7 +87,7 @@ export function MobileScreens({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {frames.map((frame, index) => {
-          const on = frame.id === selectedId;
+          const on = frame.id === activeId;
           const editing = frame.id === editingId;
           return (
             <div
@@ -95,7 +99,7 @@ export function MobileScreens({
                 overflow: "hidden",
               }}
             >
-              <div style={{ minHeight: 54, display: "flex", alignItems: "center", gap: 8, padding: "0 8px 0 12px" }}>
+              <div style={{ minHeight: 54, display: "flex", alignItems: "center", gap: 4, padding: "0 8px 0 12px" }}>
                 <button
                   type="button"
                   aria-pressed={on}
@@ -135,6 +139,15 @@ export function MobileScreens({
                     {frame.name || `${t("screen", lang)} ${index + 1}`}
                   </span>
                   {on && <Icon name="check" size={20} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onPreview(frame.id)}
+                  aria-label={lang === "ja" ? `${frame.name || "画面"}をプレビュー` : `Preview ${frame.name || "screen"}`}
+                  className="m3-press"
+                  style={{ width: 42, height: 42, border: "none", borderRadius: 21, background: on ? p.primary : "transparent", color: on ? p.onPrimary : "inherit", display: "grid", placeItems: "center", cursor: "pointer" }}
+                >
+                  <Icon name="play_arrow" size={22} />
                 </button>
                 <button
                   type="button"
@@ -210,12 +223,39 @@ export function MobileScreens({
         })}
       </div>
 
+      {activeId && (
+        <button
+          type="button"
+          onClick={() => onPreview(activeId)}
+          className="m3-press"
+          style={{
+            marginTop: 12,
+            width: "100%",
+            minHeight: 52,
+            border: `1px solid ${p.outlineVariant}`,
+            borderRadius: 26,
+            background: p.surfaceContainerLow,
+            color: p.onSurface,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            cursor: "pointer",
+            fontSize: 15,
+            fontWeight: 700,
+          }}
+        >
+          <Icon name="play_arrow" size={22} />
+          {lang === "ja" ? "この画面からプレビュー" : "Preview from this screen"}
+        </button>
+      )}
+
       <button
         type="button"
         onClick={onAdd}
         className="m3-press"
         style={{
-          marginTop: 12,
+          marginTop: 8,
           width: "100%",
           minHeight: 52,
           border: "none",
