@@ -91,7 +91,7 @@ import { carryFrame, pullInto, tidyFrame } from "@/lib/tidy";
 import { adaptItemToFrame } from "@/lib/part-placement";
 import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/history";
 import { reorderFrameGroups, reorderItemsInGroup } from "@/lib/layer-commands";
-import { deleteItemsFromGroups, duplicateItemSelection } from "@/lib/item-commands";
+import { deleteItemsFromGroups, duplicateItemSelection, patchItemInGroups } from "@/lib/item-commands";
 import { groupItemSelection, nudgeFrameWithGroups, nudgeItemGroups, ungroupFreeGroup } from "@/lib/group-commands";
 import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX as nextFrameDocumentX } from "@/lib/frame-commands";
 import { previewCameraForFrame, resolvePreviewStartId } from "@/lib/preview-session";
@@ -1632,51 +1632,23 @@ export default function Page() {
     if (!selected && sheet === "edit") setSheet(null);
   }, [selected, sheet]);
 
-  /** Resizing a lone part keeps whatever it was lined up with on the frame:
-   *  its centre on the centre line, or its far edge on the margin or screen edge.
-   *  Otherwise the near (left / top) edge stays put, as the sliders always did. */
-  const resizeShift = (g: Group, before: Item, after: Item) => {
-    const none = { dx: 0, dy: 0 };
-    if (g.items.length !== 1 || frameRef.current !== "phone") return none;
-    const f = frameOfGroup(g, framesRef.current, widthsRef.current);
-    if (!f) return none;
-    const { w: frameW, h: frameH } = frameSizeOf(f);
-    const a = sizeOf(before, widthsRef.current);
-    const b = sizeOf(after, widthsRef.current);
-    const shift = (pos: number, len: number, next: number, f0: number, fLen: number) => {
-      const d = next - len;
-      if (d === 0) return 0;
-      const near = (v: number, target: number) => Math.abs(v - target) <= 1;
-      if (near(pos + len / 2, f0 + fLen / 2)) return -Math.round(d / 2);
-      if (near(pos + len, f0 + fLen - FRAME_MARGIN) || near(pos + len, f0 + fLen)) return -d;
-      return 0;
-    };
-    return {
-      dx: shift(g.x, a.w, b.w, f.x, frameW),
-      dy: shift(g.y, a.h, b.h, f.y, frameH),
-    };
-  };
-
   const patchSelected = (patch: Partial<Item>) => {
     if (!primaryId) return;
     const id = primaryId;
     snapshotFor(id + ":" + Object.keys(patch).join(","));
-    const resizes = "size" in patch || "size2" in patch;
-    setGroups((prev) =>
-      prev.map((g) => {
-        const idx = g.items.findIndex((it) => it.id === id);
-        if (idx < 0) return g;
-        const next = { ...g.items[idx], ...patch };
-        const { dx, dy } = resizes ? resizeShift(g, g.items[idx], next) : { dx: 0, dy: 0 };
-        if (dx || dy) instantRef.current.add(g.id);
-        return {
-          ...g,
-          x: g.x + dx,
-          y: g.y + dy,
-          items: g.items.map((it, i) => (i === idx ? next : it)),
-        };
-      }),
-    );
+    setGroups((prev) => {
+      const result = patchItemInGroups(
+        prev,
+        id,
+        patch,
+        framesRef.current,
+        widthsRef.current,
+        frameRef.current === "phone",
+      );
+      if (!result) return prev;
+      for (const groupId of result.shiftedGroupIds) instantRef.current.add(groupId);
+      return result.groups;
+    });
     if (dragRef.current?.item.id === id) {
       dragRef.current.item = { ...dragRef.current.item, ...patch };
     }
