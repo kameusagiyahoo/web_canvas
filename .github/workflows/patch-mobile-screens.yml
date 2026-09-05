@@ -20,25 +20,19 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
 
           path = Path('app/page.tsx')
           text = path.read_text()
-          old = '''                  onAdd={() => {
-                    addFrame();
-                    setSheet(null);
-                  }}
-                />'''
-          new = '''                  onAdd={() => {
-                    addFrame();
-                    setSheet(null);
-                  }}
+          pattern = r'(onAdd=\{\(\) => \{\s*addFrame\(\);\s*setSheet\(null\);\s*\}\})'
+          replacement = r'''\1
                   onRename={(id, name) => patchFrame(id, { name })}
                   onDuplicate={(id) => duplicateFrame(id)}
-                  onDelete={(id) => deleteFrame(id)}
-                />'''
-          if old not in text:
-              raise SystemExit('MobileScreens wiring target not found')
-          path.write_text(text.replace(old, new, 1))
+                  onDelete={(id) => deleteFrame(id)}'''
+          text, count = re.subn(pattern, replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'Expected one MobileScreens onAdd target, found {count}')
+          path.write_text(text)
 
       - name: Remove one-shot workflow
         run: git rm .github/workflows/patch-mobile-screens.yml
