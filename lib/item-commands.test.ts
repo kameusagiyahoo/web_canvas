@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { deleteItemsFromGroups, duplicateItemSelection } from "./item-commands";
-import type { Group, Item } from "./tokens";
+import {
+  deleteItemsFromGroups,
+  duplicateItemSelection,
+  patchItemInGroups,
+} from "./item-commands";
+import type { Frame, Group, Item } from "./tokens";
 
 const button = (id: string, size = 100): Item => ({
   id,
@@ -9,6 +13,87 @@ const button = (id: string, size = 100): Item => ({
   icon: null,
   variant: "filled",
   size,
+});
+
+describe("patchItemInGroups", () => {
+  const frames: Frame[] = [{ id: "f", name: "Home", x: 0, y: 0 }];
+
+  it("patches a non-size property without moving the group", () => {
+    const groups: Group[] = [
+      { id: "g", x: 156, y: 40, axis: "x", items: [button("a")] },
+    ];
+
+    const result = patchItemInGroups(groups, "a", { label: "Updated" }, frames, {}, true);
+
+    expect(result).not.toBeNull();
+    expect(result!.groups[0]).toMatchObject({ id: "g", x: 156, y: 40 });
+    expect(result!.groups[0].items[0].label).toBe("Updated");
+    expect(result!.shiftedGroupIds).toEqual([]);
+  });
+
+  it("keeps a lone centred item centred when its width changes", () => {
+    const groups: Group[] = [
+      { id: "g", x: 156, y: 40, axis: "x", items: [button("a", 100)] },
+    ];
+
+    const result = patchItemInGroups(groups, "a", { size: 120 }, frames, {}, true);
+
+    expect(result).not.toBeNull();
+    expect(result!.groups[0]).toMatchObject({ id: "g", x: 146, y: 40 });
+    expect(result!.groups[0].items[0].size).toBe(120);
+    expect(result!.shiftedGroupIds).toEqual(["g"]);
+  });
+
+  it("keeps a lone item anchored to the frame content margin on resize", () => {
+    const groups: Group[] = [
+      { id: "g", x: 296, y: 40, axis: "x", items: [button("a", 100)] },
+    ];
+
+    const result = patchItemInGroups(groups, "a", { size: 120 }, frames, {}, true);
+
+    expect(result).not.toBeNull();
+    expect(result!.groups[0]).toMatchObject({ id: "g", x: 276, y: 40 });
+    expect(result!.shiftedGroupIds).toEqual(["g"]);
+  });
+
+  it("does not move a multi-item run when one member is resized", () => {
+    const groups: Group[] = [
+      {
+        id: "g",
+        x: 100,
+        y: 40,
+        axis: "x",
+        items: [button("a", 100), button("b", 100)],
+      },
+    ];
+
+    const result = patchItemInGroups(groups, "a", { size: 120 }, frames, {}, true);
+
+    expect(result).not.toBeNull();
+    expect(result!.groups[0]).toMatchObject({ id: "g", x: 100, y: 40 });
+    expect(result!.groups[0].items[0].size).toBe(120);
+    expect(result!.shiftedGroupIds).toEqual([]);
+  });
+
+  it("does not preserve frame alignment outside phone editing", () => {
+    const groups: Group[] = [
+      { id: "g", x: 156, y: 40, axis: "x", items: [button("a", 100)] },
+    ];
+
+    const result = patchItemInGroups(groups, "a", { size: 120 }, frames, {}, false);
+
+    expect(result).not.toBeNull();
+    expect(result!.groups[0].x).toBe(156);
+    expect(result!.shiftedGroupIds).toEqual([]);
+  });
+
+  it("returns null when the item is missing", () => {
+    const groups: Group[] = [
+      { id: "g", x: 0, y: 0, axis: "x", items: [button("a")] },
+    ];
+
+    expect(patchItemInGroups(groups, "missing", { label: "x" }, frames, {}, true)).toBeNull();
+  });
 });
 
 describe("deleteItemsFromGroups", () => {
