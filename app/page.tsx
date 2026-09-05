@@ -92,10 +92,10 @@ import { deleteItemsFromGroups, duplicateItemSelection, patchItemInGroups } from
 import { groupItemSelection, nudgeFrameWithGroups, nudgeItemGroups, ungroupFreeGroup } from "@/lib/group-commands";
 import { itemRectsOfGroups, marqueeHitIds, selectionRect } from "@/lib/canvas-selection";
 import { dragCarriedGroupsFromOrigins, dragFrameFromOrigin, dragGroupFromOrigin } from "@/lib/canvas-drag";
-import { clientToWorld, fitCanvasView, focusFrameView as focusCanvasFrameView, panViewFromOrigin, pinchViewFromOrigin, wheelPanView, zoomViewAt } from "@/lib/canvas-viewport";
+import { centerFrameViewAtZoom, clientToWorld, fitCanvasView, focusFrameView as focusCanvasFrameView, panViewFromOrigin, pinchViewFromOrigin, wheelPanView, zoomViewAt } from "@/lib/canvas-viewport";
 import { findAlignmentGuide, findMagneticSnap, restPosition, type Guide, type Snap } from "@/lib/canvas-magnet";
 import { detachItemForDrag, insertItemAtSnap } from "@/lib/part-drag";
-import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX as nextFrameDocumentX } from "@/lib/frame-commands";
+import { createInitialPhoneFrame, createNextFrame, deleteFrameFromDocument, duplicateFrameInDocument } from "@/lib/frame-commands";
 import { previewCameraForFrame, resolvePreviewStartId } from "@/lib/preview-session";
 import { STORAGE_KEYS, clearStoredDraft, getBrowserStorage, readStoredDocument, readStoredDraft, readStoredUi, saveStoredDocument, saveStoredDraft, saveStoredUi } from "@/lib/storage";
 import type { StorageFailureReason } from "@/lib/storage";
@@ -1684,26 +1684,15 @@ export default function Page() {
     return g ? (frameOfGroup(g, frames, widths) ?? null) : null;
   }, [frame, isMobile, selectedFrame, primaryId, groups, frames, widths]);
 
-  const nextFrameX = () => nextFrameDocumentX(framesRef.current);
-
   /** Entering phone mode with no frames wraps the existing parts in one. */
   const ensureFrame = () => {
     if (framesRef.current.length > 0) return;
-    const gs = groupsRef.current;
-    let x = 0;
-    let y = 0;
-    if (gs.length) {
-      const bbs = gs.map((g) => groupBounds(g, widthsRef.current));
-      const l = Math.min(...bbs.map((b) => b.l));
-      const t = Math.min(...bbs.map((b) => b.t));
-      const r = Math.max(...bbs.map((b) => b.r));
-      x = Math.round(Math.max(l - 24, r - PHONE_W + 24 > l ? l : l - 24));
-      y = Math.round(t - 72);
-      x = Math.min(x, l);
-      y = Math.min(y, t);
-    }
-    const f: Frame = { id: uid(), name: t("home"), x, y };
-    setFrames([f]);
+    setFrames([
+      createInitialPhoneFrame(groupsRef.current, widthsRef.current, {
+        id: uid(),
+        name: t("home"),
+      }),
+    ]);
   };
 
   const ensureFrameRef = useRef(() => {});
@@ -1750,25 +1739,18 @@ const changeFrame = (f: FrameMode) => {
 
   const addFrame = () => {
     snapshot();
-    const base = framesRef.current[0];
-    const f: Frame = {
+    const f = createNextFrame(framesRef.current, {
       id: uid(),
       name: `${t("screenN")} ${framesRef.current.length + 1}`,
-      x: nextFrameX(),
-      y: base?.y ?? 0,
-    };
+    });
     setFrames((fs) => [...fs, f]);
     setSelectedFrameId(f.id);
     setSelectedIds([]);
     const r = canvasRect();
     if (r) {
-      const z = viewRef.current.z;
-      const { w, h } = frameSizeOf(f);
-      setView({
-        x: r.width / 2 - (f.x + w / 2) * z,
-        y: r.height / 2 - (f.y + h / 2) * z,
-        z,
-      });
+      setView(
+        centerFrameViewAtZoom(f, r.width, r.height, viewRef.current.z),
+      );
     }
   };
 
