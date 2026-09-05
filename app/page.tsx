@@ -355,7 +355,7 @@ export default function Page() {
     futureRef.current = futureRef.current.map((snap) => translateSnapshot(snap, next));
   };
   const [isMobile, setIsMobile] = useState(false);
-  const [sheet, setSheet] = useState<"edit" | "parts" | "screens" | "settings" | "lang" | null>(null);
+  const [sheet, setSheet] = useState<"edit" | "parts" | "screens" | "layers" | "settings" | "lang" | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   /** frame being rendered offscreen for the PNG export */
   const [exportFrame, setExportFrame] = useState<Frame | null>(null);
@@ -3531,6 +3531,33 @@ const changeFrame = (f: FrameMode) => {
 
           {isMobile && sheet === null && (
             <button
+              onClick={() => setSheet("layers")}
+              title={t("layers", lang)}
+              aria-label={t("layers", lang)}
+              className="m3-press"
+              style={{
+                position: "absolute",
+                right: 160,
+                bottom: "calc(16px + var(--bottom-ui, 0px) + env(safe-area-inset-bottom))",
+                width: 64,
+                height: 64,
+                borderRadius: 20,
+                border: "none",
+                background: p.surfaceContainerHigh,
+                color: p.onSurfaceVariant,
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+                zIndex: 46,
+                boxShadow: "0 6px 18px rgba(0,0,0,0.12)",
+              }}
+            >
+              <Icon name="layers" size={30} />
+            </button>
+          )}
+
+          {isMobile && sheet === null && (
+            <button
               onClick={() => setSheet("screens")}
               title={t("screen", lang)}
               aria-label={t("screen", lang)}
@@ -3612,6 +3639,34 @@ const changeFrame = (f: FrameMode) => {
                   onDuplicate={duplicateSelected}
                   onClose={() => setSheet(null)}
                 />
+              </BottomSheet>
+            )}
+            {isMobile && sheet === "layers" && (
+              <BottomSheet key="layers" p={p} onClose={() => setSheet(null)}>
+                <div style={{ height: "min(62vh, 560px)", minHeight: 320 }}>
+                  <LayersPanel
+                    p={p}
+                    frames={frames}
+                    frameId={layersFrame?.id ?? null}
+                    onFrame={(id) => {
+                      setLayersFrameId(id);
+                      setSelectedFrameId(id);
+                      setSelectedIds([]);
+                      focusFrame(id);
+                    }}
+                    groups={layerGroups}
+                    widths={widths}
+                    selectedIds={selectedIds}
+                    onSelect={(ids) => {
+                      setSelectedFrameId(null);
+                      setSelectedLinkId(null);
+                      setSelectedIds(ids);
+                    }}
+                    onReorder={reorderLayers}
+                    onReorderItems={reorderGroupItems}
+                    onDragging={onLayerDragging}
+                  />
+                </div>
               </BottomSheet>
             )}
             {isMobile && sheet === "screens" && (
