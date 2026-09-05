@@ -89,6 +89,8 @@ import { TidyState } from "@/components/ui";
 import { AiSettings, DEFAULT_AI, hasKey, isSecureUrl, loadAiSettings, proposeBehavior, proposeDescription, pushHistory, saveAiSettings } from "@/lib/ai";
 import { barSlotOf, carryFrame, pullInto, tidyFrame } from "@/lib/tidy";
 import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/history";
+import { reorderFrameGroups, reorderItemsInGroup } from "@/lib/layer-commands";
+import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX as nextFrameDocumentX } from "@/lib/frame-commands";
 import { isProject, readProject, saveProject } from "@/lib/project";
 import { hasShareHash, readShareHash } from "@/lib/share";
 import { LoadingIndicator } from "@/components/Loading";
@@ -2019,10 +2021,7 @@ export default function Page() {
     return g ? (frameOfGroup(g, frames, widths) ?? null) : null;
   }, [frame, isMobile, selectedFrame, primaryId, groups, frames, widths]);
 
-  const nextFrameX = () =>
-    framesRef.current.length
-      ? Math.max(...framesRef.current.map((f) => frameRect(f).r)) + FRAME_GAP
-      : 0;
+  const nextFrameX = () => nextFrameDocumentX(framesRef.current);
 
   /** Entering phone mode with no frames wraps the existing parts in one. */
   const ensureFrame = () => {
@@ -2276,77 +2275,25 @@ const changeFrame = (f: FrameMode) => {
   const deleteFrame = useCallback(
     (id: string) => {
       snapshot();
-      const gone = new Set(
-        groupsRef.current
-          .filter((g) => frameOfGroup(g, framesRef.current, widthsRef.current)?.id === id)
-          .map((g) => g.id),
-      );
-      setFrames((fs) =>
-        fs
-          .filter((f) => f.id !== id)
-          .map((f) => {
-            if (!f.swipe) return f;
-            const swipe = Object.fromEntries(Object.entries(f.swipe).filter(([, to]) => to !== id));
-            return { ...f, swipe: Object.keys(swipe).length ? swipe : undefined };
-          }),
-      );
-      setGroups((gs) =>
-        gs
-          .filter((g) => !gone.has(g.id))
-          .map((g) => ({
-            ...g,
-            items: g.items.map((it) => {
-              const next = { ...it };
-              if (next.action?.to === id) next.action = undefined;
-              if (next.actions) {
-                const actions = Object.fromEntries(Object.entries(next.actions).filter(([, a]) => a.to !== id));
-                next.actions = Object.keys(actions).length ? actions : undefined;
-              }
-              return next;
-            }),
-          })),
-      );
+      const result = deleteFrameFromDocument(framesRef.current, groupsRef.current, widthsRef.current, id);
+      setFrames(result.frames);
+      setGroups(result.groups);
       setSelectedFrameId(null);
-      setSelectedIds((cur) => cur.filter((x) => !groupsRef.current.some((g) => gone.has(g.id) && g.items.some((it) => it.id === x))));
+      setSelectedIds((cur) => cur.filter((x) => !groupsRef.current.some((g) => result.removedGroupIds.has(g.id) && g.items.some((it) => it.id === x))));
     },
     [snapshot],
   );
 
   const duplicateFrame = (id: string) => {
-    const f = framesRef.current.find((x) => x.id === id);
-    if (!f) return;
+    const result = duplicateFrameInDocument(framesRef.current, groupsRef.current, widthsRef.current, id, {
+      makeId: uid,
+      copySuffix: t("copySuffix"),
+    });
+    if (!result) return;
     snapshot();
-    const nf: Frame = {
-      ...f,
-      id: uid(),
-      name: `${f.name}${t("copySuffix")}`,
-      x: nextFrameX(),
-    };
-    const dx = nf.x - f.x;
-    const copies = groupsRef.current
-      .filter(
-        (g) => frameOfGroup(g, framesRef.current, widthsRef.current)?.id === id,
-      )
-      .map((g) => {
-        const idMap = new Map(g.items.map((it) => [it.id, uid()]));
-        const pos = g.pos
-          ? Object.fromEntries(Object.entries(g.pos).map(([id, o]) => [idMap.get(id) ?? id, o]))
-          : undefined;
-        return {
-          ...g,
-          id: uid(),
-          x: g.x + dx,
-          pos,
-          items: g.items.map((it) => ({
-            ...it,
-            id: idMap.get(it.id)!,
-            tabs: it.tabs?.map((t) => ({ ...t })),
-          })),
-        };
-      });
-    setFrames((fs) => [...fs, nf]);
-    setGroups((gs) => [...gs, ...copies]);
-    setSelectedFrameId(nf.id);
+    setFrames(result.frames);
+    setGroups(result.groups);
+    setSelectedFrameId(result.frame.id);
   };
   const duplicateFrameRef = useRef(duplicateFrame);
   duplicateFrameRef.current = duplicateFrame;
@@ -2732,41 +2679,24 @@ const changeFrame = (f: FrameMode) => {
   };
 
   const reorderLayers = (topFirst: string[]) => {
-    const inFrame = new Set(topFirst);
-    const byId = new Map(groupsRef.current.map((g) => [g.id, g]));
-    const ordered = [...topFirst].reverse().map((id) => byId.get(id)).filter((g): g is Group => !!g);
-    if (ordered.length !== inFrame.size) return;
+    const next = reorderFrameGroups(groupsRef.current, topFirst);
+    if (!next) return;
     layerSnapshot("layers:" + (layersFrame?.id ?? ""));
-    for (const id of inFrame) instantRef.current.add(id);
-    setGroups((gs) => [...gs.filter((g) => !inFrame.has(g.id)), ...ordered]);
+    for (const id of topFirst) instantRef.current.add(id);
+    setGroups(next);
   };
 
   /** The parts of one group in a new order: reading order for a connected run, back to
    *  front for a free group. Inside a free group a hidden run keeps its slots, handed out
    *  again in the new order, so reordering a list really moves its rows. */
   const reorderGroupItems = (groupId: string, order: string[]) => {
-    const g = groupsRef.current.find((x) => x.id === groupId);
-    if (!g) return;
-    const byId = new Map(g.items.map((it) => [it.id, it]));
-    const items = order.map((id) => byId.get(id)).filter((it): it is Item => !!it);
-    if (items.length !== g.items.length || new Set(order).size !== order.length) return;
+    const group = groupsRef.current.find((x) => x.id === groupId);
+    if (!group) return;
+    const next = reorderItemsInGroup(group, order, widthsRef.current);
+    if (!next) return;
     layerSnapshot("layers:items:" + groupId);
     instantRef.current.add(groupId);
-    if (!g.free) {
-      setGroups((gs) => gs.map((x) => (x.id === groupId ? { ...x, items } : x)));
-      return;
-    }
-    const rank = new Map(items.map((it, i) => [it.id, i]));
-    const pos = { ...(g.pos ?? {}) };
-    for (const run of explodeGroup(g, widthsRef.current)) {
-      if (run.items.length < 2) continue;
-      const slots = run.items.map((it) => pos[it.id] ?? { x: 0, y: 0 });
-      const members = [...run.items].sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
-      members.forEach((it, i) => {
-        pos[it.id] = slots[i];
-      });
-    }
-    setGroups((gs) => gs.map((x) => (x.id === groupId ? { ...x, items, pos } : x)));
+    setGroups((gs) => gs.map((x) => (x.id === groupId ? next : x)));
   };
 
   const renderGroup = (g: Group, ox: number, oy: number) => {
