@@ -63,6 +63,10 @@ describe("editor storage helpers", () => {
       ok: false,
       reason: "quota",
     });
+    expect(writeStoredJson(null, "x", { ok: true })).toEqual({
+      ok: false,
+      reason: "unavailable",
+    });
   });
 
   it("keeps only valid UI fields", () => {
