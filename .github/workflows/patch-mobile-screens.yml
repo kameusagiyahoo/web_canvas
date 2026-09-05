@@ -1,0 +1,52 @@
+name: Patch mobile screen actions
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-mobile-screens.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Wire rename duplicate and delete
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('app/page.tsx')
+          text = path.read_text()
+          old = '''                  onAdd={() => {
+                    addFrame();
+                    setSheet(null);
+                  }}
+                />'''
+          new = '''                  onAdd={() => {
+                    addFrame();
+                    setSheet(null);
+                  }}
+                  onRename={(id, name) => patchFrame(id, { name })}
+                  onDuplicate={(id) => duplicateFrame(id)}
+                  onDelete={(id) => deleteFrame(id)}
+                />'''
+          if old not in text:
+              raise SystemExit('MobileScreens wiring target not found')
+          path.write_text(text.replace(old, new, 1))
+
+      - name: Remove one-shot workflow
+        run: git rm .github/workflows/patch-mobile-screens.yml
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/page.tsx
+          git commit -m "Complete mobile screen management"
+          git push
