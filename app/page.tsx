@@ -83,8 +83,8 @@ import { LangMenu } from "@/components/Menus";
 import { AiActionKey, AiPanel, aiErrorText } from "@/components/AiPanel";
 import { TidyState } from "@/components/ui";
 import { AiSettings, DEFAULT_AI, hasKey, isSecureUrl, loadAiSettings, proposeBehavior, proposeDescription, pushHistory, saveAiSettings } from "@/lib/ai";
-import { carryFrame, pullInto, tidyFrame } from "@/lib/tidy";
-import { adaptItemToFrame } from "@/lib/part-placement";
+import { carryFrame, tidyFrame } from "@/lib/tidy";
+import { placePickedItem } from "@/lib/part-placement";
 import { appendDroppedGroup, placeDroppedItem } from "@/lib/drop-placement";
 import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/history";
 import { reorderFrameGroups, reorderItemsInGroup } from "@/lib/layer-commands";
@@ -141,7 +141,6 @@ const MAX_Z = 3;
 const HISTORY_MAX = 100;
 
 type View = { x: number; y: number; z: number };
-const FRAME_MARGIN = PHONE_MARGIN;
 
 type DragState = {
   item: Item;
@@ -1710,56 +1709,33 @@ export default function Page() {
   const ensureFrameRef = useRef(() => {});
   ensureFrameRef.current = ensureFrame;
 
-  /** Phone UI: add any Material part to the selected screen. */
-const addPart = (kind: Kind) => {
-  const item = makeItem(kind);
-  const f = framesRef.current.find((x) => x.id === (selectedFrameId ?? layersFrameId)) ?? framesRef.current[0];
-  const baseSize = sizeOf(item, widthsRef.current);
-  let placedItem = item;
-  let x = 0;
-  let y = 0;
+  /** Phone UI: add any Material part using the shared picker-placement command. */
+  const addPart = (kind: Kind) => {
+    const item = makeItem(kind);
+    const targetFrame =
+      framesRef.current.find(
+        (candidate) => candidate.id === (selectedFrameId ?? layersFrameId),
+      ) ??
+      framesRef.current[0] ??
+      null;
+    const rect = canvasRect();
+    const placement = placePickedItem({
+      item,
+      targetFrame,
+      groups: groupsRef.current,
+      frames: framesRef.current,
+      widths: widthsRef.current,
+      view: viewRef.current,
+      viewport: { width: rect?.width ?? 0, height: rect?.height ?? 0 },
+      groupId: uid(),
+    });
 
-  if (f) {
-    const frameSize = frameSizeOf(f);
-    const adapted = adaptItemToFrame(item, f, groupsRef.current, framesRef.current, widthsRef.current);
-    placedItem = adapted.item;
-    const sz = sizeOf(placedItem, widthsRef.current);
-    x = adapted.slotX ?? f.x + Math.max(FRAME_MARGIN, (frameSize.w - sz.w) / 2);
-    y = f.y + FRAME_MARGIN;
-
-    const taken = (yy: number) =>
-      itemRects().some((o) => o.l < x + sz.w && o.r > x && o.t < yy + sz.h && o.b > yy);
-    let tries = 0;
-    while (taken(y) && y + sz.h + FRAME_MARGIN < f.y + frameSize.h && tries++ < 20) {
-      y += sz.h + 12;
-    }
-
-    const dropped: Group = {
-      id: uid(),
-      x: Math.round(x),
-      y: Math.round(y),
-      axis: connectSpecOf(placedItem)?.axis ?? "x",
-      items: [placedItem],
-    };
-    const inside = pullInto(dropped, f, widthsRef.current);
     snapshot();
-    setGroups((gs) => [...gs, inside]);
-  } else {
-    const r = canvasRect();
-    const v = viewRef.current;
-    x = ((r?.width ?? 0) / 2 - v.x) / v.z - baseSize.w / 2;
-    y = ((r?.height ?? 0) / 2 - v.y) / v.z - baseSize.h / 2;
-    snapshot();
-    setGroups((gs) => [
-      ...gs,
-      { id: uid(), x: Math.round(x), y: Math.round(y), axis: connectSpecOf(item)?.axis ?? "x", items: [item] },
-    ]);
-  }
-
-  setSelectedIds([placedItem.id]);
-  setSelectedFrameId(null);
-  setSheet(null);
-};
+    setGroups((current) => [...current, placement.group]);
+    setSelectedIds([placement.item.id]);
+    setSelectedFrameId(null);
+    setSheet(null);
+  };
 
 const changeFrame = (f: FrameMode) => {
     if (f === frame) return;
