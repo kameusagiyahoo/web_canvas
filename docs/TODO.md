@@ -31,9 +31,9 @@
 
 ## Priority A — Project metadata
 
-- [ ] Update `package.json` repository metadata from the original repository to `kameusagiyahoo/web_canvas` when project identity work begins.
-- [ ] Update homepage metadata to the new GitHub Pages URL once deployment is confirmed stable.
-- [ ] Keep `LICENSE`, `NOTICE`, and required attribution intact.
+- [x] Update `package.json` repository metadata from the original repository to `kameusagiyahoo/web_canvas`.
+- [x] Update homepage metadata to `https://kameusagiyahoo.github.io/web_canvas/`.
+- [x] Keep `LICENSE`, `NOTICE`, and required attribution intact.
 
 ## Priority B — Security / cloud
 
