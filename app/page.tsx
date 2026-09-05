@@ -94,6 +94,7 @@ import { reorderFrameGroups, reorderItemsInGroup } from "@/lib/layer-commands";
 import { deleteItemsFromGroups, duplicateItemSelection, patchItemInGroups } from "@/lib/item-commands";
 import { groupItemSelection, nudgeFrameWithGroups, nudgeItemGroups, ungroupFreeGroup } from "@/lib/group-commands";
 import { itemRectsOfGroups, marqueeHitIds, selectionRect } from "@/lib/canvas-selection";
+import { dragCarriedGroupsFromOrigins, dragFrameFromOrigin, dragGroupFromOrigin } from "@/lib/canvas-drag";
 import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX as nextFrameDocumentX } from "@/lib/frame-commands";
 import { previewCameraForFrame, resolvePreviewStartId } from "@/lib/preview-session";
 import { STORAGE_KEYS, clearStoredDraft, getBrowserStorage, readStoredDocument, readStoredDraft, readStoredUi, saveStoredDocument, saveStoredDraft, saveStoredUi } from "@/lib/storage";
@@ -1525,7 +1526,9 @@ export default function Page() {
         instantRef.current.add(g.id);
         g.overBin = inBin(e.clientX);
         setGesture({ ...g });
-        setGroups((gs) => gs.map((gr) => (gr.id === g.id ? { ...gr, x: Math.round(g.gx + dx), y: Math.round(g.gy + dy) } : gr)));
+        setGroups((gs) =>
+          dragGroupFromOrigin(gs, g.id, g.gx, g.gy, dx, dy),
+        );
         return;
       }
       if (g.kind === "frame") {
@@ -1537,22 +1540,12 @@ export default function Page() {
           g.moved = true;
           snapshot();
         }
-        const ids = new Map(g.groups.map((o) => [o.id, o]));
         for (const o of g.groups) instantRef.current.add(o.id);
         setFrames((fs) =>
-          fs.map((f) =>
-            f.id === g.id
-              ? { ...f, x: Math.round(g.fx + dx), y: Math.round(g.fy + dy) }
-              : f,
-          ),
+          dragFrameFromOrigin(fs, g.id, g.fx, g.fy, dx, dy),
         );
         setGroups((gs) =>
-          gs.map((gr) => {
-            const o = ids.get(gr.id);
-            return o
-              ? { ...gr, x: Math.round(o.x + dx), y: Math.round(o.y + dy) }
-              : gr;
-          }),
+          dragCarriedGroupsFromOrigins(gs, g.groups, dx, dy),
         );
         return;
       }
