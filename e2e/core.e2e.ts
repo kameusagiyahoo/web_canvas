@@ -89,9 +89,12 @@ test("mobile screen edits use the same undo and redo history", async ({ page }) 
   await page.setViewportSize({ width: 390, height: 844 });
   await openSeeded(page);
 
-  await page.getByRole("button", { name: "Screen", exact: true }).first().click();
-  await page.getByRole("button", { name: "Screen", exact: true }).last().click();
+  await page.getByTitle("Screen").click();
+  const duplicate = page.getByRole("button", { name: "Duplicate", exact: true }).first();
+  await expect(duplicate).toBeVisible();
+  await duplicate.click();
   await expect.poll(() => storedFrameCount(page)).toBe(3);
+  await page.getByRole("button", { name: "Close", exact: true }).click();
 
   const undo = page.getByTitle("Undo");
   const redo = page.getByTitle("Redo");
