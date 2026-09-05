@@ -51,7 +51,7 @@ async function openSeeded(page: Page) {
     localStorage.setItem("m3e:ui", JSON.stringify({ lang: "en" }));
   }, { doc: seedDoc });
   await page.goto("/");
-  await expect(page.getByTitle("Preview (P)")).toBeVisible();
+  await expect(page.getByTitle("Undo")).toBeVisible();
 }
 
 async function storedFrameCount(page: Page) {
