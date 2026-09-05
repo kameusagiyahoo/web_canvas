@@ -22,41 +22,38 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           mobile = Path('components/Mobile.tsx')
           text = mobile.read_text()
 
-          old = 'import { CONTRASTS, Contrast, FONTS, Item, KIND_SPEC, NavTab, PALETTES, Palette, SHAPES, ShapeScale, Theme, defaultTabsFor, iconSlotsOf, setIconSlot } from "@/lib/tokens";'
-          new = 'import { BACK_TARGET, CONTRASTS, Contrast, FONTS, Frame, Item, KIND_SPEC, NavTab, PALETTES, Palette, SHAPES, ShapeScale, Theme, TRANSITIONS, Transition, defaultTabsFor, iconSlotsOf, setIconSlot } from "@/lib/tokens";'
-          if old not in text:
+          old_import = 'import { CONTRASTS, Contrast, FONTS, Item, KIND_SPEC, NavTab, PALETTES, Palette, SHAPES, ShapeScale, Theme, defaultTabsFor, iconSlotsOf, setIconSlot } from "@/lib/tokens";'
+          new_import = 'import { BACK_TARGET, CONTRASTS, Contrast, FONTS, Frame, Item, KIND_SPEC, NavTab, PALETTES, Palette, SHAPES, ShapeScale, Theme, TRANSITIONS, Transition, defaultTabsFor, iconSlotsOf, setIconSlot } from "@/lib/tokens";'
+          if old_import not in text:
               raise SystemExit('mobile token import not found')
-          text = text.replace(old, new, 1)
+          text = text.replace(old_import, new_import, 1)
 
-          old = '''  item,
-  palette: p,
-  onChange,'''
-          new = '''  item,
-  frames,
-  palette: p,
-  onChange,'''
-          if old not in text:
+          text, n = re.subn(
+              r'(export function MobileInspector\(\{\s*item,\s*)(palette: p,)',
+              r'\1frames,\n  \2',
+              text,
+              count=1,
+          )
+          if n != 1:
               raise SystemExit('MobileInspector argument anchor not found')
-          text = text.replace(old, new, 1)
 
-          old = '''  item: Item;
-  palette: Palette;
-  onChange: (patch: Partial<Item>) => void;'''
-          new = '''  item: Item;
-  frames: Frame[];
-  palette: Palette;
-  onChange: (patch: Partial<Item>) => void;'''
-          if old not in text:
+          text, n = re.subn(
+              r'(\n\s*item: Item;\s*)(palette: Palette;\s*\n\s*onChange: \(patch: Partial<Item>\) => void;)',
+              r'\1\n  frames: Frame[];\n  \2',
+              text,
+              count=1,
+          )
+          if n != 1:
               raise SystemExit('MobileInspector props anchor not found')
-          text = text.replace(old, new, 1)
 
-          anchor = '''      <Row icon="bolt" label={t("behavior", lang)} p={p}>
-        <Field value={item.note ?? ""} onChange={(note) => onChange({ note })} placeholder={["button", "fab", "iconButton", "extendedFab"].includes(item.kind) ? t("whenPressed", lang) : t("whatItDoes", lang)} p={p} icon="bolt" height={48} />
-      </Row>'''
+          marker = '      <Row icon="bolt" label={t("behavior", lang)} p={p}>'
+          if marker not in text:
+              raise SystemExit('behavior row marker not found')
           insert = '''      {spec.size && (
         <Row icon="straighten" label={t("size", lang)} p={p}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -86,26 +83,20 @@ jobs:
         )}
       </Row>
 
-      <Row icon="bolt" label={t("behavior", lang)} p={p}>
-        <Field value={item.note ?? ""} onChange={(note) => onChange({ note })} placeholder={["button", "fab", "iconButton", "extendedFab"].includes(item.kind) ? t("whenPressed", lang) : t("whatItDoes", lang)} p={p} icon="bolt" height={48} />
-      </Row>'''
-          if anchor not in text:
-              raise SystemExit('behavior row anchor not found')
-          text = text.replace(anchor, insert, 1)
+'''
+          text = text.replace(marker, insert + marker, 1)
           mobile.write_text(text)
 
           page = Path('app/page.tsx')
           text = page.read_text()
-          old = '''                <MobileInspector
-                  item={selected}
-                  palette={p}'''
-          new = '''                <MobileInspector
-                  item={selected}
-                  frames={frames}
-                  palette={p}'''
-          if old not in text:
+          text, n = re.subn(
+              r'(<MobileInspector\s*\n\s*item=\{selected\}\s*\n)(\s*palette=\{p\})',
+              r'\1                  frames={frames}\n\2',
+              text,
+              count=1,
+          )
+          if n != 1:
               raise SystemExit('MobileInspector page wiring not found')
-          text = text.replace(old, new, 1)
           page.write_text(text)
           PY
 
