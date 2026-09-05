@@ -20,7 +20,6 @@ import {
   explodeGroup,
   freeRadii,
   BEZEL,
-  canJoin,
   clamp,
   connectSpecOf,
   Doc,
@@ -62,12 +61,9 @@ import {
   PHONE_H,
   PHONE_MARGIN,
   PHONE_W,
-  PULL_EXP,
   Radii,
   SETTLE_MS,
   sizeOf,
-  SNAP_CROSS,
-  SNAP_MAIN,
   Transition,
   TRANSITIONS,
   uid,
@@ -95,6 +91,8 @@ import { deleteItemsFromGroups, duplicateItemSelection, patchItemInGroups } from
 import { groupItemSelection, nudgeFrameWithGroups, nudgeItemGroups, ungroupFreeGroup } from "@/lib/group-commands";
 import { itemRectsOfGroups, marqueeHitIds, selectionRect } from "@/lib/canvas-selection";
 import { dragCarriedGroupsFromOrigins, dragFrameFromOrigin, dragGroupFromOrigin } from "@/lib/canvas-drag";
+import { findAlignmentGuide, findMagneticSnap, restPosition, type Guide, type Snap } from "@/lib/canvas-magnet";
+import { detachItemForDrag, insertItemAtSnap } from "@/lib/part-drag";
 import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX as nextFrameDocumentX } from "@/lib/frame-commands";
 import { previewCameraForFrame, resolvePreviewStartId } from "@/lib/preview-session";
 import { STORAGE_KEYS, clearStoredDraft, getBrowserStorage, readStoredDocument, readStoredDraft, readStoredUi, saveStoredDocument, saveStoredDraft, saveStoredUi } from "@/lib/storage";
@@ -141,11 +139,6 @@ const MAX_Z = 3;
 const HISTORY_MAX = 100;
 
 type View = { x: number; y: number; z: number };
-type Snap = { groupId: string; index: number; pull: number };
-
-/** alignment guide: the snapped position plus the line to draw */
-type Guide = { x?: number; y?: number; gx?: number; gy?: number };
-const GUIDE_PX = 7;
 const FRAME_MARGIN = PHONE_MARGIN;
 
 type DragState = {
@@ -1003,107 +996,32 @@ export default function Page() {
   /* ---------- rest positions and the magnet ---------- */
   const restPos = useCallback(
     (g: Group, k: number, sz: { w: number; h: number }) =>
-      g.axis === "x"
-        ? { left: k === 0 ? g.x - sz.w - GAP : g.x + prefixOf(g, k), top: g.y }
-        : { left: g.x, top: k === 0 ? g.y - sz.h - GAP : g.y + prefixOf(g, k) },
-    [prefixOf],
+      restPosition(g, k, sz, widthsRef.current),
+    [],
   );
 
-  /** Nearest slot inside the magnetic field with an attraction that ramps
-   *  from 0 at the edge to 1 on target. A part only fuses with its own kind. */
   const findSnap = useCallback(
-    (item: Item, left: number, top: number): Snap | null => {
-      const spec = connectSpecOf(item);
-      if (!spec) return null;
-      const sz = sizeRef(item);
-      let best: Snap | null = null;
-      let bestD = 1;
-      for (const g of groupsRef.current) {
-        if (g.free || g.axis !== spec.axis || !g.items[0] || !canJoin(g.items[0], item))
-          continue;
-        for (let k = 0; k <= g.items.length; k++) {
-          const r = restPos(g, k, sz);
-          const dx = left - r.left;
-          const dy = top - r.top;
-          const nMain = (spec.axis === "x" ? dx : dy) / SNAP_MAIN;
-          const nCross = (spec.axis === "x" ? dy : dx) / SNAP_CROSS;
-          if (Math.abs(nMain) >= 1 || Math.abs(nCross) >= 1) continue;
-          const d = Math.hypot(nMain, nCross);
-          if (d < bestD) {
-            bestD = d;
-            best = { groupId: g.id, index: k, pull: Math.pow(1 - d, PULL_EXP) };
-          }
-        }
-      }
-      return best;
-    },
-    [restPos, sizeRef],
+    (item: Item, left: number, top: number): Snap | null =>
+      findMagneticSnap(item, left, top, groupsRef.current, widthsRef.current),
+    [],
   );
 
   const sx = useSpring(0, CARRY);
   const sy = useSpring(0, CARRY);
 
-  /** Canva-style alignment: edges and centres of neighbours and of the frame
-   *  pull the part gently into line and draw a guide while they do. */
+  /** Alignment candidates and tolerance live in canvas-magnet; the page supplies live editor refs. */
   const findGuide = useCallback(
-    (item: Item, left: number, top: number): Guide | null => {
-      const sz = sizeRef(item);
-      const tol = GUIDE_PX / viewRef.current.z;
-      const xs: number[] = [];
-      const ys: number[] = [];
-      for (const g of groupsRef.current) {
-        for (const pl of layoutOf(g, widthsRef.current)) {
-          if (pl.item.id === item.id) continue;
-          xs.push(pl.x, pl.x + pl.w / 2, pl.x + pl.w);
-          ys.push(pl.y, pl.y + pl.h / 2, pl.y + pl.h);
-        }
-      }
-      if (frameRef.current === "phone") {
-        for (const f of framesRef.current) {
-          const { w, h } = frameSizeOf(f);
-          xs.push(
-            f.x,
-            f.x + FRAME_MARGIN,
-            f.x + w / 2,
-            f.x + w - FRAME_MARGIN,
-            f.x + w,
-          );
-          ys.push(
-            f.y,
-            f.y + FRAME_MARGIN,
-            f.y + h / 2,
-            f.y + h - FRAME_MARGIN,
-            f.y + h,
-          );
-        }
-      }
-      const mine = (pos: number, len: number) => [
-        pos,
-        pos + len / 2,
-        pos + len,
-      ];
-      let best: Guide = {};
-      let bx = tol;
-      for (const c of xs)
-        for (const m of mine(left, sz.w)) {
-          const d = Math.abs(c - m);
-          if (d < bx) {
-            bx = d;
-            best = { ...best, x: left + (c - m), gx: c };
-          }
-        }
-      let by = tol;
-      for (const c of ys)
-        for (const m of mine(top, sz.h)) {
-          const d = Math.abs(c - m);
-          if (d < by) {
-            by = d;
-            best = { ...best, y: top + (c - m), gy: c };
-          }
-        }
-      return best.x === undefined && best.y === undefined ? null : best;
-    },
-    [sizeRef],
+    (item: Item, left: number, top: number): Guide | null =>
+      findAlignmentGuide(
+        item,
+        left,
+        top,
+        groupsRef.current,
+        framesRef.current,
+        widthsRef.current,
+        { phoneMode: frameRef.current === "phone", zoom: viewRef.current.z },
+      ),
+    [],
   );
 
   /* ---------- pointer: parts ---------- */
@@ -1244,28 +1162,11 @@ export default function Page() {
         const id = d.item.id;
         snapshot();
         setGroups((prev) => {
-          const out: Group[] = [];
-          for (const g of prev) {
-            const idx = g.items.findIndex((it) => it.id === id);
-            if (idx < 0) {
-              out.push(g);
-              continue;
-            }
-            const rest = g.items.filter((it) => it.id !== id);
-            if (rest.length === 0) continue;
-            const sz = sizeOf(g.items[idx], widthsRef.current);
-            const back = idx === 0;
-            // The anchor moves to the new first item; that jump must not animate,
-            // otherwise the remaining run springs sideways for a frame.
-            if (back) instantRef.current.add(g.id);
-            out.push({
-              ...g,
-              x: back && g.axis === "x" ? g.x + sz.w + GAP : g.x,
-              y: back && g.axis === "y" ? g.y + sz.h + GAP : g.y,
-              items: rest,
-            });
-          }
-          return out;
+          const result = detachItemForDrag(prev, id, widthsRef.current);
+          // The anchor moves to the new first item; that jump must not animate,
+          // otherwise the remaining run springs sideways for a frame.
+          for (const groupId of result.shiftedGroupIds) instantRef.current.add(groupId);
+          return result.groups;
         });
         setPressedId(null);
         setDrag({ ...d });
@@ -1306,24 +1207,9 @@ export default function Page() {
         const t = d.snap;
         setDrag({ ...d, snap: { ...t, pull: 1 }, settling: true });
         const commit = () => {
-          setGroups((prev) => {
-            if (prev.some((g) => g.items.some((it) => it.id === item.id)))
-              return prev;
-            return prev.map((g) => {
-              if (g.id !== t.groupId) return g;
-              const front = t.index === 0;
-              return {
-                ...g,
-                x: front && g.axis === "x" ? g.x - sz.w - GAP : g.x,
-                y: front && g.axis === "y" ? g.y - sz.h - GAP : g.y,
-                items: [
-                  ...g.items.slice(0, t.index),
-                  item,
-                  ...g.items.slice(t.index),
-                ],
-              };
-            });
-          });
+          setGroups((prev) =>
+            insertItemAtSnap(prev, item, t, widthsRef.current),
+          );
           setDrag(null);
         };
         const timer = window.setTimeout(() => {
