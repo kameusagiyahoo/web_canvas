@@ -1,6 +1,7 @@
 from pathlib import Path
 import re
 
+# One-shot migration for preview start/camera calculations.
 page = Path("app/page.tsx")
 text = page.read_text()
 
