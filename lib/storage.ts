@@ -35,7 +35,20 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const finite = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
-export function readStoredJson(storage: StorageLike, key: string): unknown | null {
+/** Access can itself throw in hardened/private browser contexts. */
+export function getBrowserStorage(): StorageLike | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function readStoredJson(
+  storage: StorageLike | null,
+  key: string,
+): unknown | null {
+  if (!storage) return null;
   try {
     const raw = storage.getItem(key);
     return raw === null ? null : JSON.parse(raw);
@@ -45,10 +58,11 @@ export function readStoredJson(storage: StorageLike, key: string): unknown | nul
 }
 
 export function writeStoredJson(
-  storage: StorageLike,
+  storage: StorageLike | null,
   key: string,
   value: unknown,
 ): StorageWriteResult {
+  if (!storage) return { ok: false, reason: "unavailable" };
   try {
     storage.setItem(key, JSON.stringify(value));
     return { ok: true };
@@ -64,7 +78,11 @@ export function writeStoredJson(
   }
 }
 
-export function removeStoredValue(storage: StorageLike, key: string): boolean {
+export function removeStoredValue(
+  storage: StorageLike | null,
+  key: string,
+): boolean {
+  if (!storage) return false;
   try {
     storage.removeItem(key);
     return true;
@@ -73,20 +91,20 @@ export function removeStoredValue(storage: StorageLike, key: string): boolean {
   }
 }
 
-export function readStoredDocument(storage: StorageLike): Partial<Doc> | null {
+export function readStoredDocument(storage: StorageLike | null): Partial<Doc> | null {
   const value = readStoredJson(storage, STORAGE_KEYS.document);
   return isRecord(value) ? (value as Partial<Doc>) : null;
 }
 
 export function saveStoredDocument(
-  storage: StorageLike,
+  storage: StorageLike | null,
   doc: Partial<Doc>,
 ): StorageWriteResult {
   return writeStoredJson(storage, STORAGE_KEYS.document, doc);
 }
 
 export function readStoredDraft(
-  storage: StorageLike,
+  storage: StorageLike | null,
   hasDocument: boolean,
 ): Doc | null {
   if (!hasDocument) {
@@ -101,17 +119,17 @@ export function readStoredDraft(
 }
 
 export function saveStoredDraft(
-  storage: StorageLike,
+  storage: StorageLike | null,
   doc: Doc,
 ): StorageWriteResult {
   return writeStoredJson(storage, STORAGE_KEYS.draftBefore, doc);
 }
 
-export function clearStoredDraft(storage: StorageLike): boolean {
+export function clearStoredDraft(storage: StorageLike | null): boolean {
   return removeStoredValue(storage, STORAGE_KEYS.draftBefore);
 }
 
-export function readStoredUi(storage: StorageLike): StoredEditorUi | null {
+export function readStoredUi(storage: StorageLike | null): StoredEditorUi | null {
   const value = readStoredJson(storage, STORAGE_KEYS.ui);
   if (!isRecord(value)) return null;
 
@@ -140,7 +158,7 @@ export function readStoredUi(storage: StorageLike): StoredEditorUi | null {
 }
 
 export function saveStoredUi(
-  storage: StorageLike,
+  storage: StorageLike | null,
   ui: StoredEditorUi,
 ): StorageWriteResult {
   return writeStoredJson(storage, STORAGE_KEYS.ui, ui);
