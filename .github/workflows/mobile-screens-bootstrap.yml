@@ -1,0 +1,66 @@
+name: Wire mobile screen picker
+
+on:
+  push:
+    paths:
+      - .github/workflows/mobile-screens-bootstrap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch mobile screen UI into page
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path("app/page.tsx")
+          text = path.read_text()
+
+          def replace_once(old: str, new: str, label: str):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly one match, found {count}")
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              'import { BottomSheet, MobileActionBar, MobileInspector, MobileLang, MobileSettings } from "@/components/Mobile";',
+              'import { BottomSheet, MobileActionBar, MobileInspector, MobileLang, MobileSettings } from "@/components/Mobile";\nimport { MobileScreens } from "@/components/MobileScreens";',
+              "mobile screens import",
+          )
+
+          replace_once(
+              'const [sheet, setSheet] = useState<"edit" | "settings" | "lang" | null>(null);',
+              'const [sheet, setSheet] = useState<"edit" | "screens" | "settings" | "lang" | null>(null);',
+              "sheet state",
+          )
+
+          add_anchor = '''          {isMobile && sheet === null && (\n            <button\n              onClick={addButton}'''
+          add_replacement = '''          {isMobile && sheet === null && (\n            <button\n              onClick={() => setSheet("screens")}\n              title={t("screen", lang)}\n              aria-label={t("screen", lang)}\n              className="m3-press"\n              style={{\n                position: "absolute",\n                right: 88,\n                bottom: "calc(16px + var(--bottom-ui, 0px) + env(safe-area-inset-bottom))",\n                width: 64,\n                height: 64,\n                borderRadius: 20,\n                border: "none",\n                background: p.secondaryContainer,\n                color: p.onSecondaryContainer,\n                cursor: "pointer",\n                display: "grid",\n                placeItems: "center",\n                zIndex: 46,\n                boxShadow: "0 6px 18px rgba(0,0,0,0.14)",\n              }}\n            >\n              <Icon name="view_carousel" size={30} />\n            </button>\n          )}\n\n          {isMobile && sheet === null && (\n            <button\n              onClick={addButton}'''
+          replace_once(add_anchor, add_replacement, "mobile screens button")
+
+          settings_anchor = '''            {isMobile && sheet === "settings" && ('''
+          settings_replacement = '''            {isMobile && sheet === "screens" && (\n              <BottomSheet key="screens" p={p} onClose={() => setSheet(null)}>\n                <MobileScreens\n                  frames={frames}\n                  selectedId={selectedFrameId}\n                  palette={p}\n                  onSelect={(id) => {\n                    setSelectedIds([]);\n                    setSelectedLinkId(null);\n                    setSelectedFrameId(id);\n                    setLayersFrameId(id);\n                    setSheet(null);\n                  }}\n                  onAdd={() => {\n                    addFrame();\n                    setSheet(null);\n                  }}\n                />\n              </BottomSheet>\n            )}\n            {isMobile && sheet === "settings" && ('''
+          replace_once(settings_anchor, settings_replacement, "mobile screens sheet")
+
+          path.write_text(text)
+          PY
+
+      - name: Commit source change
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/mobile-screens-bootstrap.yml
+          git add app/page.tsx components/MobileScreens.tsx
+          git commit -m "Add mobile screen management entry point"
+          git push
