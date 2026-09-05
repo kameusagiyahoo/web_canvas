@@ -91,6 +91,7 @@ import { carryFrame, pullInto, tidyFrame } from "@/lib/tidy";
 import { adaptItemToFrame } from "@/lib/part-placement";
 import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/history";
 import { reorderFrameGroups, reorderItemsInGroup } from "@/lib/layer-commands";
+import { deleteItemsFromGroups, duplicateItemSelection } from "@/lib/item-commands";
 import { deleteFrameFromDocument, duplicateFrameInDocument, nextFrameX as nextFrameDocumentX } from "@/lib/frame-commands";
 import { previewCameraForFrame, resolvePreviewStartId } from "@/lib/preview-session";
 import { STORAGE_KEYS, clearStoredDraft, getBrowserStorage, readStoredDocument, readStoredDraft, readStoredUi, saveStoredDocument, saveStoredDraft, saveStoredUi } from "@/lib/storage";
@@ -1682,70 +1683,29 @@ export default function Page() {
 
   const deleteSelected = useCallback(() => {
     if (selectedIds.length === 0) return;
-    const ids = new Set(selectedIds);
     snapshot();
-    setGroups((prev) =>
-      prev
-        .map((g) => {
-          if (g.free) return collapseFree({ ...g, items: g.items.filter((it) => !ids.has(it.id)) }, widthsRef.current);
-          let x = g.x;
-          let y = g.y;
-          let items = g.items;
-          while (items.length && ids.has(items[0].id)) {
-            const sz = sizeOf(items[0], widthsRef.current);
-            if (g.axis === "x") x += sz.w + GAP;
-            else y += sz.h + GAP;
-            items = items.slice(1);
-          }
-          if (x !== g.x || y !== g.y) instantRef.current.add(g.id);
-          return { ...g, x, y, items: items.filter((it) => !ids.has(it.id)) };
-        })
-        .filter((g) => g.items.length > 0),
-    );
+    setGroups((prev) => {
+      const result = deleteItemsFromGroups(prev, selectedIds, widthsRef.current);
+      for (const id of result.shiftedGroupIds) instantRef.current.add(id);
+      return result.groups;
+    });
     setSelectedIds([]);
   }, [selectedIds, snapshot]);
 
   const duplicateSelected = useCallback(() => {
     if (!selected) return;
-    /* a selected hand-made group is copied whole, keeping its layout */
-    const fg = groupsRef.current.find((g) => g.free && g.items.some((it) => it.id === selected.id));
-    if (fg && fg.items.every((it) => selectedIds.includes(it.id))) {
-      const idMap = new Map(fg.items.map((it) => [it.id, uid()]));
-      const pos: Record<string, { x: number; y: number }> = {};
-      for (const it of fg.items) pos[idMap.get(it.id)!] = fg.pos?.[it.id] ?? { x: 0, y: 0 };
-      const copyG: Group = {
-        ...fg,
-        id: uid(),
-        x: fg.x + 24,
-        y: fg.y + 24,
-        pos,
-        items: fg.items.map((it) => ({ ...it, id: idMap.get(it.id)!, tabs: it.tabs?.map((t) => ({ ...t })) })),
-      };
-      snapshot();
-      setGroups((prev) => [...prev, copyG]);
-      setSelectedIds(copyG.items.map((it) => it.id));
-      return;
-    }
-    const rect = itemRects().find((r) => r.id === selected.id);
-    if (!rect) return;
-    const copy: Item = {
-      ...selected,
-      id: uid(),
-      tabs: selected.tabs?.map((t) => ({ ...t })),
-    };
+    const result = duplicateItemSelection(
+      groupsRef.current,
+      selectedIds,
+      selected.id,
+      widthsRef.current,
+      uid,
+    );
+    if (!result) return;
     snapshot();
-    setGroups((prev) => [
-      ...prev,
-      {
-        id: uid(),
-        x: rect.l + 24,
-        y: rect.t + 24,
-        axis: connectSpecOf(copy)?.axis ?? "x",
-        items: [copy],
-      },
-    ]);
-    setSelectedIds([copy.id]);
-  }, [selected, selectedIds, itemRects, snapshot]);
+    setGroups(result.groups);
+    setSelectedIds(result.selectedIds);
+  }, [selected, selectedIds, snapshot]);
 
   /** the free group the whole selection belongs to, if it is exactly one */
   const selectedGroup = useMemo(() => {
