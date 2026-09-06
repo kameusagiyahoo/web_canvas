@@ -55,8 +55,8 @@ export function editNavigationEdge(
     if (patch.remove) return undefined;
     return {
       ...action,
-      ...(patch.to !== undefined ? { to: patch.to } : null),
-      ...(patch.transition !== undefined ? { transition: patch.transition } : null),
+      ...(patch.to !== undefined ? { to: patch.to } : {}),
+      ...(patch.transition !== undefined ? { transition: patch.transition } : {}),
     };
   });
   return { frames: doc.frames.slice(), groups };
