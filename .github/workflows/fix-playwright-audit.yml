@@ -1,0 +1,39 @@
+name: Fix Playwright audit advisory
+
+on:
+  push:
+    paths:
+      - ".github/workflows/fix-playwright-audit.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --save-dev --save-exact @playwright/test@1.55.1
+      - run: npm audit
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - run: git rm .github/workflows/audit-dependencies.yml .github/workflows/fix-playwright-audit.yml
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "Fix Playwright dependency advisory"
+          git push
