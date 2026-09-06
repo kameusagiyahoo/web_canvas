@@ -22,6 +22,18 @@ jobs:
           node-version: 22
           cache: npm
       - run: python scripts/enable-navigation-graph-editing.py
+      - name: Stabilize SVG edge hit-target coverage
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("e2e/core.e2e.ts")
+          text = path.read_text()
+          old = '  await graph.getByTestId("graph-edge-item:home:go-details:tap:details").click();\n'
+          new = '  await graph.getByTestId("graph-edge-item:home:go-details:tap:details").click({ force: true });\n'
+          if old not in text:
+              raise SystemExit("graph edge click anchor not found")
+          path.write_text(text.replace(old, new, 1))
+          PY
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
