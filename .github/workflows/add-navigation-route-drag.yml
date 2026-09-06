@@ -22,6 +22,38 @@ jobs:
           node-version: 22
           cache: npm
       - run: python scripts/add-navigation-route-drag.py
+      - name: Stabilize route drag pointer handlers
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("components/NavigationGraph.tsx")
+          text = path.read_text()
+          old = '''                    onPointerMove={(event) => {
+                      if (!routeDrag || routeDrag.sourceFrameId !== node.frameId) return;
+                      setRouteDrag({ ...routeDrag, x1: event.clientX, y1: event.clientY });
+                    }}
+                    onPointerUp={(event) => {
+                      if (!routeDrag || routeDrag.sourceFrameId !== node.frameId) return;
+                      const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-graph-frame-id]")?.dataset.graphFrameId;
+                      if (target) setPendingRoute({ sourceFrameId: node.frameId, targetFrameId: target });
+                      setRouteDrag(null);
+                    }}'''
+          new = '''                    onPointerMove={(event) => {
+                      setRouteDrag((current) => current && current.sourceFrameId === node.frameId
+                        ? { ...current, x1: event.clientX, y1: event.clientY }
+                        : current);
+                    }}
+                    onPointerUp={(event) => {
+                      const target = document.elementsFromPoint(event.clientX, event.clientY)
+                        .map((element) => element.closest<HTMLElement>("[data-graph-frame-id]"))
+                        .find(Boolean)?.dataset.graphFrameId;
+                      if (target) setPendingRoute({ sourceFrameId: node.frameId, targetFrameId: target });
+                      setRouteDrag(null);
+                    }}'''
+          if old not in text:
+              raise SystemExit("route drag handler anchor not found")
+          path.write_text(text.replace(old, new, 1))
+          PY
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
