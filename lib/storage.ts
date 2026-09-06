@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   draftBefore: "m3e:doc:before",
   editorLock: "m3e:doc:editor",
   ui: "m3e:ui",
+  aiSettings: "m3e:ai",
 } as const;
 
 export type StoredView = { x: number; y: number; z: number };

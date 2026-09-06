@@ -9,7 +9,6 @@ import {
   useState,
 } from "react";
 import { AnimatePresence, motion, useReducedMotion, useSpring } from "motion/react";
-import { toPng } from "html-to-image";
 import { buildPrompt, effectivePrompt } from "@/lib/prompt";
 import {
   Action,
@@ -80,9 +79,11 @@ import { PromptPanel } from "@/components/PromptPanel";
 import { GitHubLink, Mode, Toolbar } from "@/components/Toolbar";
 import { LangMenu } from "@/components/Menus";
 import { AiActionKey, AiPanel, aiErrorText } from "@/components/AiPanel";
-import { TidyState } from "@/components/ui";
-import { AiSettings, DEFAULT_AI, hasKey, isSecureUrl, loadAiSettings, proposeBehavior, proposeDescription, pushHistory, saveAiSettings } from "@/lib/ai";
-import { tidyFrame } from "@/lib/tidy";
+import { AiSettings, DEFAULT_AI, hasKey, isSecureUrl, loadAiSettings, proposeBehavior, proposeDescription, saveAiSettings } from "@/lib/ai";
+import { applyAiFrameDescription, applyAiItemBehavior } from "@/lib/ai-commands";
+import { downloadFrameElementPng, waitForFrameExportLayer } from "@/lib/frame-export";
+import { migrateLegacyGroups } from "@/lib/document-migrations";
+import { tidyStateForFrame, toggleFrameTidy, type TidySession } from "@/lib/tidy-session";
 import { placePickedItem } from "@/lib/part-placement";
 import { appendDroppedGroup, placeDroppedItem } from "@/lib/drop-placement";
 import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/history";
@@ -203,20 +204,6 @@ function translateSnapshot(snap: Snapshot, lang: Lang): Snapshot {
 }
 
 const SEED_FRAMES: Frame[] = [{ id: "seedF1", name: "Home", x: 0, y: 0 }];
-
-/** Documents saved before the bars grew their system insets have the navigation
- *  bar flush with the old 80dp bottom; keep it on the bottom edge. */
-function migrateGroups(groups: Group[], frames: Frame[]): Group[] {
-  const oldNavH = KIND_SPEC.bottomNav.h - NAV_BAR_H;
-  return groups.map((g) => {
-    if (g.items.length !== 1 || g.items[0].kind !== "bottomNav") return g;
-    const f = frames.find((fr) => {
-      const r = frameRect(fr);
-      return g.x >= r.l - 1 && g.x <= r.r && g.y === r.b - oldNavH;
-    });
-    return f ? { ...g, y: frameRect(f).b - KIND_SPEC.bottomNav.h } : g;
-  });
-}
 
 /** Seed ids are deterministic so server and client render the same markup. */
 const seed = (lang: Lang = getLang()): Group[] => {
@@ -418,7 +405,7 @@ export default function Page() {
   const [, bumpHistory] = useState(0);
   /* ---------- tidy and ai ---------- */
   /** the groups before and after the last tidy; "undo" is offered only while the after-state is still current */
-  const tidyRef = useRef<{ frameId: string; before: Group[]; after: Group[] } | null>(null);
+  const tidyRef = useRef<TidySession | null>(null);
   const [aiSettings, setAiSettings] = useState<AiSettings>(DEFAULT_AI);
   const [aiBusy, setAiBusy] = useState(false);
   /** the screen the model is working on, which wears the animated ring meanwhile */
@@ -600,7 +587,7 @@ export default function Page() {
    *  leaves out keep their current value, or go back to the default when `reset`. */
   const applyDoc = (doc: Partial<Doc>, reset: boolean) => {
     const frames = Array.isArray(doc.frames) ? doc.frames : framesRef.current;
-    if (Array.isArray(doc.groups)) setGroups(migrateGroups(doc.groups, frames));
+    if (Array.isArray(doc.groups)) setGroups(migrateLegacyGroups(doc.groups, frames));
     if (Array.isArray(doc.frames)) setFrames(doc.frames);
     if (typeof doc.paletteKey === "string" && doc.paletteKey) setPaletteKey(doc.paletteKey);
     else if (reset) setPaletteKey("purple");
@@ -1779,26 +1766,23 @@ const changeFrame = (f: FrameMode) => {
   };
 
   /** the tidy button's state for the screen in play; the layout pass runs only when the document changes */
-  const tidyState = useMemo((): TidyState | null => {
+  const tidyState = useMemo(() => {
     if (!tidyTarget) return null;
-    const last = tidyRef.current;
-    if (last && last.frameId === tidyTarget.id && last.after === groups) return "undo";
-    return tidyFrame(groups, tidyTarget, frames, widths) ? "tidy" : "done";
+    return tidyStateForFrame(tidyRef.current, groups, tidyTarget, frames, widths);
   }, [tidyTarget, groups, frames, widths]);
 
   const tidy = (f: Frame) => {
-    const last = tidyRef.current;
-    if (last && last.frameId === f.id && last.after === groupsRef.current) {
-      snapshot();
-      setGroups(last.before);
-      tidyRef.current = null;
-      return;
-    }
-    const after = tidyFrame(groupsRef.current, f, framesRef.current, widthsRef.current);
-    if (!after) return;
+    const result = toggleFrameTidy(
+      tidyRef.current,
+      groupsRef.current,
+      f,
+      framesRef.current,
+      widthsRef.current,
+    );
+    if (!result) return;
     snapshot();
-    tidyRef.current = { frameId: f.id, before: groupsRef.current, after };
-    setGroups(after);
+    tidyRef.current = result.session;
+    setGroups(result.groups);
   };
 
   const toastTimer = useRef<number | null>(null);
@@ -1845,7 +1829,7 @@ const changeFrame = (f: FrameMode) => {
         const r = await proposeDescription(aiSettings, curDoc, widthsRef.current, f, lang, ac.signal);
         if (ac.signal.aborted) return;
         snapshot();
-        setFrames((fs) => fs.map((x) => (x.id === f.id ? { ...x, note: r.note, noteHistory: pushHistory(x.noteHistory, x.note), name: r.name ?? x.name } : x)));
+        setFrames((fs) => applyAiFrameDescription(fs, f.id, r));
         showAiNote(t("aiApplied", lang));
         return;
       }
@@ -1857,7 +1841,7 @@ const changeFrame = (f: FrameMode) => {
         return;
       }
       snapshot();
-      setGroups((gs) => gs.map((g) => (g.items.some((it) => it.id === itemId) ? { ...g, items: g.items.map((it) => (it.id === itemId ? { ...it, note, noteHistory: pushHistory(it.noteHistory, it.note) } : it)) } : g)));
+      setGroups((gs) => applyAiItemBehavior(gs, itemId, note));
       showAiNote(t("aiApplied", lang));
     } catch (e) {
       if (!ac.signal.aborted) showToast(aiErrorText(e, lang), 4000, "error");
@@ -1917,17 +1901,11 @@ const changeFrame = (f: FrameMode) => {
    *  canvas zoom, selection outlines and in-flight animations never leak into the PNG. */
   const saveFrameImage = async (f: Frame) => {
     setExportFrame(f);
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
     try {
-      await document.fonts?.ready;
+      await waitForFrameExportLayer();
       const el = document.querySelector<HTMLElement>(`[data-export="${f.id}"]`);
       if (!el) return;
-      const { w, h } = frameSizeOf(f);
-      const url = await toPng(el, { pixelRatio: 2, cacheBust: true, width: w, height: h });
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${f.name || "screen"}.png`;
-      a.click();
+      await downloadFrameElementPng(el, f);
     } finally {
       setExportFrame(null);
     }

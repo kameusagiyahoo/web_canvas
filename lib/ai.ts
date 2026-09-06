@@ -2,6 +2,7 @@ import { Doc, Frame, Group, Item, frameOfGroup } from "./tokens";
 import { buildPrompt } from "./prompt";
 import { isProject } from "./project";
 import { Lang } from "./i18n";
+import { STORAGE_KEYS, getBrowserStorage, readStoredJson, writeStoredJson, type StorageLike, type StorageWriteResult } from "./storage";
 
 /* Optional AI helpers. The browser talks to the model provider directly with the
  * author's own key; there is no server in between. Every action has a fixed
@@ -28,28 +29,27 @@ export const providerSpec = (k: Provider) => PROVIDERS.find((p) => p.key === k) 
 
 export const DEFAULT_AI: AiSettings = { provider: PROVIDERS[0].key, baseUrl: PROVIDERS[0].baseUrl, model: PROVIDERS[0].model, key: "" };
 
-const STORE_KEY = "m3e:ai";
-
-export function loadAiSettings(): AiSettings {
-  const s = { ...DEFAULT_AI };
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (raw) {
-      const v = JSON.parse(raw) as Partial<AiSettings>;
-      if (PROVIDERS.some((p) => p.key === v.provider)) s.provider = v.provider as Provider;
-      if (typeof v.baseUrl === "string") s.baseUrl = v.baseUrl;
-      if (typeof v.model === "string") s.model = v.model;
-      if (typeof v.key === "string") s.key = v.key;
-    }
-  } catch {}
-  return s;
+export function loadAiSettings(
+  storage: StorageLike | null = getBrowserStorage(),
+): AiSettings {
+  const settings = { ...DEFAULT_AI };
+  const value = readStoredJson(storage, STORAGE_KEYS.aiSettings);
+  if (!value || typeof value !== "object" || Array.isArray(value)) return settings;
+  const stored = value as Partial<AiSettings>;
+  if (PROVIDERS.some((provider) => provider.key === stored.provider))
+    settings.provider = stored.provider as Provider;
+  if (typeof stored.baseUrl === "string") settings.baseUrl = stored.baseUrl;
+  if (typeof stored.model === "string") settings.model = stored.model;
+  if (typeof stored.key === "string") settings.key = stored.key;
+  return settings;
 }
 
 /** Settings live in this browser only, like the document itself. */
-export function saveAiSettings(s: AiSettings) {
-  try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(s));
-  } catch {}
+export function saveAiSettings(
+  settings: AiSettings,
+  storage: StorageLike | null = getBrowserStorage(),
+): StorageWriteResult {
+  return writeStoredJson(storage, STORAGE_KEYS.aiSettings, settings);
 }
 
 const isLocal = (u: string) => /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(u.trim());
