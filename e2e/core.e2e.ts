@@ -181,3 +181,31 @@ test("mobile screen list opens the full-screen navigation graph", async ({ page 
   await graph.getByRole("button", { name: "Close" }).click();
   await expect(graph).toBeHidden();
 });
+
+
+test("navigation graph edits write through the shared document history", async ({ page }) => {
+  await openSeeded(page);
+
+  await page.getByTitle("Screen flow").click();
+  const graph = page.getByTestId("navigation-graph");
+  await graph.getByTestId("graph-edge-item:home:go-details:tap:details").click({ force: true });
+  const editor = graph.getByTestId("graph-edge-editor");
+  await expect(editor).toBeVisible();
+  await editor.getByLabel("Destination").selectOption("home");
+
+  await expect.poll(async () =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem("m3e:doc");
+      return raw ? JSON.parse(raw).groups?.[0]?.items?.[0]?.action?.to : null;
+    }),
+  ).toBe("home");
+
+  await graph.getByRole("button", { name: "Close" }).click();
+  await page.getByTitle("Undo").click();
+  await expect.poll(async () =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem("m3e:doc");
+      return raw ? JSON.parse(raw).groups?.[0]?.items?.[0]?.action?.to : null;
+    }),
+  ).toBe("details");
+});

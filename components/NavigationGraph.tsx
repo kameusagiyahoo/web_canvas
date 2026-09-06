@@ -8,7 +8,8 @@ import {
   type NavigationLayoutNode,
   type NavigationProblem,
 } from "@/lib/navigation-graph";
-import type { Doc, Palette } from "@/lib/tokens";
+import { BACK_TARGET, type Doc, type Palette } from "@/lib/tokens";
+import type { NavigationEdgePatch } from "@/lib/navigation-graph-edit";
 import { Icon } from "./M3Node";
 import { useLang, type Lang } from "@/lib/i18n";
 
@@ -165,6 +166,7 @@ export function NavigationGraph({
   selectedFrameId,
   onSelectFrame,
   onPreviewFrame,
+  onEditEdge,
   onClose,
 }: {
   doc: Doc;
@@ -173,10 +175,16 @@ export function NavigationGraph({
   selectedFrameId: string | null;
   onSelectFrame: (id: string) => void;
   onPreviewFrame: (id: string) => void;
+  onEditEdge: (edge: NavigationEdge, patch: NavigationEdgePatch) => void;
   onClose: () => void;
 }) {
   const lang = useLang();
   const copy = COPY[lang];
+  const editCopy = {
+    destination: lang === "ja" ? "移動先" : lang === "zh" ? "目标画面" : lang === "ko" ? "대상 화면" : "Destination",
+    remove: lang === "ja" ? "この遷移を削除" : lang === "zh" ? "删除此跳转" : lang === "ko" ? "이 이동 삭제" : "Remove route",
+    back: lang === "ja" ? "戻る" : lang === "zh" ? "返回" : lang === "ko" ? "뒤로" : "Back",
+  };
   const graph = useMemo(
     () => deriveNavigationGraph(doc, widths, selectedFrameId),
     [doc, widths, selectedFrameId],
@@ -339,6 +347,7 @@ export function NavigationGraph({
                       fill="none"
                       stroke="transparent"
                       strokeWidth={18}
+                      data-testid={`graph-edge-${edge.id}`}
                       style={{ pointerEvents: "stroke", cursor: "pointer" }}
                       onClick={() => setSelectedEdgeId(edge.id)}
                     />
@@ -435,9 +444,65 @@ export function NavigationGraph({
         <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><span style={{ width: 20, borderTop: `2px dashed ${p.onSurfaceVariant}` }} /> {copy.swipe}</span>
         <span style={{ marginLeft: 6, fontWeight: 800, color: graph.problems.length ? p.error : p.onSurfaceVariant }}>{copy.issues} {graph.problems.length}</span>
         {selectedEdge && (
-          <span style={{ flex: "1 1 280px", minWidth: 0, padding: "6px 10px", borderRadius: 14, background: p.surfaceContainerHigh, color: p.onSurface }}>
-            {labelById.get(selectedEdge.fromFrameId) ?? selectedEdge.fromFrameId} → {labelById.get(selectedEdge.toFrameId) ?? selectedEdge.toFrameId} · {selectedEdgeDescription} · {selectedEdge.transition ?? "none"}
-          </span>
+          <div
+            data-testid="graph-edge-editor"
+            style={{
+              flex: "1 1 420px",
+              minWidth: 0,
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 8px 6px 10px",
+              borderRadius: 16,
+              background: p.surfaceContainerHigh,
+              color: p.onSurface,
+            }}
+          >
+            <span style={{ flex: "1 1 220px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {labelById.get(selectedEdge.fromFrameId) ?? selectedEdge.fromFrameId} → {labelById.get(selectedEdge.toFrameId) ?? selectedEdge.toFrameId} · {selectedEdgeDescription}
+            </span>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 700 }}>
+              {editCopy.destination}
+              <select
+                aria-label={editCopy.destination}
+                value={selectedEdge.toFrameId}
+                onChange={(event) => onEditEdge(selectedEdge, { to: event.target.value })}
+                style={{
+                  minHeight: 34,
+                  maxWidth: 180,
+                  borderRadius: 10,
+                  border: `1px solid ${p.outlineVariant}`,
+                  background: p.surface,
+                  color: p.onSurface,
+                  padding: "0 8px",
+                }}
+              >
+                {selectedEdge.source !== "swipe" && <option value={BACK_TARGET}>{editCopy.back}</option>}
+                {graph.nodes.map((node) => (
+                  <option key={node.frameId} value={node.frameId}>{node.label}</option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => onEditEdge(selectedEdge, { remove: true })}
+              aria-label={editCopy.remove}
+              className="m3-press"
+              style={{
+                minHeight: 34,
+                border: "none",
+                borderRadius: 17,
+                padding: "0 12px",
+                background: p.errorContainer,
+                color: p.onErrorContainer,
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              {editCopy.remove}
+            </button>
+          </div>
         )}
         {!selectedEdge && graph.problems.length === 0 && <span>{copy.noIssues}</span>}
         {!selectedEdge && graph.problems.length > 0 && (

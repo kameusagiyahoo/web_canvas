@@ -119,6 +119,7 @@ import { MobileParts } from "@/components/MobileParts";
 import { StorageWarning } from "@/components/StorageWarning";
 import { FrameExportLayer } from "@/components/FrameExportLayer";
 import { NavigationGraph } from "@/components/NavigationGraph";
+import { editNavigationEdge } from "@/lib/navigation-graph-edit";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
 
@@ -3276,6 +3277,13 @@ const changeFrame = (f: FrameMode) => {
               setGraphOpen(false);
               setLayersFrameId(id);
               openPreview(id);
+            }}
+            onEditEdge={(edge, patch) => {
+              const result = editNavigationEdge(doc, edge, patch);
+              if (!result) return;
+              snapshot();
+              setFrames(result.frames);
+              setGroups(result.groups);
             }}
             onClose={() => setGraphOpen(false)}
           />
