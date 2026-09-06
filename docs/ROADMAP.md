@@ -58,18 +58,19 @@ Completed boundary areas include:
 - preview and PNG-export calculations
 - canvas selection/drag/snap/placement/viewport geometry
 - navigation-link and navigation-graph derivation
+- navigation-graph route editing and creation commands
 - tidy session behavior
 - document language/seed construction
 - layer ownership and measurement bookkeeping
 - AI result application
 
-Continue the same incremental rule for future features: do not rewrite `app/page.tsx` wholesale and do not add a second mobile-only domain model.
+Continue the same incremental rule for future features: do not rewrite `app/page.tsx` wholesale and do not add a second mobile-only or graph-only domain model.
 
 ## Phase 4 — Visual architecture overview
 
-Status: first read-only navigation graph baseline complete. See `docs/NAVIGATION_GRAPH.md`.
+Status: **interactive navigation graph complete for the current document model**. See `docs/NAVIGATION_GRAPH.md`.
 
-Implemented baseline:
+Implemented:
 
 - derive nodes from `Frame` objects;
 - derive item, per-slot and swipe routes from `Item.action`, `Item.actions`, and `Frame.swipe`;
@@ -81,9 +82,15 @@ Implemented baseline:
 - expose the graph from the desktop toolbar and mobile Screens sheet;
 - keep desktop/mobile on the same derived graph adapter;
 - never persist a second graph source of truth;
-- cover desktop and mobile graph entry with browser E2E tests.
+- edit existing route destination, transition and removal through shared document commands;
+- drag from one screen to another to create a new route;
+- choose the concrete source interaction after the drag: unused item, unused slot, unused swipe direction, or a new Button;
+- choose a transition for item/slot/button routes;
+- reuse shared part-placement for graph-created Buttons;
+- keep graph mutations inside normal document Undo/Redo;
+- cover graph creation, transition selection, Undo and Redo in browser E2E tests.
 
-Potential next graph work is intentionally separate from this baseline. Editable graph gestures, graph-driven action creation/removal, richer layout controls or large-project navigation should only be added when their interaction semantics are intentionally chosen. Any editable graph must write through the existing navigation fields and shared commands.
+Potential follow-up graph work is usability-driven rather than architectural. Search/filter, source-element highlighting, or pinned/manual layout should only be added when real project size makes the current deterministic overview insufficient.
 
 ## Phase 5 — Optional secure/cloud expansion
 
