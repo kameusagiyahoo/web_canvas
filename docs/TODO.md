@@ -33,6 +33,7 @@
 - [x] Extract part-drag detach/snap mutations and magnetic snap/alignment-guide geometry into testable helpers.
 - [x] Extract derived navigation-link geometry and action mutation into shared helpers.
 - [x] Extract derived navigation-graph nodes, routes, diagnostics and deterministic layout.
+- [x] Extract navigation-graph route edits into a shared command that writes existing item/slot/swipe fields.
 - [x] Extract connected-run corner interpolation used during drag/open-gap animation.
 - [x] Extract Layers-panel frame ownership/selection logic and measurement bookkeeping.
 - [x] Extract tidy state/toggle behavior into a testable session helper.
@@ -77,12 +78,14 @@
 - [x] Add focused tests for extracted part drag and snap/alignment-guide behavior.
 - [x] Add focused tests for navigation links, run radii, layer selection and measurement helpers.
 - [x] Add focused tests for navigation graph derivation, reachability, diagnostics and layout.
+- [x] Add focused tests for navigation graph item/slot/swipe route mutation.
 - [x] Add focused tests for tidy-session, AI document commands, frame export, runtime migration, language translation and editor seeds.
 - [x] Add focused tests for the extracted history stack operations.
 - [x] Add focused tests for project serialization/parsing and preview session helpers.
 - [x] Add focused tests for editor storage parsing, draft recovery and failure classification.
 - [x] Add E2E coverage for core project flows: edit, save/export, import, multi-screen management and preview.
 - [x] Add E2E coverage for desktop/mobile navigation-graph entry, frame selection and graph-to-Preview behavior.
+- [x] Add E2E coverage proving graph route edits persist through the normal document path and Undo restores them.
 - [x] Add project format/version migration strategy before the `Doc` schema changes substantially.
 - [x] Surface storage write failures/recovery guidance in the editor UX.
 - [x] Audit npm dependencies and remediate the identified high-severity Playwright browser-download certificate advisory.
@@ -102,10 +105,11 @@
 ## Priority B — Product direction
 
 - [x] Evaluate a visual navigation graph after basic mobile screen management works; use a derived graph rather than a second source of truth. See `docs/NAVIGATION_GRAPH.md`.
-- [x] Implement a derived read-only navigation overview without a second persisted graph model.
+- [x] Implement a derived navigation overview without a second persisted graph model.
 - [x] Add navigation diagnostics for missing targets, unreachable/no-incoming screens, and parallel routes.
 - [x] Add desktop and mobile graph entry points plus per-screen Preview entry.
-- [ ] Decide whether the graph should become editable; any graph edit must write through existing navigation fields/shared commands.
+- [x] Allow existing item/slot/swipe routes to be retargeted or removed from the graph through shared document commands and normal Undo/Redo.
+- [ ] Decide how creating a brand-new graph connection should choose its underlying source: an existing item/slot action, a swipe direction, or an explicitly created navigation control.
 - [ ] Consider cloud save/sync only after there is a concrete cross-device/account requirement.
 
 ## Already available — do not duplicate
