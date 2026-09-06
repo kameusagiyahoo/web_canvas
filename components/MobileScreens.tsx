@@ -15,6 +15,7 @@ export function MobileScreens({
   onDuplicate,
   onDelete,
   onPreview,
+  onGraph,
 }: {
   frames: Frame[];
   selectedId: string | null;
@@ -25,6 +26,7 @@ export function MobileScreens({
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onPreview: (id: string) => void;
+  onGraph: () => void;
 }) {
   const lang = useLang();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -222,6 +224,32 @@ export function MobileScreens({
           );
         })}
       </div>
+
+      <button
+        type="button"
+        onClick={onGraph}
+        aria-label={lang === "ja" ? "画面フロー" : lang === "zh" ? "画面流程" : lang === "ko" ? "화면 흐름" : "Screen flow"}
+        className="m3-press"
+        style={{
+          marginTop: 12,
+          width: "100%",
+          minHeight: 52,
+          border: `1px solid ${p.outlineVariant}`,
+          borderRadius: 26,
+          background: p.secondaryContainer,
+          color: p.onSecondaryContainer,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          cursor: "pointer",
+          fontSize: 15,
+          fontWeight: 700,
+        }}
+      >
+        <Icon name="account_tree" size={22} />
+        {lang === "ja" ? "画面フロー" : lang === "zh" ? "画面流程" : lang === "ko" ? "화면 흐름" : "Screen flow"}
+      </button>
 
       {activeId && (
         <button

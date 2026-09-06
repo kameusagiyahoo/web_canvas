@@ -10,7 +10,7 @@ import { t, useLang } from "@/lib/i18n";
 
 export type Mode = "select" | "hand";
 
-const REPO_URL = "https://github.com/lnkiai/m3e-canvas";
+const REPO_URL = "https://github.com/kameusagiyahoo/web_canvas";
 
 export function GitHubLink({ p, size = 40 }: { p: Palette; size?: number }) {
   return (
@@ -73,6 +73,7 @@ export function Toolbar({
   onClear,
   onAddFrame,
   onPreview,
+  onGraph,
   rightInset,
   mobile,
   onPrompt,
@@ -105,6 +106,7 @@ export function Toolbar({
   onClear: () => void;
   onAddFrame: () => void;
   onPreview: () => void;
+  onGraph?: () => void;
   /** width of the open right panel, so the zoom pill slides out of its way */
   rightInset: number;
   mobile?: boolean;
@@ -131,6 +133,7 @@ export function Toolbar({
   quickUndo?: boolean;
 }) {
   const lang = useLang();
+  const graphTitle = lang === "ja" ? "画面フロー" : lang === "zh" ? "画面流程" : lang === "ko" ? "화면 흐름" : "Screen flow";
   if (mobile) {
     const S = 42;
     return (
@@ -358,6 +361,15 @@ export function Toolbar({
             size={40}
             fill
           />
+          {onGraph && (
+            <IconBtn
+              icon="account_tree"
+              p={p}
+              onClick={onGraph}
+              title={graphTitle}
+              size={40}
+            />
+          )}
         </Pill>
 
         <Pill p={p}>

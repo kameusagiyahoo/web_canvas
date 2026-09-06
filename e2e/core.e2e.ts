@@ -149,3 +149,35 @@ test("exports a versioned project and imports another one", async ({ page }) => 
     }),
   ).toBe("Imported E2E project");
 });
+
+
+test("navigation graph is derived from the document", async ({ page }) => {
+  await openSeeded(page);
+
+  await page.getByTitle("Screen flow").click();
+  const graph = page.getByTestId("navigation-graph");
+  await expect(graph).toBeVisible();
+  await expect(graph.getByTestId("graph-node-home")).toBeVisible();
+  await expect(graph.getByTestId("graph-node-details")).toBeVisible();
+
+  await graph.getByTestId("graph-node-details").getByRole("button").first().click();
+  await expect(graph).toBeHidden();
+  await expect(page.locator('[data-frame="details"]')).toHaveCount(1);
+
+  await page.getByTitle("Screen flow").click();
+  await page.getByRole("button", { name: "Preview from this screen: Home" }).click();
+  await expect(page.getByTestId("preview")).toBeVisible();
+});
+
+test("mobile screen list opens the full-screen navigation graph", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openSeeded(page);
+
+  await page.getByTitle("Screen").click();
+  await page.getByRole("button", { name: "Screen flow", exact: true }).click();
+  const graph = page.getByTestId("navigation-graph");
+  await expect(graph).toBeVisible();
+  await expect(graph.getByTestId("graph-node-home")).toBeVisible();
+  await graph.getByRole("button", { name: "Close" }).click();
+  await expect(graph).toBeHidden();
+});

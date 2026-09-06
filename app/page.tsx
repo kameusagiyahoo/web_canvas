@@ -118,6 +118,7 @@ import { MobileScreens } from "@/components/MobileScreens";
 import { MobileParts } from "@/components/MobileParts";
 import { StorageWarning } from "@/components/StorageWarning";
 import { FrameExportLayer } from "@/components/FrameExportLayer";
+import { NavigationGraph } from "@/components/NavigationGraph";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
 
@@ -288,6 +289,7 @@ export default function Page() {
   /** a project file waiting for the author to confirm replacing the canvas */
   const [pendingImport, setPendingImport] = useState<Doc | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [graphOpen, setGraphOpen] = useState(false);
   /** the idea typed into the "ask an AI" dialog; kept here so a failed draft does not lose it */
   const [ideaText, setIdeaText] = useState("");
   /** a model is drafting a design right now */
@@ -2814,6 +2816,7 @@ const changeFrame = (f: FrameMode) => {
             }}
             onAddFrame={addFrame}
             onPreview={() => openPreview()}
+            onGraph={() => setGraphOpen(true)}
             tidy={tidyState ?? undefined}
             onTidy={tidyTarget ? () => tidy(tidyTarget) : undefined}
             note={aiNote}
@@ -3028,6 +3031,10 @@ const changeFrame = (f: FrameMode) => {
                     setSheet(null);
                     setLayersFrameId(id);
                     openPreview(id);
+                  }}
+                  onGraph={() => {
+                    setSheet(null);
+                    setGraphOpen(true);
                   }}
                 />
               </BottomSheet>
@@ -3250,6 +3257,29 @@ const changeFrame = (f: FrameMode) => {
           onCancel={() => setConfirmClear(false)}
           onConfirm={clearAll}
         />
+
+        {graphOpen && (
+          <NavigationGraph
+            doc={doc}
+            widths={widths}
+            palette={p}
+            selectedFrameId={selectedFrameId ?? layersFrameId ?? frames[0]?.id ?? null}
+            onSelectFrame={(id) => {
+              setSelectedIds([]);
+              setSelectedLinkId(null);
+              setSelectedFrameId(id);
+              setLayersFrameId(id);
+              setGraphOpen(false);
+              focusFrame(id);
+            }}
+            onPreviewFrame={(id) => {
+              setGraphOpen(false);
+              setLayersFrameId(id);
+              openPreview(id);
+            }}
+            onClose={() => setGraphOpen(false)}
+          />
+        )}
 
         <AnimatePresence>
           {previewId !== null && frames.length > 0 && (

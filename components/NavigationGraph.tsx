@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   deriveNavigationGraph,
   layoutNavigationGraph,
@@ -183,6 +183,13 @@ export function NavigationGraph({
   );
   const layout = useMemo(() => layoutNavigationGraph(graph), [graph]);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [onClose]);
   const selectedEdge = graph.edges.find((edge) => edge.id === selectedEdgeId) ?? null;
   const nodeById = useMemo(
     () => new Map(layout.nodes.map((node) => [node.frameId, node])),
@@ -291,8 +298,8 @@ export function NavigationGraph({
           <div style={{ position: "relative", width: Math.max(layout.width, 720), height: Math.max(layout.height, 420), minWidth: "100%", minHeight: "100%" }}>
             <svg
               aria-hidden="true"
-              width="100%"
-              height="100%"
+              width={Math.max(layout.width, 720)}
+              height={Math.max(layout.height, 420)}
               viewBox={`0 0 ${Math.max(layout.width, 720)} ${Math.max(layout.height, 420)}`}
               preserveAspectRatio="xMinYMin meet"
               style={{ position: "absolute", inset: 0, overflow: "visible" }}
