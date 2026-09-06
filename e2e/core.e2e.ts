@@ -209,3 +209,31 @@ test("navigation graph edits write through the shared document history", async (
     }),
   ).toBe("details");
 });
+
+
+test("navigation graph drag creates a route through a chosen trigger", async ({ page }) => {
+  await openSeeded(page);
+  await page.getByTitle("Screen flow").click();
+  const graph = page.getByTestId("navigation-graph");
+  const source = graph.getByTestId("graph-connect-home");
+  const target = graph.getByTestId("graph-node-details");
+  const a = await source.boundingBox();
+  const b = await target.boundingBox();
+  if (!a || !b) throw new Error("graph nodes are not visible");
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 8 });
+  await page.mouse.up();
+
+  const chooser = page.getByTestId("graph-route-trigger-chooser");
+  await expect(chooser).toBeVisible();
+  await chooser.getByRole("button", { name: /Swipe:/ }).first().click();
+  await expect(chooser).toBeHidden();
+  await expect.poll(async () =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem("m3e:doc");
+      const swipe = raw ? JSON.parse(raw).frames?.find((frame: { id: string }) => frame.id === "home")?.swipe : null;
+      return swipe ? Object.values(swipe).includes("details") : false;
+    }),
+  ).toBe(true);
+});

@@ -9,7 +9,7 @@ import {
   type NavigationProblem,
 } from "@/lib/navigation-graph";
 import { BACK_TARGET, type Doc, type Palette } from "@/lib/tokens";
-import type { NavigationEdgePatch } from "@/lib/navigation-graph-edit";
+import { availableNavigationRouteTriggers, type NavigationEdgePatch, type NavigationRouteTrigger } from "@/lib/navigation-graph-edit";
 import { Icon } from "./M3Node";
 import { useLang, type Lang } from "@/lib/i18n";
 
@@ -167,6 +167,7 @@ export function NavigationGraph({
   onSelectFrame,
   onPreviewFrame,
   onEditEdge,
+  onCreateRoute,
   onClose,
 }: {
   doc: Doc;
@@ -176,6 +177,7 @@ export function NavigationGraph({
   onSelectFrame: (id: string) => void;
   onPreviewFrame: (id: string) => void;
   onEditEdge: (edge: NavigationEdge, patch: NavigationEdgePatch) => void;
+  onCreateRoute: (sourceFrameId: string, targetFrameId: string, trigger: NavigationRouteTrigger) => void;
   onClose: () => void;
 }) {
   const lang = useLang();
@@ -191,6 +193,32 @@ export function NavigationGraph({
   );
   const layout = useMemo(() => layoutNavigationGraph(graph), [graph]);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [routeDrag, setRouteDrag] = useState<{ sourceFrameId: string; x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const [pendingRoute, setPendingRoute] = useState<{ sourceFrameId: string; targetFrameId: string } | null>(null);
+  useEffect(() => {
+    if (!routeDrag) return;
+    const sourceFrameId = routeDrag.sourceFrameId;
+    const move = (event: PointerEvent) => {
+      setRouteDrag((current) => current
+        ? { ...current, x1: event.clientX, y1: event.clientY }
+        : current);
+    };
+    const up = (event: PointerEvent) => {
+      const target = Array.from(document.querySelectorAll<HTMLElement>("[data-graph-frame-id]"))
+        .find((element) => {
+          const rect = element.getBoundingClientRect();
+          return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+        })?.dataset.graphFrameId;
+      if (target) setPendingRoute({ sourceFrameId, targetFrameId: target });
+      setRouteDrag(null);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up, { once: true });
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+  }, [routeDrag?.sourceFrameId]);
   useEffect(() => {
     const close = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -209,6 +237,25 @@ export function NavigationGraph({
   );
   const validEdges = graph.edges.filter((edge) => edge.validTarget);
   const pairIndex = new Map<string, number>();
+  const pendingTriggers = pendingRoute
+    ? availableNavigationRouteTriggers(doc, widths, pendingRoute.sourceFrameId)
+    : [];
+  const routeCopy = {
+    create: lang === "ja" ? "新しい遷移" : lang === "zh" ? "新建跳转" : lang === "ko" ? "새 이동" : "New route",
+    hint: lang === "ja" ? "丸い接続点を別の画面へドラッグ" : lang === "zh" ? "将连接点拖到另一个画面" : lang === "ko" ? "연결점을 다른 화면으로 드래그" : "Drag a connector to another screen",
+    choose: lang === "ja" ? "何をトリガーにしますか？" : lang === "zh" ? "选择触发方式" : lang === "ko" ? "트리거를 선택하세요" : "Choose a trigger",
+    cancel: lang === "ja" ? "キャンセル" : lang === "zh" ? "取消" : lang === "ko" ? "취소" : "Cancel",
+    item: lang === "ja" ? "タップ" : lang === "zh" ? "点击" : lang === "ko" ? "탭" : "Tap",
+    slot: lang === "ja" ? "項目" : lang === "zh" ? "项目" : lang === "ko" ? "항목" : "Slot",
+    swipe: lang === "ja" ? "スワイプ" : lang === "zh" ? "滑动" : lang === "ko" ? "스와이프" : "Swipe",
+    button: lang === "ja" ? "新しいボタンを追加" : lang === "zh" ? "添加新按钮" : lang === "ko" ? "새 버튼 추가" : "Add a new button",
+  };
+  const triggerLabel = (trigger: NavigationRouteTrigger) => {
+    if (trigger.kind === "item") return `${routeCopy.item}: ${trigger.label}`;
+    if (trigger.kind === "slot") return `${routeCopy.slot}: ${trigger.label}`;
+    if (trigger.kind === "swipe") return `${routeCopy.swipe}: ${trigger.label}`;
+    return routeCopy.button;
+  };
 
   const problemText = (problem: NavigationProblem) => {
     if (problem.kind === "missing-target") {
@@ -363,6 +410,7 @@ export function NavigationGraph({
                 <div
                   key={node.frameId}
                   data-testid={`graph-node-${node.frameId}`}
+                  data-graph-frame-id={node.frameId}
                   style={{
                     position: "absolute",
                     left: node.x,
@@ -418,12 +466,54 @@ export function NavigationGraph({
                   >
                     <Icon name="play_arrow" size={20} />
                   </button>
+                  <button
+                    type="button"
+                    data-testid={`graph-connect-${node.frameId}`}
+                    aria-label={`${routeCopy.create}: ${node.label}`}
+                    title={routeCopy.hint}
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setSelectedEdgeId(null);
+                      setRouteDrag({ sourceFrameId: node.frameId, x0: event.clientX, y0: event.clientY, x1: event.clientX, y1: event.clientY });
+                    }}
+                    className="m3-press"
+                    style={{ position: "absolute", right: 4, top: "50%", marginTop: -11, width: 22, height: 22, borderRadius: 11, border: `3px solid ${p.surface}`, background: p.primary, cursor: "crosshair", zIndex: 3, touchAction: "none" }}
+                  />
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {routeDrag && (
+        <svg aria-hidden="true" style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 110, pointerEvents: "none" }}>
+          <line x1={routeDrag.x0} y1={routeDrag.y0} x2={routeDrag.x1} y2={routeDrag.y1} stroke={p.primary} strokeWidth={4} strokeLinecap="round" strokeDasharray="8 6" />
+        </svg>
+      )}
+      {pendingRoute && (
+        <div data-testid="graph-route-trigger-chooser" style={{ position: "fixed", inset: 0, zIndex: 120, background: "rgba(0,0,0,.28)", display: "grid", placeItems: "end center", padding: "16px max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))" }}>
+          <div role="dialog" aria-label={routeCopy.choose} style={{ width: "min(560px, 100%)", maxHeight: "70vh", overflow: "auto", borderRadius: 26, padding: 16, background: p.surfaceContainerHigh, color: p.onSurface, boxShadow: "0 18px 50px rgba(0,0,0,.24)" }}>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{routeCopy.choose}</div>
+            <div style={{ marginTop: 5, fontSize: 12, color: p.onSurfaceVariant }}>{labelById.get(pendingRoute.sourceFrameId) ?? pendingRoute.sourceFrameId} → {labelById.get(pendingRoute.targetFrameId) ?? pendingRoute.targetFrameId}</div>
+            <div style={{ display: "grid", gap: 8, marginTop: 14 }}>
+              {pendingTriggers.map((trigger, index) => (
+                <button
+                  type="button"
+                  key={`${trigger.kind}-${"itemId" in trigger ? trigger.itemId : "swipe" in trigger ? trigger.swipe : "new"}-${"slot" in trigger ? trigger.slot : index}`}
+                  onClick={() => { onCreateRoute(pendingRoute.sourceFrameId, pendingRoute.targetFrameId, trigger); setPendingRoute(null); }}
+                  className="m3-press"
+                  style={{ minHeight: 48, border: `1px solid ${p.outlineVariant}`, borderRadius: 16, padding: "0 14px", background: p.surface, color: p.onSurface, textAlign: "left", fontWeight: 750, cursor: "pointer" }}
+                >
+                  {triggerLabel(trigger)}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={() => setPendingRoute(null)} style={{ marginTop: 12, minHeight: 44, border: "none", borderRadius: 22, padding: "0 16px", background: "transparent", color: p.primary, fontWeight: 800, cursor: "pointer" }}>{routeCopy.cancel}</button>
+          </div>
+        </div>
+      )}
 
       <footer
         style={{
