@@ -22,6 +22,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: python scripts/add-navigation-route-drag.py
+      - name: Keep route connector inside node
+        run: sed -i 's/right: -11/right: 4/' components/NavigationGraph.tsx
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
