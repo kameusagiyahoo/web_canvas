@@ -88,6 +88,8 @@ import { buildNavigationLinks, patchNavigationLink } from "@/lib/navigation-link
 import { interpolatedRunRadii } from "@/lib/run-radii";
 import { translateDocumentSnapshot } from "@/lib/document-language";
 import { DEFAULT_SEED_FRAMES, createDesktopSeed, createMobileSeed, localizedSeedFrame } from "@/lib/editor-seed";
+import { groupFrameIdMap, groupsForFrame, resolveLayersFrame } from "@/lib/layer-selection";
+import { collectMeasurementItems, measuredWidthsChanged } from "@/lib/measurement";
 import { placePickedItem } from "@/lib/part-placement";
 import { appendDroppedGroup, placeDroppedItem } from "@/lib/drop-placement";
 import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/history";
@@ -96,7 +98,7 @@ import { deleteItemsFromGroups, duplicateItemSelection, patchItemInGroups } from
 import { groupItemSelection, nudgeFrameWithGroups, nudgeItemGroups, ungroupFreeGroup } from "@/lib/group-commands";
 import { itemRectsOfGroups, marqueeHitIds, selectionRect } from "@/lib/canvas-selection";
 import { dragCarriedGroupsFromOrigins, dragFrameFromOrigin, dragGroupFromOrigin } from "@/lib/canvas-drag";
-import { centerFrameViewAtZoom, clientToWorld, fitCanvasView, focusFrameView as focusCanvasFrameView, panViewFromOrigin, pinchViewFromOrigin, wheelPanView, zoomViewAt } from "@/lib/canvas-viewport";
+import { centerFrameViewAtZoom, clientToWorld, fitCanvasView, focusFrameView as focusCanvasFrameView, panViewFromOrigin, pinchViewFromOrigin, visibleWorldRect, wheelPanView, zoomViewAt } from "@/lib/canvas-viewport";
 import { findAlignmentGuide, findMagneticSnap, restPosition, type Guide, type Snap } from "@/lib/canvas-magnet";
 import { detachItemForDrag, insertItemAtSnap } from "@/lib/part-drag";
 import { createInitialPhoneFrame, createNextFrame, deleteFrameFromDocument, duplicateFrameInDocument, resizeFrameToPreset } from "@/lib/frame-commands";
@@ -692,23 +694,17 @@ export default function Page() {
   }, [view, leftOpen, rightOpen, leftW, rightW, favorites, mode, lang]);
 
   /* ---------- measurement (text-sized kinds) ---------- */
-  const allItems = useMemo(() => {
-    const map = new Map<string, Item>();
-    for (const g of groups) for (const it of g.items) map.set(it.id, it);
-    if (drag) map.set(drag.item.id, drag.item);
-    return [...map.values()];
-  }, [groups, drag]);
+  const allItems = useMemo(
+    () => collectMeasurementItems(groups, drag?.item ?? null),
+    [groups, drag],
+  );
 
   useLayoutEffect(() => {
     const next: Record<string, number> = {};
     measureEls.current.forEach((el, id) => {
       next[id] = Math.ceil(el.getBoundingClientRect().width);
     });
-    const keys = Object.keys(next);
-    const changed =
-      keys.length !== Object.keys(widthsRef.current).length ||
-      keys.some((k) => widthsRef.current[k] !== next[k]);
-    if (changed) setWidths(next);
+    if (measuredWidthsChanged(widthsRef.current, next)) setWidths(next);
   });
 
   useEffect(() => {
@@ -2026,29 +2022,27 @@ const changeFrame = (f: FrameMode) => {
   };
 
   /** which frame each run sits on (phone mode only) */
-  const frameOf = useMemo(() => {
-    const m = new Map<string, string>();
-    if (frame !== "phone") return m;
-    for (const g of groups) {
-      const f = frameOfGroup(g, frames, widths);
-      if (f) m.set(g.id, f.id);
-    }
-    return m;
-  }, [groups, frames, frame, widths]);
+  const frameOf = useMemo(
+    () => groupFrameIdMap(groups, frames, widths, frame),
+    [groups, frames, frame, widths],
+  );
 
   /** the screen whose layers the panel lists: the selection's, else the chosen one */
-  const layersFrame = useMemo(() => {
-    if (frame !== "phone") return null;
-    if (primaryId) {
-      const g = groups.find((x) => x.items.some((it) => it.id === primaryId));
-      const fid = g ? frameOf.get(g.id) : undefined;
-      if (fid) return frames.find((f) => f.id === fid) ?? null;
-    }
-    if (selectedFrameId) return frames.find((f) => f.id === selectedFrameId) ?? null;
-    return frames.find((f) => f.id === layersFrameId) ?? frames[0] ?? null;
-  }, [frame, primaryId, groups, frameOf, frames, selectedFrameId, layersFrameId]);
+  const layersFrame = useMemo(
+    () =>
+      resolveLayersFrame({
+        frameMode: frame,
+        frames,
+        groups,
+        groupFrames: frameOf,
+        primaryItemId: primaryId,
+        selectedFrameId,
+        rememberedFrameId: layersFrameId,
+      }),
+    [frame, primaryId, groups, frameOf, frames, selectedFrameId, layersFrameId],
+  );
   const layerGroups = useMemo(
-    () => (layersFrame ? groups.filter((g) => frameOf.get(g.id) === layersFrame.id) : []),
+    () => groupsForFrame(groups, frameOf, layersFrame?.id ?? null),
     [groups, frameOf, layersFrame],
   );
   /** A drag in the layers panel is one undo step: the snapshot is taken when it starts,
@@ -2229,15 +2223,12 @@ const changeFrame = (f: FrameMode) => {
 
   const showRight = rightOpen && !isMobile;
   const guide = drag?.active ? drag.guide : null;
-  const visibleWorld = (() => {
-    const r = canvasRef.current?.getBoundingClientRect();
-    return {
-      l: -view.x / view.z,
-      t: -view.y / view.z,
-      w: (r?.width ?? 0) / view.z,
-      h: (r?.height ?? 0) / view.z,
-    };
-  })();
+  const visibleRect = canvasRef.current?.getBoundingClientRect();
+  const visibleWorld = visibleWorldRect(
+    view,
+    visibleRect?.width ?? 0,
+    visibleRect?.height ?? 0,
+  );
 
   return (
     <LangContext.Provider value={lang}>

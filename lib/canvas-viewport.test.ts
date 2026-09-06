@@ -8,6 +8,7 @@ import {
   pinchViewFromOrigin,
   wheelPanView,
   zoomViewAt,
+  visibleWorldRect,
 } from "./canvas-viewport";
 import { frameSizeOf, type Frame, type Group, type Item } from "./tokens";
 
@@ -143,5 +144,17 @@ describe("canvas fitting", () => {
     expect(next.z).toBeCloseTo(412 / 432);
     expect(next.x).toBeCloseTo((440 - 412 * next.z) / 2);
     expect(next.y).toBeCloseTo(96 + 54 * next.z);
+  });
+});
+
+
+describe("visibleWorldRect", () => {
+  it("converts the current camera into world bounds", () => {
+    expect(visibleWorldRect({ x: -100, y: -50, z: 2 }, 800, 600)).toEqual({
+      l: 50,
+      t: 25,
+      w: 400,
+      h: 300,
+    });
   });
 });

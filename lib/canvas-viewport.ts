@@ -242,3 +242,17 @@ export function focusFrameView(
     z,
   };
 }
+
+/** World-space rectangle currently visible through a viewport. */
+export function visibleWorldRect(
+  view: CanvasView,
+  viewportWidth: number,
+  viewportHeight: number,
+) {
+  return {
+    l: -view.x / view.z,
+    t: -view.y / view.z,
+    w: viewportWidth / view.z,
+    h: viewportHeight / view.z,
+  };
+}
