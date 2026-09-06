@@ -2,14 +2,15 @@
 
 ## Status
 
-The visual navigation graph is implemented and remains a **derived view of the existing document**, not a second navigation model.
+The visual navigation graph is implemented as a **derived view of the existing document**, not a second navigation model.
 
-The graph now supports two levels of interaction:
+The graph now supports three levels of interaction:
 
 1. overview / diagnostics / screen focus / Preview;
-2. editing an **existing** item, slot, or swipe route by changing its destination or removing it.
+2. editing an **existing** item, slot, or swipe route by changing its destination, transition, or removing it;
+3. creating a **new** route by dragging from one screen to another and then choosing the underlying trigger.
 
-Graph edits write back to the existing navigation fields and enter the normal Undo/Redo history. The graph itself is still never persisted.
+Graph edits and graph-created routes write back to the existing navigation fields and enter the normal Undo/Redo history. The graph itself is still never persisted.
 
 ## Source of truth
 
@@ -37,12 +38,15 @@ lib/navigation-graph.ts
 components/NavigationGraph.tsx
   ├─ full-screen graph UI
   ├─ screen selection/focus
-  ├─ route selection
-  ├─ route destination/remove controls
+  ├─ route selection/editing
+  ├─ drag-to-connect creation
+  ├─ trigger + transition chooser
   └─ per-screen Preview entry
  ↓
 lib/navigation-graph-edit.ts
-  └─ write edits back to existing Item.action / Item.actions / Frame.swipe
+  ├─ edit existing Item.action / Item.actions / Frame.swipe
+  ├─ enumerate unused trigger slots
+  └─ create routes through those same document fields
  ↓
 normal Doc state + Undo/Redo
 ```
@@ -63,7 +67,7 @@ The existing Screens sheet includes Screen flow / 画面フロー. The graph ope
 
 Desktop and mobile use the same derived graph adapter and the same document mutations.
 
-## Edge presentation and editing
+## Existing route editing
 
 The UI distinguishes route sources without introducing new document semantics:
 
@@ -76,10 +80,34 @@ Selecting an existing route opens a compact route editor. It can:
 
 - change the target screen;
 - change an item/slot route to `BACK_TARGET`;
+- change the transition for item/slot routes;
 - remove the route;
 - update swipe destinations without allowing `BACK_TARGET` for swipe navigation.
 
-All edits are performed through `lib/navigation-graph-edit.ts`, which mutates the same navigation fields used by the existing inspectors and Preview. `app/page.tsx` only coordinates snapshot timing and React state updates.
+Swipe transition semantics remain derived from the swipe direction rather than stored as a separate action transition.
+
+## Creating a new route
+
+Each screen node exposes a connector handle. Dragging that connector to another screen does **not** immediately invent behavior. It opens a trigger chooser for the source screen.
+
+Available trigger choices are derived from unused document interaction slots:
+
+1. an existing item that does not yet have `Item.action`;
+2. an unused per-slot entry in `Item.actions`;
+3. an unused `Frame.swipe` direction;
+4. an explicitly created Button placed on the source screen.
+
+For item, slot, and newly created Button routes, the user then chooses one of the existing `TRANSITIONS` values before the route is committed. Swipe routes use the transition implied by the swipe direction.
+
+The new Button path reuses the existing shared part-placement rules instead of introducing graph-specific placement logic.
+
+This keeps the graph semantically honest: drawing Screen A → Screen B still results in a concrete interaction represented in the source screen/document.
+
+## Undo/Redo
+
+`app/page.tsx` takes a normal document snapshot before applying graph mutations. Route creation, retargeting, transition changes, and removal therefore participate in the same history stack as canvas/mobile edits.
+
+Browser E2E coverage verifies that a graph-created route with a chosen transition can be undone and redone through the normal editor controls.
 
 ## Diagnostics
 
@@ -109,25 +137,22 @@ Persisting another graph model alongside `Frame`, `Item.action`, `Item.actions`,
 
 Keeping the graph derived avoids these classes of inconsistency.
 
-## Remaining product decision: creating new connections
-
-Editing an **existing** route is now unambiguous because the route already identifies its underlying source item, slot, or swipe direction.
-
-Creating a brand-new line by dragging Screen A to Screen B is different: a screen-to-screen line alone does not say which interaction should cause that transition.
-
-A new connection therefore needs one of these semantics:
-
-1. assign the route to an existing item/slot selected by the user;
-2. assign it to a swipe direction;
-3. create a new explicit navigation control in the source screen;
-4. present a chooser after the line is drawn.
-
-That decision should be made before drag-to-connect creation is implemented. It prevents the graph from inventing navigation behavior that is not represented in the screen UI.
-
 ## Automated coverage
 
 - `lib/navigation-graph.test.ts` covers derivation, reachability, diagnostics and deterministic layout.
-- `lib/navigation-graph-edit.test.ts` covers item, slot and swipe mutation, removal, and back-stack restrictions.
-- Playwright covers desktop/mobile graph entry, screen selection, graph-to-Preview behavior, route retargeting, persistence, and Undo restoration.
+- `lib/navigation-graph-edit.test.ts` covers existing item, slot and swipe mutation, removal, transition editing, and back-stack restrictions.
+- `lib/navigation-graph-create.test.ts` covers unused trigger discovery, item/swipe/new-button creation, and chosen transition persistence.
+- Playwright covers desktop/mobile graph entry, screen selection, graph-to-Preview behavior, existing-route edits, drag-created routes, transition selection, persistence, Undo and Redo.
 
-The navigation graph route-editing implementation passed type checking, all Vitest tests, the production static build and Playwright E2E before being committed to `main`.
+The navigation graph creation/transition implementation passed type checking, Vitest, the production static build and Playwright E2E before being committed to `main`.
+
+## Next graph work
+
+The current graph is functionally complete for small-to-medium screen flows. Future work should be driven by observed usability needs rather than by adding another graph model. Candidates include:
+
+- highlighting the source UI element when a route is selected;
+- filtering or searching large graphs;
+- manual/pinned node layout stored only as presentation metadata if deterministic layout becomes insufficient;
+- richer diagnostics such as dead ends or conflicting interaction intent.
+
+Any future graph feature must continue writing navigation semantics through the existing document model.
