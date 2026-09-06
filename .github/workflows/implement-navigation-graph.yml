@@ -28,8 +28,12 @@ jobs:
           from pathlib import Path
           path = Path("e2e/core.e2e.ts")
           text = path.read_text()
-          old = '  await page.keyboard.press("Escape");\n'
-          new = '  await graph.getByRole("button", { name: "Close" }).click();\n'
+          old = '''  await expect(graph.getByTestId("graph-node-home")).toBeVisible();
+            await page.keyboard.press("Escape");
+            await expect(graph).toBeHidden();'''.replace("            ", "  ")
+          new = '''  await expect(graph.getByTestId("graph-node-home")).toBeVisible();
+            await graph.getByRole("button", { name: "Close" }).click();
+            await expect(graph).toBeHidden();'''.replace("            ", "  ")
           if old not in text:
               raise SystemExit("mobile graph close test anchor not found")
           path.write_text(text.replace(old, new, 1))
