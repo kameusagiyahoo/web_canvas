@@ -112,7 +112,7 @@ export function availableNavigationRouteTriggers(
     triggers.push({
       kind: "swipe",
       swipe: swipe.key,
-      label: swipe.label,
+      label: swipe.key,
     });
   }
 
@@ -170,7 +170,7 @@ export function createNavigationRoute(
   }
 
   let changed = false;
-  const groups = doc.groups.map((group) => {
+  const groups: Group[] = doc.groups.map((group) => {
     if (frameOfGroup(group, doc.frames, widths)?.id !== sourceFrameId) return group;
     return {
       ...group,
@@ -179,7 +179,7 @@ export function createNavigationRoute(
         if (trigger.kind === "item") {
           if (item.action) return item;
           changed = true;
-          return { ...item, action: { to: targetFrameId, transition: "slide" } };
+          return { ...item, action: { to: targetFrameId, transition: "slide" as Transition } };
         }
         if (item.actions?.[trigger.slot]) return item;
         changed = true;
@@ -187,7 +187,7 @@ export function createNavigationRoute(
           ...item,
           actions: {
             ...(item.actions ?? {}),
-            [trigger.slot]: { to: targetFrameId, transition: "slide" },
+            [trigger.slot]: { to: targetFrameId, transition: "slide" as Transition },
           },
         };
       }),
