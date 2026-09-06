@@ -32,7 +32,7 @@ jobs:
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
-      - run: git rm scripts/refactor-layer-measurement.py scripts/prepare-layer-measurement.py .github/workflows/refactor-layer-measurement.yml
+      - run: git rm -f scripts/refactor-layer-measurement.py scripts/prepare-layer-measurement.py .github/workflows/refactor-layer-measurement.yml
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
