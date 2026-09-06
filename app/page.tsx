@@ -84,6 +84,8 @@ import { applyAiFrameDescription, applyAiItemBehavior } from "@/lib/ai-commands"
 import { downloadFrameElementPng, waitForFrameExportLayer } from "@/lib/frame-export";
 import { migrateLegacyGroups } from "@/lib/document-migrations";
 import { tidyStateForFrame, toggleFrameTidy, type TidySession } from "@/lib/tidy-session";
+import { buildNavigationLinks, patchNavigationLink } from "@/lib/navigation-links";
+import { interpolatedRunRadii } from "@/lib/run-radii";
 import { placePickedItem } from "@/lib/part-placement";
 import { appendDroppedGroup, placeDroppedItem } from "@/lib/drop-placement";
 import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/history";
@@ -1957,7 +1959,7 @@ const changeFrame = (f: FrameMode) => {
               const n = g.items.length;
               const radii =
                 conn && n > 1
-                  ? runRadii(g.axis, i === 0, i === n - 1, false, false, 0, conn.outer, conn.inner)
+                  ? interpolatedRunRadii(g.axis, i === 0, i === n - 1, false, false, 0, conn.outer, conn.inner)
                   : conn
                     ? uniformRadii(conn.outer)
                     : baseRadii(it);
@@ -2139,74 +2141,17 @@ const changeFrame = (f: FrameMode) => {
   docRef.current = doc;
 
   /** arrows from tappable parts to the frames they open */
-  const links = useMemo(() => {
-    if (frame !== "phone") return [];
-    const rects = itemRects();
-    const out: {
-      id: string;
-      d: string;
-      mx: number;
-      my: number;
-      tx: number;
-      ty: number;
-      ang: number;
-      t: Transition;
-    }[] = [];
-    for (const g of groups) {
-      for (const it of g.items) {
-        for (const { slot, action } of actionsOf(it)) {
-        if (action.to === BACK_TARGET) continue;
-        const f = frames.find((x) => x.id === action.to);
-        const r = rects.find((x) => x.id === it.id);
-        if (!f || !r) continue;
-        const fr = frameRect(f);
-        const rightward = (fr.l + fr.r) / 2 >= (r.l + r.r) / 2;
-        const sx = rightward ? r.r : r.l;
-        const sy = (r.t + r.b) / 2;
-        const tx = rightward ? fr.l - BEZEL : fr.r + BEZEL;
-        const ty = clamp(sy, fr.t + 40, fr.b - 40);
-        const dx = Math.max(60, Math.abs(tx - sx) * 0.5);
-        const c1x = sx + (rightward ? dx : -dx);
-        const c2x = tx + (rightward ? -dx : dx);
-        const d = `M${sx} ${sy} C${c1x} ${sy} ${c2x} ${ty} ${tx} ${ty}`;
-        // midpoint of the cubic at t = 0.5
-        const mx = 0.125 * sx + 0.375 * c1x + 0.375 * c2x + 0.125 * tx;
-        const my = 0.125 * sy + 0.375 * sy + 0.375 * ty + 0.125 * ty;
-        out.push({
-          id: `${it.id}|${slot}`,
-          d,
-          mx,
-          my,
-          tx,
-          ty,
-          ang: rightward ? 0 : 180,
-          t: action.transition,
-        });
-        }
-      }
-    }
-    return out;
-  }, [groups, frames, frame, itemRects, widths]);
+  const links = useMemo(
+    () =>
+      frame === "phone"
+        ? buildNavigationLinks(groups, frames, itemRects())
+        : [],
+    [groups, frames, frame, itemRects, widths],
+  );
 
   /** apply a change to the action behind a link id ("itemId|slot") */
   const patchLink = (linkId: string, fn: (a: Action) => Action | undefined) => {
-    const [itemId, slot] = linkId.split("|");
-    setGroups((gs) =>
-      gs.map((g) => ({
-        ...g,
-        items: g.items.map((it) => {
-          if (it.id !== itemId) return it;
-          if (!slot) return { ...it, action: it.action ? fn(it.action) : undefined };
-          const cur = it.actions?.[slot];
-          if (!cur) return it;
-          const next = fn(cur);
-          const actions = { ...(it.actions ?? {}) };
-          if (next) actions[slot] = next;
-          else delete actions[slot];
-          return { ...it, actions: Object.keys(actions).length ? actions : undefined };
-        }),
-      })),
-    );
+    setGroups((groups) => patchNavigationLink(groups, linkId, fn));
   };
 
   const setLinkTransition = (linkId: string, transition: Transition) => {
@@ -2217,24 +2162,6 @@ const changeFrame = (f: FrameMode) => {
     snapshot();
     patchLink(linkId, () => undefined);
     setSelectedLinkId(null);
-  };
-
-  const runRadii = (
-    axis: Axis,
-    first: boolean,
-    last: boolean,
-    prevPh: boolean,
-    nextPh: boolean,
-    pull: number,
-    outer: number,
-    inner: number,
-  ): Radii => {
-    const soft = lerp(outer, inner, pull);
-    const s = first ? outer : prevPh ? soft : inner;
-    const e = last ? outer : nextPh ? soft : inner;
-    return axis === "x"
-      ? { tl: s, bl: s, tr: e, br: e }
-      : { tl: s, tr: s, bl: e, br: e };
   };
 
   /** which frame each run sits on (phone mode only) */
@@ -2396,7 +2323,7 @@ const changeFrame = (f: FrameMode) => {
           const ic = connectSpecOf(c.item);
           const radii =
             conn && ic
-              ? runRadii(
+              ? interpolatedRunRadii(
                   g.axis,
                   r === 0,
                   r === m - 1,
@@ -2835,7 +2762,7 @@ const changeFrame = (f: FrameMode) => {
                       );
                       const mm = (g?.items.length ?? 0) + 1;
                       const k = drag.snap.index;
-                      return runRadii(
+                      return interpolatedRunRadii(
                         conn.axis,
                         k === 0,
                         k === mm - 1,
