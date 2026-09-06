@@ -115,6 +115,7 @@ import { BottomSheet, MobileActionBar, MobileInspector, MobileLang, MobileSettin
 import { MobileScreens } from "@/components/MobileScreens";
 import { MobileParts } from "@/components/MobileParts";
 import { StorageWarning } from "@/components/StorageWarning";
+import { FrameExportLayer } from "@/components/FrameExportLayer";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
 
@@ -1840,73 +1841,6 @@ const changeFrame = (f: FrameMode) => {
     }
   };
 
-  /** the runs of one screen drawn with plain divs: the export layer */
-  const renderExport = (f: Frame) => {
-    const gs = groups.filter((g) => frameOfGroup(g, frames, widths)?.id === f.id);
-    const { w, h } = frameSizeOf(f);
-    return (
-      <div
-        data-export={f.id}
-        style={{
-          position: "relative",
-          width: w,
-          height: h,
-          background: p[f.bg ?? "surface"],
-          overflow: "hidden",
-        }}
-      >
-        {gs.map((g) =>
-          g.free ? (
-            ((corners) =>
-            layoutOf(g, widths).map((pl) => (
-              <div key={pl.item.id} style={{ position: "absolute", left: pl.x - f.x, top: pl.y - f.y }}>
-                <M3Static
-                  item={pl.item}
-                  palette={p}
-                  radii={corners.get(pl.item.id)}
-                  style={MEASURED.includes(pl.item.kind) ? undefined : { width: pl.w, height: pl.h }}
-                />
-              </div>
-            )))(freeRadii(g, widths))
-          ) : (
-          <div
-            key={g.id}
-            style={{
-              position: "absolute",
-              left: g.x - f.x,
-              top: g.y - f.y,
-              display: "flex",
-              flexDirection: g.axis === "x" ? "row" : "column",
-              alignItems: g.axis === "x" ? "center" : "stretch",
-              gap: GAP,
-            }}
-          >
-            {g.items.map((it, i) => {
-              const conn = connectSpecOf(it);
-              const n = g.items.length;
-              const radii =
-                conn && n > 1
-                  ? interpolatedRunRadii(g.axis, i === 0, i === n - 1, false, false, 0, conn.outer, conn.inner)
-                  : conn
-                    ? uniformRadii(conn.outer)
-                    : baseRadii(it);
-              return (
-                <M3Static
-                  key={it.id}
-                  item={it}
-                  palette={p}
-                  radii={radii}
-                  style={MEASURED.includes(it.kind) ? undefined : { width: sizeOf(it, widths).w, height: sizeOf(it, widths).h }}
-                />
-              );
-            })}
-          </div>
-          ),
-        )}
-      </div>
-    );
-  };
-
   /** the view before the preview opened, restored when it closes */
   const viewBeforePreview = useRef<View | null>(null);
   /** the camera glides for a moment: a screen is brought to the center before the
@@ -2360,9 +2294,14 @@ const changeFrame = (f: FrameMode) => {
         </div>
 
         {exportFrame && (
-          <div aria-hidden style={{ position: "fixed", left: -99999, top: 0, pointerEvents: "none", fontFamily: fontFamilyOf(theme.font, lang) }}>
-            {renderExport(exportFrame)}
-          </div>
+          <FrameExportLayer
+            frame={exportFrame}
+            frames={frames}
+            groups={groups}
+            widths={widths}
+            palette={p}
+            fontFamily={fontFamilyOf(theme.font, lang)}
+          />
         )}
 
         {/* ---- left: rail + parts / layers ---- */}

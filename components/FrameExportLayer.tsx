@@ -1,20 +1,4 @@
-from pathlib import Path
-
-ROOT = Path('.')
-
-def replace_once(text: str, old: str, new: str, label: str) -> str:
-    if old not in text:
-        raise SystemExit(f'missing anchor: {label}')
-    if text.count(old) != 1:
-        raise SystemExit(f'non-unique anchor ({text.count(old)}): {label}')
-    return text.replace(old, new, 1)
-
-def write(path: str, content: str) -> None:
-    p = ROOT / path
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(content, encoding='utf-8')
-
-write('components/FrameExportLayer.tsx', '''import { M3Static } from "./M3Node";
+import { M3Static } from "./M3Node";
 import { interpolatedRunRadii } from "../lib/run-radii";
 import {
   GAP,
@@ -158,22 +142,3 @@ export function FrameExportLayer({
     </div>
   );
 }
-''')
-
-page_path = ROOT / 'app/page.tsx'
-page = page_path.read_text(encoding='utf-8')
-page = replace_once(
-    page,
-    'import { StorageWarning } from "@/components/StorageWarning";\n',
-    'import { StorageWarning } from "@/components/StorageWarning";\nimport { FrameExportLayer } from "@/components/FrameExportLayer";\n',
-    'frame export component import',
-)
-start = page.index('  /** the runs of one screen drawn with plain divs: the export layer */')
-end = page.index('  /** the view before the preview opened, restored when it closes */', start)
-page = page[:start] + page[end:]
-old_render = '''        {exportFrame && (\n          <div aria-hidden style={{ position: "fixed", left: -99999, top: 0, pointerEvents: "none", fontFamily: fontFamilyOf(theme.font, lang) }}>\n            {renderExport(exportFrame)}\n          </div>\n        )}\n'''
-new_render = '''        {exportFrame && (\n          <FrameExportLayer\n            frame={exportFrame}\n            frames={frames}\n            groups={groups}\n            widths={widths}\n            palette={p}\n            fontFamily={fontFamilyOf(theme.font, lang)}\n          />\n        )}\n'''
-page = replace_once(page, old_render, new_render, 'hidden export render')
-page_path.write_text(page, encoding='utf-8')
-
-print('frame export layer extracted')
