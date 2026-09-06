@@ -88,6 +88,7 @@
 - [x] Add E2E coverage for desktop/mobile navigation-graph entry, frame selection and graph-to-Preview behavior.
 - [x] Add E2E coverage proving graph route edits persist through the normal document path and Undo restores them.
 - [x] Add E2E coverage for graph drag-to-connect creation, transition selection, Undo and Redo.
+- [x] Add E2E coverage for navigation-graph screen search without document mutation.
 - [x] Add project format/version migration strategy before the `Doc` schema changes substantially.
 - [x] Surface storage write failures/recovery guidance in the editor UX.
 - [x] Audit npm dependencies and remediate the identified high-severity Playwright browser-download certificate advisory.
@@ -114,7 +115,8 @@
 - [x] Add drag-to-connect creation with an explicit trigger chooser instead of inventing hidden graph-only navigation semantics.
 - [x] Support unused existing item/slot triggers, unused swipe directions, and explicit new-button creation as graph route sources.
 - [x] Add transition selection for graph-created item/slot/button routes and transition editing for existing item/slot routes.
-- [ ] Evaluate large-project graph usability (search/filter or pinned layout) only after real documents make deterministic layout insufficient.
+- [x] Add lightweight screen-name search/highlighting for larger navigation graphs without changing the graph model or layout.
+- [ ] Evaluate pinned/manual graph layout only after real documents make deterministic layout plus search insufficient.
 - [ ] Consider cloud save/sync only after there is a concrete cross-device/account requirement.
 
 ## Already available — do not duplicate
