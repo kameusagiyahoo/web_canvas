@@ -2,19 +2,24 @@
 
 ## Status
 
-The first visual navigation graph is implemented.
+The visual navigation graph is implemented and remains a **derived view of the existing document**, not a second navigation model.
 
-It is intentionally a **derived, read-only view of the existing document**, not a second navigation model. The graph recomputes from the current `Doc`, so edits, imports and undo/redo remain governed by the same source of truth used by the canvas and Preview.
+The graph now supports two levels of interaction:
+
+1. overview / diagnostics / screen focus / Preview;
+2. editing an **existing** item, slot, or swipe route by changing its destination or removing it.
+
+Graph edits write back to the existing navigation fields and enter the normal Undo/Redo history. The graph itself is still never persisted.
 
 ## Source of truth
 
-The current document already contains the navigation data:
+The document already contains all navigation data:
 
-- `Frame` = one screen / graph node.
-- `Item.action` = one item-level navigation edge.
-- `Item.actions` = per-slot edges for tabs, navigation bars, rails, app-bar icons and similar components.
-- `Frame.swipe` = swipe navigation edges between screens.
-- `BACK_TARGET` = preview stack behavior; it is counted/shown as a back action rather than stored as an edge to another `Frame`.
+- `Frame` = one screen / graph node;
+- `Item.action` = one item-level navigation edge;
+- `Item.actions` = per-slot edges for tabs, navigation bars, rails, app-bar icons and similar components;
+- `Frame.swipe` = swipe navigation edges between screens;
+- `BACK_TARGET` = Preview stack behavior.
 
 No backend, database, graph schema, or mobile-only navigation state was added.
 
@@ -32,10 +37,14 @@ lib/navigation-graph.ts
 components/NavigationGraph.tsx
   ├─ full-screen graph UI
   ├─ screen selection/focus
-  ├─ edge detail inspection
+  ├─ route selection
+  ├─ route destination/remove controls
   └─ per-screen Preview entry
  ↓
-existing Frame / action / Preview behavior
+lib/navigation-graph-edit.ts
+  └─ write edits back to existing Item.action / Item.actions / Frame.swipe
+ ↓
+normal Doc state + Undo/Redo
 ```
 
 The graph has no independently persisted nodes or edges.
@@ -44,68 +53,81 @@ The graph has no independently persisted nodes or edges.
 
 ### Desktop
 
-The main toolbar includes a Screen flow / 画面フロー action next to Preview.
+The main toolbar includes Screen flow / 画面フロー next to Preview.
 
-Opening it replaces the working area with a full-screen overview. Selecting a node returns to the editor and focuses the same `Frame`. Each node also has a Preview action that starts Preview from that screen.
+Selecting a node returns to the editor and focuses the same `Frame`. Each node also has a Preview action that starts Preview from that screen.
 
 ### Mobile
 
-The existing Screens sheet includes a full-width Screen flow / 画面フロー action. The graph opens full-screen so the phone UI does not attempt to show the graph beside the canvas.
+The existing Screens sheet includes Screen flow / 画面フロー. The graph opens full-screen so the phone UI does not attempt to show the graph beside the canvas.
 
-Node selection returns to and focuses the selected screen. The same derived graph adapter is used by desktop and mobile.
+Desktop and mobile use the same derived graph adapter and the same document mutations.
 
-## Edge presentation
+## Edge presentation and editing
 
 The UI distinguishes route sources without introducing new document semantics:
 
 - solid route — item-level tap/action;
 - dotted route — per-slot action;
 - dashed route — screen swipe;
-- back action — shown as a node count because `BACK_TARGET` depends on Preview history rather than a destination `Frame`.
+- back action — represented as Preview-stack behavior rather than a normal screen edge.
 
-Selecting a route exposes its source/destination, source item or slot where applicable, and transition.
+Selecting an existing route opens a compact route editor. It can:
+
+- change the target screen;
+- change an item/slot route to `BACK_TARGET`;
+- remove the route;
+- update swipe destinations without allowing `BACK_TARGET` for swipe navigation.
+
+All edits are performed through `lib/navigation-graph-edit.ts`, which mutates the same navigation fields used by the existing inspectors and Preview. `app/page.tsx` only coordinates snapshot timing and React state updates.
 
 ## Diagnostics
 
-The derived adapter currently reports:
+The derived adapter reports:
 
 - action targets that reference a missing `Frame`;
 - screens unreachable from the chosen start screen;
 - non-start screens with no incoming navigation;
 - duplicate/parallel routes between the same pair of screens.
 
-Diagnostics do not mutate or repair the document automatically; they are architecture checks over the current source data.
+Diagnostics do not silently repair the document.
 
 ## Layout
 
-The first implementation deliberately avoids a graph-layout dependency. `lib/navigation-graph.ts` computes a deterministic left-to-right layout using shortest-path depth from the start screen. Disconnected screens are placed in a final column.
+The implementation deliberately avoids a graph-layout dependency. `lib/navigation-graph.ts` computes a deterministic left-to-right layout using shortest-path depth from the start screen. Disconnected screens are placed in a final column.
 
-This is sufficient for an overview and keeps bundle/dependency cost low. A third-party graph/layout package should only be introduced if future interaction requirements justify it.
+This keeps bundle and dependency cost low. A third-party graph/layout package should only be introduced if richer interaction requirements justify it.
 
 ## Why the graph is not the source of truth
 
-Persisting a second graph model alongside `Frame`, `Item.action`, `Item.actions`, and `Frame.swipe` would require two-way synchronization and create failure modes such as:
+Persisting another graph model alongside `Frame`, `Item.action`, `Item.actions`, and `Frame.swipe` would require synchronization in both directions and create failure modes such as:
 
-- a button points to Screen B while a graph edge says Screen C;
+- a button points to Screen B while the graph says Screen C;
 - deleting a screen leaves stale graph edges;
 - mobile and desktop edit different navigation representations;
 - project migrations must reconcile two copies of the same relationship.
 
 Keeping the graph derived avoids these classes of inconsistency.
 
-## Editing through the graph later
+## Remaining product decision: creating new connections
 
-Direct graph editing is intentionally not part of this first version. If it is added later, gestures must call the same shared navigation mutations used by the existing inspectors rather than creating graph-owned data. For example:
+Editing an **existing** route is now unambiguous because the route already identifies its underlying source item, slot, or swipe direction.
 
-- connect Screen A to Screen B → patch an existing item/slot action;
-- change transition → patch that existing action;
-- remove a route → clear that existing action;
-- edit a swipe route → patch `Frame.swipe`.
+Creating a brand-new line by dragging Screen A to Screen B is different: a screen-to-screen line alone does not say which interaction should cause that transition.
 
-That is a separate product interaction decision. The current implementation establishes the read-only overview and diagnostic boundary without committing to a graph-editing UX.
+A new connection therefore needs one of these semantics:
+
+1. assign the route to an existing item/slot selected by the user;
+2. assign it to a swipe direction;
+3. create a new explicit navigation control in the source screen;
+4. present a chooser after the line is drawn.
+
+That decision should be made before drag-to-connect creation is implemented. It prevents the graph from inventing navigation behavior that is not represented in the screen UI.
 
 ## Automated coverage
 
-`lib/navigation-graph.test.ts` covers derivation, back actions, missing targets, reachability, parallel routes, preferred starts and deterministic layout.
+- `lib/navigation-graph.test.ts` covers derivation, reachability, diagnostics and deterministic layout.
+- `lib/navigation-graph-edit.test.ts` covers item, slot and swipe mutation, removal, and back-stack restrictions.
+- Playwright covers desktop/mobile graph entry, screen selection, graph-to-Preview behavior, route retargeting, persistence, and Undo restoration.
 
-Playwright coverage verifies both desktop and mobile graph entry, screen selection, and graph-to-Preview behavior. The implementation workflow passed type checking, all Vitest tests, the production static build and all browser E2E tests before committing the integration.
+The navigation graph route-editing implementation passed type checking, all Vitest tests, the production static build and Playwright E2E before being committed to `main`.
