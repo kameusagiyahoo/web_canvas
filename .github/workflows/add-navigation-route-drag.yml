@@ -22,32 +22,55 @@ jobs:
           node-version: 22
           cache: npm
       - run: python scripts/add-navigation-route-drag.py
-      - name: Stabilize route drag pointer handlers
+      - name: Track route drag at window level
         run: |
           python - <<'PY'
           from pathlib import Path
           import re
+
           path = Path("components/NavigationGraph.tsx")
           text = path.read_text()
+
+          state_anchor = '  const [pendingRoute, setPendingRoute] = useState<{ sourceFrameId: string; targetFrameId: string } | null>(null);\n'
+          effect = '''  useEffect(() => {
+            if (!routeDrag) return;
+            const sourceFrameId = routeDrag.sourceFrameId;
+            const move = (event: PointerEvent) => {
+              setRouteDrag((current) => current
+                ? { ...current, x1: event.clientX, y1: event.clientY }
+                : current);
+            };
+            const up = (event: PointerEvent) => {
+              const target = Array.from(document.querySelectorAll<HTMLElement>("[data-graph-frame-id]"))
+                .find((element) => {
+                  const rect = element.getBoundingClientRect();
+                  return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+                })?.dataset.graphFrameId;
+              if (target) setPendingRoute({ sourceFrameId, targetFrameId: target });
+              setRouteDrag(null);
+            };
+            window.addEventListener("pointermove", move);
+            window.addEventListener("pointerup", up, { once: true });
+            return () => {
+              window.removeEventListener("pointermove", move);
+              window.removeEventListener("pointerup", up);
+            };
+          }, [routeDrag?.sourceFrameId]);
+'''
+          if state_anchor not in text:
+              raise SystemExit("route drag state anchor not found")
+          text = text.replace(state_anchor, state_anchor + effect, 1)
+
+          text = text.replace('                      event.currentTarget.setPointerCapture(event.pointerId);\n', '', 1)
+
           pattern = re.compile(
-              r'onPointerMove=\{\(event\) => \{\s*if \(!routeDrag \|\| routeDrag\.sourceFrameId !== node\.frameId\) return;\s*setRouteDrag\(\{ \.\.\.routeDrag, x1: event\.clientX, y1: event\.clientY \}\);\s*\}\}\s*onPointerUp=\{\(event\) => \{\s*if \(!routeDrag \|\| routeDrag\.sourceFrameId !== node\.frameId\) return;\s*const target = document\.elementFromPoint\(event\.clientX, event\.clientY\)\?\.closest<HTMLElement>\("\[data-graph-frame-id\]"\)\?\.dataset\.graphFrameId;\s*if \(target\) setPendingRoute\(\{ sourceFrameId: node\.frameId, targetFrameId: target \}\);\s*setRouteDrag\(null\);\s*\}\}',
+              r'\s*onPointerMove=\{\(event\) => \{.*?\}\}\s*onPointerUp=\{\(event\) => \{.*?setRouteDrag\(null\);\s*\}\}',
               re.S,
           )
-          replacement = '''onPointerMove={(event) => {
-                      setRouteDrag((current) => current && current.sourceFrameId === node.frameId
-                        ? { ...current, x1: event.clientX, y1: event.clientY }
-                        : current);
-                    }}
-                    onPointerUp={(event) => {
-                      const target = document.elementsFromPoint(event.clientX, event.clientY)
-                        .map((element) => element.closest<HTMLElement>("[data-graph-frame-id]"))
-                        .find(Boolean)?.dataset.graphFrameId;
-                      if (target) setPendingRoute({ sourceFrameId: node.frameId, targetFrameId: target });
-                      setRouteDrag(null);
-                    }}'''
-          text, count = pattern.subn(replacement, text, count=1)
+          text, count = pattern.subn('', text, count=1)
           if count != 1:
-              raise SystemExit(f"route drag handler patch count={count}")
+              raise SystemExit(f"local route pointer handlers patch count={count}")
+
           path.write_text(text)
           PY
       - run: npm ci
