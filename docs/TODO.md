@@ -17,7 +17,7 @@
 
 ## Priority S — Maintainability
 
-- [ ] Stop adding unrelated responsibilities directly to `app/page.tsx`.
+- [x] Establish `app/page.tsx` as the UI/controller boundary and keep reusable domain logic outside it.
 - [x] Extract frame/screen document commands into testable helpers.
 - [x] Extract frame preset resizing, dependent screen shifts and part re-layout into the shared frame command boundary.
 - [x] Extract initial/next frame creation and new-frame camera centering into testable helpers.
@@ -27,10 +27,18 @@
 - [x] Extract group/ungroup and nudge document commands into testable helpers.
 - [x] Extract canvas item-rectangle and marquee-selection geometry into testable helpers.
 - [x] Extract frame/group drag coordinate updates into testable helpers.
-- [x] Extract canvas coordinate transforms, fit/focus, pan, wheel and pinch viewport calculations into testable helpers.
+- [x] Extract canvas coordinate transforms, visible-world bounds, fit/focus, pan, wheel and pinch calculations into testable helpers.
 - [x] Extract free-drop viewport rejection, target-frame selection and finalized group placement into testable helpers.
 - [x] Extract mobile picker placement, occupied-row avoidance and no-frame centering into shared part-placement helpers.
 - [x] Extract part-drag detach/snap mutations and magnetic snap/alignment-guide geometry into testable helpers.
+- [x] Extract derived navigation-link geometry and action mutation into shared helpers.
+- [x] Extract connected-run corner interpolation used during drag/open-gap animation.
+- [x] Extract Layers-panel frame ownership/selection logic and measurement bookkeeping.
+- [x] Extract tidy state/toggle behavior into a testable session helper.
+- [x] Extract AI response application into document commands that preserve note history.
+- [x] Extract PNG export readiness/encoding and isolate export-only rendering in `FrameExportLayer`.
+- [x] Extract runtime legacy document migration from the page component.
+- [x] Extract deterministic editor seed construction and document-language translation.
 - [x] Extract reusable bounded undo/redo stack helpers with unit tests.
 - [x] Wire the existing `app/page.tsx` frame/layer callers to the extracted command helpers incrementally.
 - [x] Wire `app/page.tsx` frame creation and new-frame centering to shared frame/viewport helpers.
@@ -47,12 +55,12 @@
 - [x] Wire `app/page.tsx` history refs to the extracted history helpers without changing undo semantics.
 - [x] Separate project JSON serialization/parsing from browser download/file APIs.
 - [x] Extract preview start resolution and camera calculations into testable helpers.
-- [x] Extract document/UI/draft localStorage access into tested storage helpers.
+- [x] Extract document/UI/draft/AI-settings localStorage access into tested storage helpers.
 - [x] Centralize safe browser storage access and quota/unavailable failure classification.
 - [x] Keep undo/redo behavior consistent for desktop and mobile commands.
 - [x] Avoid parallel mobile-only business logic when an existing desktop operation can be shared.
 
-## Priority A — Reliability
+## Priority A — Reliability / security hygiene
 
 - [x] Add focused tests for extracted frame/screen and layer operations.
 - [x] Add focused tests for frame preset resize no-op and dependent screen/group shifting.
@@ -66,12 +74,15 @@
 - [x] Add focused tests for free-drop viewport, target-frame and finalized placement behavior.
 - [x] Add focused tests for mobile picked-part frame adaptation, collision avoidance and no-frame centering.
 - [x] Add focused tests for extracted part drag and snap/alignment-guide behavior.
+- [x] Add focused tests for navigation links, run radii, layer selection and measurement helpers.
+- [x] Add focused tests for tidy-session, AI document commands, frame export, runtime migration, language translation and editor seeds.
 - [x] Add focused tests for the extracted history stack operations.
 - [x] Add focused tests for project serialization/parsing and preview session helpers.
 - [x] Add focused tests for editor storage parsing, draft recovery and failure classification.
 - [x] Add E2E coverage for core project flows: edit, save/export, import, multi-screen management and preview.
 - [x] Add project format/version migration strategy before the `Doc` schema changes substantially.
 - [x] Surface storage write failures/recovery guidance in the editor UX.
+- [x] Audit npm dependencies and remediate the identified high-severity Playwright browser-download certificate advisory.
 
 ## Priority A — Project metadata
 
@@ -82,13 +93,14 @@
 ## Priority B — Security / cloud
 
 - [ ] Revisit browser-stored AI API keys before the app is used by untrusted/public users.
-- [ ] If needed, move provider calls behind a Cloudflare Worker and use server-side secrets.
+- [ ] If managed/public AI calls are needed, move provider calls behind a Cloudflare Worker and use server-side secrets.
 - [ ] Do not add a backend, authentication, or DB before a concrete use case requires it.
 
 ## Priority B — Product direction
 
-- [ ] Evaluate a visual navigation graph after basic mobile screen management works.
-- [ ] Consider cloud save/sync only after local/project-file workflows are stable.
+- [x] Evaluate a visual navigation graph after basic mobile screen management works; use a derived graph rather than a second source of truth. See `docs/NAVIGATION_GRAPH.md`.
+- [ ] Implement a derived read-only navigation overview if it is chosen as the next product feature.
+- [ ] Consider cloud save/sync only after there is a concrete cross-device/account requirement.
 
 ## Already available — do not duplicate
 
@@ -96,3 +108,4 @@
 - JSON project import via `readProject()`.
 - Existing `Frame` model for screens.
 - Existing undo/redo snapshots include frames and groups.
+- Navigation source of truth is already `Frame` + `Item.action` / `Item.actions` + `Frame.swipe`.
