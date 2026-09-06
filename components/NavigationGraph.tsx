@@ -8,7 +8,7 @@ import {
   type NavigationLayoutNode,
   type NavigationProblem,
 } from "@/lib/navigation-graph";
-import { BACK_TARGET, type Doc, type Palette } from "@/lib/tokens";
+import { BACK_TARGET, TRANSITIONS, type Doc, type Palette, type Transition } from "@/lib/tokens";
 import { availableNavigationRouteTriggers, type NavigationEdgePatch, type NavigationRouteTrigger } from "@/lib/navigation-graph-edit";
 import { Icon } from "./M3Node";
 import { useLang, type Lang } from "@/lib/i18n";
@@ -177,7 +177,7 @@ export function NavigationGraph({
   onSelectFrame: (id: string) => void;
   onPreviewFrame: (id: string) => void;
   onEditEdge: (edge: NavigationEdge, patch: NavigationEdgePatch) => void;
-  onCreateRoute: (sourceFrameId: string, targetFrameId: string, trigger: NavigationRouteTrigger) => void;
+  onCreateRoute: (sourceFrameId: string, targetFrameId: string, trigger: NavigationRouteTrigger, transition?: Transition) => void;
   onClose: () => void;
 }) {
   const lang = useLang();
@@ -186,6 +186,7 @@ export function NavigationGraph({
     destination: lang === "ja" ? "移動先" : lang === "zh" ? "目标画面" : lang === "ko" ? "대상 화면" : "Destination",
     remove: lang === "ja" ? "この遷移を削除" : lang === "zh" ? "删除此跳转" : lang === "ko" ? "이 이동 삭제" : "Remove route",
     back: lang === "ja" ? "戻る" : lang === "zh" ? "返回" : lang === "ko" ? "뒤로" : "Back",
+    transition: lang === "ja" ? "トランジション" : lang === "zh" ? "过渡效果" : lang === "ko" ? "전환 효과" : "Transition",
   };
   const graph = useMemo(
     () => deriveNavigationGraph(doc, widths, selectedFrameId),
@@ -195,6 +196,7 @@ export function NavigationGraph({
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [routeDrag, setRouteDrag] = useState<{ sourceFrameId: string; x0: number; y0: number; x1: number; y1: number } | null>(null);
   const [pendingRoute, setPendingRoute] = useState<{ sourceFrameId: string; targetFrameId: string } | null>(null);
+  const [pendingTrigger, setPendingTrigger] = useState<NavigationRouteTrigger | null>(null);
   useEffect(() => {
     if (!routeDrag) return;
     const sourceFrameId = routeDrag.sourceFrameId;
@@ -209,7 +211,10 @@ export function NavigationGraph({
           const rect = element.getBoundingClientRect();
           return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
         })?.dataset.graphFrameId;
-      if (target) setPendingRoute({ sourceFrameId, targetFrameId: target });
+      if (target) {
+        setPendingTrigger(null);
+        setPendingRoute({ sourceFrameId, targetFrameId: target });
+      }
       setRouteDrag(null);
     };
     window.addEventListener("pointermove", move);
@@ -249,6 +254,8 @@ export function NavigationGraph({
     slot: lang === "ja" ? "項目" : lang === "zh" ? "项目" : lang === "ko" ? "항목" : "Slot",
     swipe: lang === "ja" ? "スワイプ" : lang === "zh" ? "滑动" : lang === "ko" ? "스와이프" : "Swipe",
     button: lang === "ja" ? "新しいボタンを追加" : lang === "zh" ? "添加新按钮" : lang === "ko" ? "새 버튼 추가" : "Add a new button",
+    transition: lang === "ja" ? "画面切り替え" : lang === "zh" ? "画面过渡" : lang === "ko" ? "화면 전환" : "Screen transition",
+    backToTrigger: lang === "ja" ? "トリガー選択に戻る" : lang === "zh" ? "返回触发方式" : lang === "ko" ? "트리거 선택으로 돌아가기" : "Back to trigger",
   };
   const triggerLabel = (trigger: NavigationRouteTrigger) => {
     if (trigger.kind === "item") return `${routeCopy.item}: ${trigger.label}`;
@@ -493,24 +500,52 @@ export function NavigationGraph({
         </svg>
       )}
       {pendingRoute && (
-        <div data-testid="graph-route-trigger-chooser" style={{ position: "fixed", inset: 0, zIndex: 120, background: "rgba(0,0,0,.28)", display: "grid", placeItems: "end center", padding: "16px max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))" }}>
-          <div role="dialog" aria-label={routeCopy.choose} style={{ width: "min(560px, 100%)", maxHeight: "70vh", overflow: "auto", borderRadius: 26, padding: 16, background: p.surfaceContainerHigh, color: p.onSurface, boxShadow: "0 18px 50px rgba(0,0,0,.24)" }}>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>{routeCopy.choose}</div>
-            <div style={{ marginTop: 5, fontSize: 12, color: p.onSurfaceVariant }}>{labelById.get(pendingRoute.sourceFrameId) ?? pendingRoute.sourceFrameId} → {labelById.get(pendingRoute.targetFrameId) ?? pendingRoute.targetFrameId}</div>
-            <div style={{ display: "grid", gap: 8, marginTop: 14 }}>
-              {pendingTriggers.map((trigger, index) => (
-                <button
-                  type="button"
-                  key={`${trigger.kind}-${"itemId" in trigger ? trigger.itemId : "swipe" in trigger ? trigger.swipe : "new"}-${"slot" in trigger ? trigger.slot : index}`}
-                  onClick={() => { onCreateRoute(pendingRoute.sourceFrameId, pendingRoute.targetFrameId, trigger); setPendingRoute(null); }}
-                  className="m3-press"
-                  style={{ minHeight: 48, border: `1px solid ${p.outlineVariant}`, borderRadius: 16, padding: "0 14px", background: p.surface, color: p.onSurface, textAlign: "left", fontWeight: 750, cursor: "pointer" }}
-                >
-                  {triggerLabel(trigger)}
-                </button>
-              ))}
-            </div>
-            <button type="button" onClick={() => setPendingRoute(null)} style={{ marginTop: 12, minHeight: 44, border: "none", borderRadius: 22, padding: "0 16px", background: "transparent", color: p.primary, fontWeight: 800, cursor: "pointer" }}>{routeCopy.cancel}</button>
+        <div data-testid={pendingTrigger ? "graph-route-transition-chooser" : "graph-route-trigger-chooser"} style={{ position: "fixed", inset: 0, zIndex: 120, background: "rgba(0,0,0,.28)", display: "grid", placeItems: "end center", padding: "16px max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))" }}>
+          <div role="dialog" aria-label={pendingTrigger ? routeCopy.transition : routeCopy.choose} style={{ width: "min(560px, 100%)", maxHeight: "70vh", overflow: "auto", borderRadius: 26, padding: 16, background: p.surfaceContainerHigh, color: p.onSurface, boxShadow: "0 18px 50px rgba(0,0,0,.24)" }}>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{pendingTrigger ? routeCopy.transition : routeCopy.choose}</div>
+            <div style={{ marginTop: 5, fontSize: 12, color: p.onSurfaceVariant }}>{labelById.get(pendingRoute.sourceFrameId) ?? pendingRoute.sourceFrameId} → {labelById.get(pendingRoute.targetFrameId) ?? pendingRoute.targetFrameId}{pendingTrigger ? ` · ${triggerLabel(pendingTrigger)}` : ""}</div>
+            {!pendingTrigger ? (
+              <div style={{ display: "grid", gap: 8, marginTop: 14 }}>
+                {pendingTriggers.map((trigger, index) => (
+                  <button
+                    type="button"
+                    key={`${trigger.kind}-${"itemId" in trigger ? trigger.itemId : "swipe" in trigger ? trigger.swipe : "new"}-${"slot" in trigger ? trigger.slot : index}`}
+                    onClick={() => {
+                      if (trigger.kind === "swipe") {
+                        onCreateRoute(pendingRoute.sourceFrameId, pendingRoute.targetFrameId, trigger);
+                        setPendingRoute(null);
+                      } else {
+                        setPendingTrigger(trigger);
+                      }
+                    }}
+                    className="m3-press"
+                    style={{ minHeight: 48, border: `1px solid ${p.outlineVariant}`, borderRadius: 16, padding: "0 14px", background: p.surface, color: p.onSurface, textAlign: "left", fontWeight: 750, cursor: "pointer" }}
+                  >
+                    {triggerLabel(trigger)}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, marginTop: 14 }}>
+                {TRANSITIONS.map((transition) => (
+                  <button
+                    type="button"
+                    key={transition.key}
+                    onClick={() => {
+                      onCreateRoute(pendingRoute.sourceFrameId, pendingRoute.targetFrameId, pendingTrigger, transition.key);
+                      setPendingTrigger(null);
+                      setPendingRoute(null);
+                    }}
+                    className="m3-press"
+                    style={{ minHeight: 48, border: `1px solid ${p.outlineVariant}`, borderRadius: 16, padding: "0 14px", background: p.surface, color: p.onSurface, textAlign: "left", fontWeight: 750, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}
+                  >
+                    <Icon name={transition.icon} size={20} />
+                    {transition.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button type="button" onClick={() => pendingTrigger ? setPendingTrigger(null) : setPendingRoute(null)} style={{ marginTop: 12, minHeight: 44, border: "none", borderRadius: 22, padding: "0 16px", background: "transparent", color: p.primary, fontWeight: 800, cursor: "pointer" }}>{pendingTrigger ? routeCopy.backToTrigger : routeCopy.cancel}</button>
           </div>
         </div>
       )}
@@ -574,6 +609,21 @@ export function NavigationGraph({
                 ))}
               </select>
             </label>
+            {selectedEdge.source !== "swipe" && (
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 700 }}>
+                {editCopy.transition}
+                <select
+                  aria-label={editCopy.transition}
+                  value={selectedEdge.transition ?? "slide"}
+                  onChange={(event) => onEditEdge(selectedEdge, { transition: event.target.value as Transition })}
+                  style={{ minHeight: 34, maxWidth: 180, borderRadius: 10, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 8px" }}
+                >
+                  {TRANSITIONS.map((transition) => (
+                    <option key={transition.key} value={transition.key}>{transition.label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
             <button
               type="button"
               onClick={() => onEditEdge(selectedEdge, { remove: true })}

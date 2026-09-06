@@ -41,6 +41,18 @@ describe("navigation graph route creation", () => {
     expect(result?.groups[0].items[0].action).toEqual({ to: "detail", transition: "slide" });
   });
 
+  it("creates an item route with the selected transition", () => {
+    const result = createNavigationRoute(
+      { frames, groups: groups() },
+      {},
+      "home",
+      "detail",
+      { kind: "item", itemId: "open", label: "Open" },
+      "fade",
+    );
+    expect(result?.groups[0].items[0].action).toEqual({ to: "detail", transition: "fade" });
+  });
+
   it("creates a swipe route only when the direction is unused", () => {
     const trigger = { kind: "swipe", swipe: "left", label: "Left" } as const;
     const result = createNavigationRoute({ frames, groups: groups() }, {}, "home", "detail", trigger);

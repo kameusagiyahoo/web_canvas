@@ -3285,8 +3285,8 @@ const changeFrame = (f: FrameMode) => {
               setFrames(result.frames);
               setGroups(result.groups);
             }}
-            onCreateRoute={(sourceFrameId, targetFrameId, trigger) => {
-              const result = createNavigationRoute(doc, widthsRef.current, sourceFrameId, targetFrameId, trigger);
+            onCreateRoute={(sourceFrameId, targetFrameId, trigger, transition) => {
+              const result = createNavigationRoute(doc, widthsRef.current, sourceFrameId, targetFrameId, trigger, transition);
               if (!result) return;
               snapshot();
               setFrames(result.frames);

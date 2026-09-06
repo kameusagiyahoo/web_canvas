@@ -237,3 +237,38 @@ test("navigation graph drag creates a route through a chosen trigger", async ({ 
     }),
   ).toBe(true);
 });
+
+
+test("navigation graph creation supports transitions and undo redo", async ({ page }) => {
+  await openSeeded(page);
+  await page.getByTitle("Screen flow").click();
+  const graph = page.getByTestId("navigation-graph");
+  const source = graph.getByTestId("graph-connect-details");
+  const target = graph.getByTestId("graph-node-home");
+  const a = await source.boundingBox();
+  const b = await target.boundingBox();
+  if (!a || !b) throw new Error("graph nodes are not visible");
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 8 });
+  await page.mouse.up();
+
+  const triggerChooser = page.getByTestId("graph-route-trigger-chooser");
+  await expect(triggerChooser).toBeVisible();
+  await triggerChooser.getByRole("button", { name: "Tap: Details page" }).click();
+  const transitionChooser = page.getByTestId("graph-route-transition-chooser");
+  await expect(transitionChooser).toBeVisible();
+  await transitionChooser.getByRole("button", { name: "Fade" }).click();
+
+  const storedTransition = () => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    return raw ? JSON.parse(raw).groups?.[1]?.items?.[0]?.action?.transition ?? null : null;
+  });
+  await expect.poll(storedTransition).toBe("fade");
+
+  await graph.getByRole("button", { name: "Close" }).click();
+  await page.getByTitle("Undo").click();
+  await expect.poll(storedTransition).toBeNull();
+  await page.getByTitle("Redo").click();
+  await expect.poll(storedTransition).toBe("fade");
+});

@@ -130,6 +130,7 @@ export function createNavigationRoute(
   sourceFrameId: string,
   targetFrameId: string,
   trigger: NavigationRouteTrigger,
+  transition: Transition = "slide",
 ): NavigationEditResult | null {
   const sourceFrame = doc.frames.find((frame) => frame.id === sourceFrameId);
   const targetFrame = doc.frames.find((frame) => frame.id === targetFrameId);
@@ -151,7 +152,7 @@ export function createNavigationRoute(
     const item = {
       ...makeItem("button"),
       label: targetFrame.name ? `Open ${targetFrame.name}` : "Open screen",
-      action: { to: targetFrameId, transition: "slide" as Transition },
+      action: { to: targetFrameId, transition },
     };
     const placed = placePickedItem({
       item,
@@ -179,7 +180,7 @@ export function createNavigationRoute(
         if (trigger.kind === "item") {
           if (item.action) return item;
           changed = true;
-          return { ...item, action: { to: targetFrameId, transition: "slide" as Transition } };
+          return { ...item, action: { to: targetFrameId, transition } };
         }
         if (item.actions?.[trigger.slot]) return item;
         changed = true;
@@ -187,7 +188,7 @@ export function createNavigationRoute(
           ...item,
           actions: {
             ...(item.actions ?? {}),
-            [trigger.slot]: { to: targetFrameId, transition: "slide" as Transition },
+            [trigger.slot]: { to: targetFrameId, transition },
           },
         };
       }),
