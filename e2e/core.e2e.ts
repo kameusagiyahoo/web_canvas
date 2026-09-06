@@ -272,3 +272,22 @@ test("navigation graph creation supports transitions and undo redo", async ({ pa
   await page.getByTitle("Redo").click();
   await expect.poll(storedTransition).toBe("fade");
 });
+
+
+test("navigation graph search highlights matching screens without mutating the document", async ({ page }) => {
+  await openSeeded(page);
+  await page.getByTitle("Screen flow").click();
+  const graph = page.getByTestId("navigation-graph");
+  const before = await page.evaluate(() => localStorage.getItem("m3e:doc"));
+
+  const search = graph.getByTestId("graph-screen-search");
+  await search.fill("details");
+  await expect(graph.getByTestId("graph-search-count")).toHaveText("1/2");
+  await expect(graph.getByTestId("graph-node-details")).toHaveCSS("opacity", "1");
+  await expect(graph.getByTestId("graph-node-home")).toHaveCSS("opacity", "0.24");
+
+  await search.fill("missing screen");
+  await expect(graph.getByTestId("graph-search-empty")).toBeVisible();
+  const after = await page.evaluate(() => localStorage.getItem("m3e:doc"));
+  expect(after).toBe(before);
+});

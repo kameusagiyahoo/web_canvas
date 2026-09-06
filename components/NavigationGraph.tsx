@@ -197,6 +197,7 @@ export function NavigationGraph({
   const [routeDrag, setRouteDrag] = useState<{ sourceFrameId: string; x0: number; y0: number; x1: number; y1: number } | null>(null);
   const [pendingRoute, setPendingRoute] = useState<{ sourceFrameId: string; targetFrameId: string } | null>(null);
   const [pendingTrigger, setPendingTrigger] = useState<NavigationRouteTrigger | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   useEffect(() => {
     if (!routeDrag) return;
     const sourceFrameId = routeDrag.sourceFrameId;
@@ -241,6 +242,12 @@ export function NavigationGraph({
     [graph.nodes],
   );
   const validEdges = graph.edges.filter((edge) => edge.validTarget);
+  const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
+  const matchingFrameIds = new Set(
+    graph.nodes
+      .filter((node) => !normalizedSearch || node.label.toLocaleLowerCase().includes(normalizedSearch))
+      .map((node) => node.frameId),
+  );
   const pairIndex = new Map<string, number>();
   const pendingTriggers = pendingRoute
     ? availableNavigationRouteTriggers(doc, widths, pendingRoute.sourceFrameId)
@@ -255,6 +262,8 @@ export function NavigationGraph({
     swipe: lang === "ja" ? "スワイプ" : lang === "zh" ? "滑动" : lang === "ko" ? "스와이프" : "Swipe",
     button: lang === "ja" ? "新しいボタンを追加" : lang === "zh" ? "添加新按钮" : lang === "ko" ? "새 버튼 추가" : "Add a new button",
     transition: lang === "ja" ? "画面切り替え" : lang === "zh" ? "画面过渡" : lang === "ko" ? "화면 전환" : "Screen transition",
+    search: lang === "ja" ? "画面を検索" : lang === "zh" ? "搜索画面" : lang === "ko" ? "화면 검색" : "Search screens",
+    noMatch: lang === "ja" ? "一致する画面はありません" : lang === "zh" ? "没有匹配的画面" : lang === "ko" ? "일치하는 화면이 없습니다" : "No matching screens",
     backToTrigger: lang === "ja" ? "トリガー選択に戻る" : lang === "zh" ? "返回触发方式" : lang === "ko" ? "트리거 선택으로 돌아가기" : "Back to trigger",
   };
   const triggerLabel = (trigger: NavigationRouteTrigger) => {
@@ -353,6 +362,46 @@ export function NavigationGraph({
         </div>
       </header>
 
+      <div
+        style={{
+          flex: "0 0 auto",
+          minHeight: 52,
+          padding: "7px 14px",
+          borderBottom: `1px solid ${p.outlineVariant}`,
+          background: p.surface,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        <Icon name="search" size={20} />
+        <input
+          type="search"
+          data-testid="graph-screen-search"
+          aria-label={routeCopy.search}
+          placeholder={routeCopy.search}
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            minHeight: 38,
+            border: `1px solid ${p.outlineVariant}`,
+            borderRadius: 19,
+            background: p.surfaceContainerLow,
+            color: p.onSurface,
+            padding: "0 14px",
+            outline: "none",
+            font: "inherit",
+          }}
+        />
+        {normalizedSearch && (
+          <span data-testid="graph-search-count" style={{ minWidth: 46, textAlign: "right", color: matchingFrameIds.size ? p.onSurfaceVariant : p.error, fontSize: 12, fontWeight: 800 }}>
+            {matchingFrameIds.size}/{graph.nodes.length}
+          </span>
+        )}
+      </div>
+
       <div style={{ flex: 1, minHeight: 0, overflow: "auto", overscrollBehavior: "contain" }}>
         {!layout.nodes.length ? (
           <div style={{ minHeight: "100%", display: "grid", placeItems: "center", color: p.onSurfaceVariant, fontSize: 15 }}>{copy.empty}</div>
@@ -410,9 +459,18 @@ export function NavigationGraph({
               })}
             </svg>
 
+            {normalizedSearch && matchingFrameIds.size === 0 && (
+              <div
+                data-testid="graph-search-empty"
+                style={{ position: "absolute", left: 20, top: 18, zIndex: 5, padding: "8px 12px", borderRadius: 14, background: p.errorContainer, color: p.onErrorContainer, fontSize: 12, fontWeight: 800 }}
+              >
+                {routeCopy.noMatch}
+              </div>
+            )}
             {layout.nodes.map((node) => {
               const active = node.frameId === (selectedFrameId ?? graph.startFrameId);
               const reachable = graph.reachableFrameIds.includes(node.frameId);
+              const searchMatch = matchingFrameIds.has(node.frameId);
               return (
                 <div
                   key={node.frameId}
@@ -430,6 +488,8 @@ export function NavigationGraph({
                     color: active ? p.onSecondaryContainer : p.onSurface,
                     boxShadow: "0 5px 18px rgba(0,0,0,0.10)",
                     overflow: "hidden",
+                    opacity: normalizedSearch && !searchMatch ? 0.24 : 1,
+                    transition: "opacity 120ms ease",
                   }}
                 >
                   <button
