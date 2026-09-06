@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# rerun after tightening navigation-route command types
 
 def replace_once(path: str, old: str, new: str) -> None:
     p = Path(path)
@@ -64,7 +65,7 @@ replace_once(
     '''            onEditEdge={(edge, patch) => {\n              const result = editNavigationEdge(doc, edge, patch);\n              if (!result) return;\n              snapshot();\n              setFrames(result.frames);\n              setGroups(result.groups);\n            }}\n            onCreateRoute={(sourceFrameId, targetFrameId, trigger) => {\n              const result = createNavigationRoute(doc, widthsRef.current, sourceFrameId, targetFrameId, trigger);\n              if (!result) return;\n              snapshot();\n              setFrames(result.frames);\n              setGroups(result.groups);\n            }}\n            onClose={() => setGraphOpen(false)}''',
 )
 
-# E2E: remove existing route, then drag-create a swipe route between the same frames.
+# E2E: drag-create a swipe route between existing frames.
 e2e = Path("e2e/core.e2e.ts")
 text = e2e.read_text()
 if 'test("navigation graph drag creates a route through a chosen trigger"' not in text:
