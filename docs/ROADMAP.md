@@ -43,6 +43,7 @@ Goal: make multi-screen editing usable on a phone without introducing a second d
 - Support per-slot actions for navigation components.
 - Enter Preview from the active/selected screen.
 - Keep Preview navigation on the same `Frame`/action model as desktop.
+- Open the same derived visual navigation overview from the mobile Screens sheet.
 
 ## Phase 3 — Architecture cleanup driven by features
 
@@ -56,7 +57,7 @@ Completed boundary areas include:
 - browser persistence and project migrations
 - preview and PNG-export calculations
 - canvas selection/drag/snap/placement/viewport geometry
-- navigation-link derivation and mutation
+- navigation-link and navigation-graph derivation
 - tidy session behavior
 - document language/seed construction
 - layer ownership and measurement bookkeeping
@@ -66,20 +67,23 @@ Continue the same incremental rule for future features: do not rewrite `app/page
 
 ## Phase 4 — Visual architecture overview
 
-The navigation graph has been evaluated; see `docs/NAVIGATION_GRAPH.md`.
+Status: first read-only navigation graph baseline complete. See `docs/NAVIGATION_GRAPH.md`.
 
-Recommended first implementation, if chosen as the next product feature:
+Implemented baseline:
 
 - derive nodes from `Frame` objects;
-- derive edges from `Item.action`, `Item.actions`, and `Frame.swipe`;
+- derive item, per-slot and swipe routes from `Item.action`, `Item.actions`, and `Frame.swipe`;
 - treat `BACK_TARGET` as stack behavior rather than a destination screen;
-- begin with a read-only overview and screen focus/selection;
+- use a deterministic layout without a third-party graph dependency;
+- show missing targets, unreachable/no-incoming screens and parallel-route diagnostics;
+- select/focus an existing screen from a node;
+- enter Preview directly from a graph node;
+- expose the graph from the desktop toolbar and mobile Screens sheet;
+- keep desktop/mobile on the same derived graph adapter;
 - never persist a second graph source of truth;
-- keep desktop/mobile on the same derived graph adapter.
+- cover desktop and mobile graph entry with browser E2E tests.
 
-Potential later diagnostics from the same derived adapter include missing targets, unreachable screens and screens with no incoming navigation.
-
-The graph UI itself is intentionally not implemented yet; choosing it is a product-direction decision rather than required stabilization work.
+Potential next graph work is intentionally separate from this baseline. Editable graph gestures, graph-driven action creation/removal, richer layout controls or large-project navigation should only be added when their interaction semantics are intentionally chosen. Any editable graph must write through the existing navigation fields and shared commands.
 
 ## Phase 5 — Optional secure/cloud expansion
 
