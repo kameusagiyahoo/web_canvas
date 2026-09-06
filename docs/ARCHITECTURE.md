@@ -68,6 +68,7 @@ The extracted boundaries now include:
 - `lib/drop-placement.ts` — free-drop viewport validation, target-frame resolution and finalized placement
 - `lib/navigation-links.ts` — derived screen-action link geometry and link mutation
 - `lib/navigation-graph.ts` — derived navigation nodes/edges, validation diagnostics, reachability and deterministic graph layout
+- `lib/navigation-graph-edit.ts` — existing-route editing, trigger discovery, graph-created routes, and transition persistence through existing document fields
 - `lib/run-radii.ts` — connected-run corner interpolation during drag/open-gap animation
 - `lib/layer-selection.ts` — group-to-frame ownership and Layers-panel active-frame resolution
 - `lib/measurement.ts` — measurement-item collection and width-change detection
@@ -91,7 +92,7 @@ Important component areas include:
 - `components/PartsPalette.tsx` — desktop part creation/palette UI
 - `components/Layers.tsx` — shared layer presentation
 - `components/Preview.tsx` — interaction preview
-- `components/NavigationGraph.tsx` — full-screen, read-only screen-flow overview derived from the current document
+- `components/NavigationGraph.tsx` — full-screen derived screen-flow UI with route editing and drag-to-connect creation
 - `components/Mobile.tsx` — mobile inspector/settings/action bar and bottom sheets
 - `components/MobileScreens.tsx` — mobile screen management and graph entry
 - `components/MobileParts.tsx` — mobile part selection
@@ -118,6 +119,7 @@ pointer / wheel / touch events       mobile Parts picker
 │ drop-placement               │ final free-drop validation / placement
 │ navigation-links             │ derived navigation link geometry
 │ navigation-graph             │ derived flow graph / diagnostics
+│ navigation-graph-edit        │ route edit/create semantics
 │ layer-selection              │ screen/layer ownership
 │ measurement                  │ intrinsic width bookkeeping
 └──────────────────────────────┘
@@ -135,7 +137,7 @@ Project portability is implemented in `lib/project.ts`. Project JSON has an expl
 
 ## History
 
-Undo/redo snapshots contain both `groups` and `frames`, with document metadata included for full-document replacement operations. Desktop and mobile commands enter the same history path. Language translation also preserves snapshot metadata, so switching editor language does not weaken whole-document undo information.
+Undo/redo snapshots contain both `groups` and `frames`, with document metadata included for full-document replacement operations. Desktop, mobile, and navigation-graph commands enter the same history path. Language translation also preserves snapshot metadata, so switching editor language does not weaken whole-document undo information.
 
 ## Navigation model
 
@@ -156,11 +158,17 @@ Doc navigation fields
         └─→ lib/navigation-graph.ts → nodes / routes / diagnostics / layout
                                       ↓
                               NavigationGraph UI
+                                      ↓
+                           lib/navigation-graph-edit.ts
+                                      ↓
+                         same Item/Frame navigation fields
 ```
 
-The graph is not persisted. `components/NavigationGraph.tsx` is a read-only overview: selecting a screen returns to/focuses its existing `Frame`, and its Preview action reuses the existing Preview flow. Diagnostics include missing targets, unreachable/no-incoming screens and parallel routes. Desktop enters the graph from the toolbar; mobile enters it from the Screens sheet.
+The graph is not persisted. `components/NavigationGraph.tsx` can select/focus screens, launch Preview, edit existing routes, and create new routes by dragging from a source screen to a target screen.
 
-Direct graph editing is intentionally a future product decision. If added, it must mutate the same existing action fields rather than introduce graph-owned navigation data. See `docs/NAVIGATION_GRAPH.md`.
+New graph connections do not create graph-owned semantics. After a drag, the user explicitly chooses an unused existing item, unused slot, unused swipe direction, or a newly created Button. Item/slot/button routes then choose one of the existing transition values. Swipe behavior remains tied to swipe direction.
+
+The new-Button path reuses shared part placement. All graph mutations are snapshotted through the same Undo/Redo mechanism used by canvas and mobile edits. See `docs/NAVIGATION_GRAPH.md`.
 
 ## PNG export
 
@@ -184,7 +192,7 @@ This prevents canvas zoom, selection outlines, drag state and in-flight animatio
 The project has two complementary levels of automated coverage:
 
 - Vitest for document commands, persistence, project migration, preview, export, seeds, navigation graph/link derivation and canvas calculations.
-- Playwright for core browser flows including multi-screen editing, preview navigation, project export/import, mobile undo/redo, and desktop/mobile navigation-graph entry.
+- Playwright for core browser flows including multi-screen editing, preview navigation, project export/import, mobile undo/redo, graph entry/editing, drag-to-connect creation, transition selection, and graph Undo/Redo.
 
 CI runs type checking, Vitest, the static build and Playwright coverage. Dependency security was also audited; the Playwright version is pinned to a non-vulnerable release for the identified browser-download certificate advisory.
 
@@ -204,11 +212,11 @@ Mobile UI ─┐
 Desktop UI ┘
 ```
 
-Mobile part creation uses the same frame-aware placement rules as desktop placement, Layers/Undo/Redo operate through the shared document paths, and the navigation graph reuses the same derived adapter as desktop in a full-screen phone presentation.
+Mobile part creation uses the same frame-aware placement rules as desktop placement, Layers/Undo/Redo operate through the shared document paths, and the navigation graph reuses the same derived adapter and mutation commands as desktop in a full-screen phone presentation.
 
 ## Refactoring rule
 
-Avoid a wholesale rewrite of `app/page.tsx`. Move one coherent responsibility at a time when it creates a reusable or independently testable boundary. New product work should use the extracted modules rather than rebuilding equivalent logic inside mobile or desktop components.
+Avoid a wholesale rewrite of `app/page.tsx`. Move one coherent responsibility at a time when it creates a reusable or independently testable boundary. New product work should use the extracted modules rather than rebuilding equivalent logic inside mobile, desktop, or graph components.
 
 ## Future backend boundary
 
