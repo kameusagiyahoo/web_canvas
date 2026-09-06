@@ -67,6 +67,7 @@ The extracted boundaries now include:
 - `lib/part-placement.ts` — shared frame-aware sizing, mobile picker positioning and collision avoidance
 - `lib/drop-placement.ts` — free-drop viewport validation, target-frame resolution and finalized placement
 - `lib/navigation-links.ts` — derived screen-action link geometry and link mutation
+- `lib/navigation-graph.ts` — derived navigation nodes/edges, validation diagnostics, reachability and deterministic graph layout
 - `lib/run-radii.ts` — connected-run corner interpolation during drag/open-gap animation
 - `lib/layer-selection.ts` — group-to-frame ownership and Layers-panel active-frame resolution
 - `lib/measurement.ts` — measurement-item collection and width-change detection
@@ -90,8 +91,9 @@ Important component areas include:
 - `components/PartsPalette.tsx` — desktop part creation/palette UI
 - `components/Layers.tsx` — shared layer presentation
 - `components/Preview.tsx` — interaction preview
+- `components/NavigationGraph.tsx` — full-screen, read-only screen-flow overview derived from the current document
 - `components/Mobile.tsx` — mobile inspector/settings/action bar and bottom sheets
-- `components/MobileScreens.tsx` — mobile screen management
+- `components/MobileScreens.tsx` — mobile screen management and graph entry
 - `components/MobileParts.tsx` — mobile part selection
 - `components/AiPanel.tsx` — AI-related UI
 - `components/FrameExportLayer.tsx` — export-only static frame renderer
@@ -115,6 +117,7 @@ pointer / wheel / touch events       mobile Parts picker
 │ part-placement               │ shared sizing / picker placement
 │ drop-placement               │ final free-drop validation / placement
 │ navigation-links             │ derived navigation link geometry
+│ navigation-graph             │ derived flow graph / diagnostics
 │ layer-selection              │ screen/layer ownership
 │ measurement                  │ intrinsic width bookkeeping
 └──────────────────────────────┘
@@ -143,7 +146,21 @@ Navigation remains part of the existing document rather than a parallel graph st
 - `Frame.swipe` — screen swipe navigation
 - `BACK_TARGET` — preview stack behavior
 
-`lib/navigation-links.ts` derives the editor arrows from those fields. A visual graph has been evaluated in `docs/NAVIGATION_GRAPH.md`; the recommendation is to derive graph nodes/edges from the same fields rather than persist a second navigation model.
+Two derived presentations consume those same fields:
+
+```text
+Doc navigation fields
+        │
+        ├─→ lib/navigation-links.ts → editor arrows / action editing
+        │
+        └─→ lib/navigation-graph.ts → nodes / routes / diagnostics / layout
+                                      ↓
+                              NavigationGraph UI
+```
+
+The graph is not persisted. `components/NavigationGraph.tsx` is a read-only overview: selecting a screen returns to/focuses its existing `Frame`, and its Preview action reuses the existing Preview flow. Diagnostics include missing targets, unreachable/no-incoming screens and parallel routes. Desktop enters the graph from the toolbar; mobile enters it from the Screens sheet.
+
+Direct graph editing is intentionally a future product decision. If added, it must mutate the same existing action fields rather than introduce graph-owned navigation data. See `docs/NAVIGATION_GRAPH.md`.
 
 ## PNG export
 
@@ -166,8 +183,8 @@ This prevents canvas zoom, selection outlines, drag state and in-flight animatio
 
 The project has two complementary levels of automated coverage:
 
-- Vitest for document commands, persistence, project migration, preview, export, seeds, navigation and canvas calculations.
-- Playwright for core browser flows including multi-screen editing, preview navigation, project export/import and mobile undo/redo.
+- Vitest for document commands, persistence, project migration, preview, export, seeds, navigation graph/link derivation and canvas calculations.
+- Playwright for core browser flows including multi-screen editing, preview navigation, project export/import, mobile undo/redo, and desktop/mobile navigation-graph entry.
 
 CI runs type checking, Vitest, the static build and Playwright coverage. Dependency security was also audited; the Playwright version is pinned to a non-vulnerable release for the identified browser-download certificate advisory.
 
@@ -187,7 +204,7 @@ Mobile UI ─┐
 Desktop UI ┘
 ```
 
-Mobile part creation uses the same frame-aware placement rules as desktop placement, and Layers/Undo/Redo operate through the shared document paths.
+Mobile part creation uses the same frame-aware placement rules as desktop placement, Layers/Undo/Redo operate through the shared document paths, and the navigation graph reuses the same derived adapter as desktop in a full-screen phone presentation.
 
 ## Refactoring rule
 
