@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "scripts/refactor-controller-boundaries.py"
+      - "scripts/fix-controller-boundaries.py"
       - ".github/workflows/refactor-controller-boundaries.yml"
 
 permissions:
@@ -22,6 +23,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: python scripts/refactor-controller-boundaries.py
+      - run: python scripts/fix-controller-boundaries.py
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
@@ -30,7 +32,7 @@ jobs:
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
-      - run: git rm scripts/refactor-controller-boundaries.py .github/workflows/refactor-controller-boundaries.yml
+      - run: git rm scripts/refactor-controller-boundaries.py scripts/fix-controller-boundaries.py .github/workflows/refactor-controller-boundaries.yml
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
