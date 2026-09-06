@@ -86,6 +86,8 @@ import { migrateLegacyGroups } from "@/lib/document-migrations";
 import { tidyStateForFrame, toggleFrameTidy, type TidySession } from "@/lib/tidy-session";
 import { buildNavigationLinks, patchNavigationLink } from "@/lib/navigation-links";
 import { interpolatedRunRadii } from "@/lib/run-radii";
+import { translateDocumentSnapshot } from "@/lib/document-language";
+import { DEFAULT_SEED_FRAMES, createDesktopSeed, createMobileSeed, localizedSeedFrame } from "@/lib/editor-seed";
 import { placePickedItem } from "@/lib/part-placement";
 import { appendDroppedGroup, placeDroppedItem } from "@/lib/drop-placement";
 import { pushHistory as pushUndoHistory, redoHistory, undoHistory } from "@/lib/history";
@@ -190,81 +192,6 @@ type Snapshot = { groups: Group[]; frames: Frame[]; meta?: DocMeta };
 /** a screen changing size eases the way a settling part does */
 const SIZE_TRANSITION = `width ${SETTLE_MS}ms cubic-bezier(0.2, 0, 0, 1), height ${SETTLE_MS}ms cubic-bezier(0.2, 0, 0, 1), border-radius ${SETTLE_MS}ms cubic-bezier(0.2, 0, 0, 1)`;
 
-function translateSnapshot(snap: Snapshot, lang: Lang): Snapshot {
-  return {
-    groups: snap.groups.map((group) => ({
-      ...group,
-      items: group.items.map((item) => ({
-        ...item,
-        label: translateDefaultText(item.label, item.kind, "label", lang),
-        ...(item.supporting !== undefined && { supporting: translateDefaultText(item.supporting, item.kind, "supporting", lang) }),
-        ...(item.tabs && { tabs: item.tabs.map((tab) => ({ ...tab, label: translateDefaultText(tab.label, item.kind, "tab", lang) })) }),
-      })),
-    })),
-    frames: snap.frames.map((frame) => ({ ...frame, name: translateDefaultFrameName(frame.name, lang) })),
-  };
-}
-
-const SEED_FRAMES: Frame[] = [{ id: "seedF1", name: "Home", x: 0, y: 0 }];
-
-/** Seed ids are deterministic so server and client render the same markup. */
-const seed = (lang: Lang = getLang()): Group[] => {
-  const text = SEED_TEXT[lang];
-  let n = 0;
-  const sid = () => `seed${++n}`;
-  const mk = (k: Kind) => ({ ...makeItem(k), id: sid() });
-  const bar = mk("topAppBar");
-  const a = mk("button");
-  const b = mk("button");
-  a.label = text.favorite;
-  a.icon = "star";
-  b.label = text.share;
-  b.icon = "share";
-  b.variant = "tonal";
-  const rows = [text.inbox, text.starred, text.archive].map((t, i) => {
-    const it = mk("listItem");
-    it.label = t;
-    it.icon = ["inbox", "star", "archive"][i];
-    it.supporting = text.supporting;
-    return it;
-  });
-  const nav = mk("bottomNav");
-  const fab = mk("fab");
-  return [
-    { id: sid(), x: 0, y: 0, axis: "x", items: [bar] },
-    { id: sid(), x: PHONE_MARGIN, y: 96, axis: "x", items: [a, b] },
-    { id: sid(), x: PHONE_MARGIN, y: 184, axis: "y", items: rows },
-    {
-      id: sid(),
-      x: PHONE_W - 56 - PHONE_MARGIN,
-      y: PHONE_H - KIND_SPEC.bottomNav.h - 56 - PHONE_MARGIN,
-      axis: "x",
-      items: [fab],
-    },
-    { id: sid(), x: 0, y: PHONE_H - KIND_SPEC.bottomNav.h, axis: "x", items: [nav] },
-  ];
-};
-
-/** Lightweight first-run content for a phone-sized editor. */
-const mobileSeed = (lang: Lang = getLang()): Group[] => {
-  const text = SEED_TEXT[lang];
-  const mk = (k: Kind) => makeItem(k);
-  const a = mk("button");
-  const b = mk("button");
-  const c = mk("button");
-  a.label = text.favorite;
-  a.icon = "star";
-  b.label = text.share;
-  b.icon = "share";
-  b.variant = "tonal";
-  c.label = text.start;
-  c.icon = "arrow_forward";
-  return [
-    { id: uid(), x: PHONE_MARGIN, y: 120, axis: "x", items: [a, b] },
-    { id: uid(), x: PHONE_MARGIN, y: 200, axis: "x", items: [c] },
-  ];
-};
-
 /** While the model works on a screen, the scheme's colors drift through its bezel. */
 function ThinkingRing({ p, frame }: { p: Palette; frame: Frame }) {
   const still = useReducedMotion();
@@ -316,8 +243,8 @@ const LEFT_TABS: { key: LeftTab; icon: string; title: "parts" | "layers" | "colo
 export default function Page() {
   /* ---------- document ---------- */
   const [editAccess, setEditAccess] = useState<"checking" | "editable" | "readonly">("checking");
-  const [groups, setGroups] = useState<Group[]>(seed);
-  const [frames, setFrames] = useState<Frame[]>(SEED_FRAMES);
+  const [groups, setGroups] = useState<Group[]>(createDesktopSeed);
+  const [frames, setFrames] = useState<Frame[]>(DEFAULT_SEED_FRAMES);
   const [paletteKey, setPaletteKey] = useState("purple");
   const [customPalette, setCustomPalette] = useState<Palette | null>(null);
   const [dynamicColor, setDynamicColor] = useState(false);
@@ -329,19 +256,19 @@ export default function Page() {
     setGlobalLang(next);
     initialLangRef.current = next;
     setLang(next);
-    const translated = translateSnapshot({ groups: groupsRef.current, frames: framesRef.current }, next);
+    const translated = translateDocumentSnapshot({ groups: groupsRef.current, frames: framesRef.current }, next);
     const tidy = tidyRef.current;
     if (tidy) {
       tidyRef.current = tidy.after === groupsRef.current ? {
         ...tidy,
-        before: translateSnapshot({ groups: tidy.before, frames: framesRef.current }, next).groups,
+        before: translateDocumentSnapshot({ groups: tidy.before, frames: framesRef.current }, next).groups,
         after: translated.groups,
       } : null;
     }
     setGroups(translated.groups);
     setFrames(translated.frames);
-    pastRef.current = pastRef.current.map((snap) => translateSnapshot(snap, next));
-    futureRef.current = futureRef.current.map((snap) => translateSnapshot(snap, next));
+    pastRef.current = pastRef.current.map((snap) => translateDocumentSnapshot(snap, next));
+    futureRef.current = futureRef.current.map((snap) => translateDocumentSnapshot(snap, next));
   };
   const [isMobile, setIsMobile] = useState(false);
   const [sheet, setSheet] = useState<"edit" | "parts" | "screens" | "layers" | "settings" | "lang" | null>(null);
@@ -645,8 +572,8 @@ export default function Page() {
     setGlobalLang(initialLang);
     initialLangRef.current = initialLang;
     if (!storedDoc) {
-      setGroups(seed(initialLang));
-      setFrames([{ ...SEED_FRAMES[0], name: t("home", initialLang) }]);
+      setGroups(createDesktopSeed(initialLang));
+      setFrames([{ ...DEFAULT_SEED_FRAMES[0], name: t("home", initialLang) }]);
     }
     setAiSettings(loadAiSettings());
     loadedRef.current = true;
@@ -711,8 +638,8 @@ export default function Page() {
         setSheet(null);
         if (!hadDocRef.current) {
           hadDocRef.current = true;
-          setGroups(mobileSeed(initialLangRef.current));
-          setFrames([{ id: uid(), name: t("home", initialLangRef.current), x: 0, y: 0 }]);
+          setGroups(createMobileSeed(initialLangRef.current));
+          setFrames([localizedSeedFrame(initialLangRef.current)]);
         }
       }
       hadDocRef.current = true;
