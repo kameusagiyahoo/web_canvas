@@ -46,7 +46,7 @@ test("navigation graph route editor locates the source UI without mutating the d
   await editor.getByRole("button", { name: "Edit source" }).click();
 
   await expect(graph).toBeHidden();
-  await expect(page.locator('[data-frame="home"]')).toBeVisible();
+  await expect(page.getByTitle("Duplicate (Ctrl+D)")).toBeVisible();
   await expect(page.getByTitle("Undo")).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(before);
 });
