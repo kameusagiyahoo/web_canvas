@@ -119,7 +119,9 @@ import { MobileParts } from "@/components/MobileParts";
 import { StorageWarning } from "@/components/StorageWarning";
 import { FrameExportLayer } from "@/components/FrameExportLayer";
 import { NavigationGraph } from "@/components/NavigationGraph";
+import { ProjectManager } from "@/components/ProjectManager";
 import { createNavigationRoute, editNavigationEdge } from "@/lib/navigation-graph-edit";
+import { createLocalProject, deleteProject as deleteLocalProject, duplicateProject as duplicateLocalProject, readActiveProjectId, readProjectLibrary, renameProject as renameLocalProject, saveProjectSnapshot, upsertProject, writeActiveProjectId, writeProjectLibrary, type ProjectLibrary, type LocalProject } from "@/lib/project-library";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
 
@@ -291,6 +293,10 @@ export default function Page() {
   const [pendingImport, setPendingImport] = useState<Doc | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
+  const [projectManagerOpen, setProjectManagerOpen] = useState(false);
+  const [projectLibrary, setProjectLibrary] = useState<ProjectLibrary>({ version: 1, projects: [] });
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const projectLibraryRef = useRef<ProjectLibrary>({ version: 1, projects: [] });
   /** the idea typed into the "ask an AI" dialog; kept here so a failed draft does not lose it */
   const [ideaText, setIdeaText] = useState("");
   /** a model is drafting a design right now */
@@ -546,7 +552,23 @@ export default function Page() {
     // React's development double-run would otherwise read back its own first save
     if (loadedRef.current) return;
     const storage = getBrowserStorage();
-    const storedDoc = readStoredDocument(storage);
+    let storedDoc = readStoredDocument(storage);
+    let library = readProjectLibrary(storage);
+    const requestedProjectId = readActiveProjectId(storage);
+    const activeProject = library.projects.find((project) => project.id === requestedProjectId) ?? library.projects[0] ?? null;
+    if (activeProject) {
+      storedDoc = activeProject.doc;
+      setActiveProjectId(activeProject.id);
+      writeActiveProjectId(storage, activeProject.id);
+    } else if (storedDoc && isProject(storedDoc)) {
+      const migrated = createLocalProject({ id: uid(), doc: storedDoc, name: storedDoc.title || undefined });
+      library = upsertProject(library, migrated);
+      writeProjectLibrary(storage, library);
+      writeActiveProjectId(storage, migrated.id);
+      setActiveProjectId(migrated.id);
+    }
+    projectLibraryRef.current = library;
+    setProjectLibrary(library);
     if (storedDoc) {
       hadDocRef.current = true;
       applyDoc(storedDoc, false);
@@ -666,7 +688,8 @@ export default function Page() {
 
   useEffect(() => {
     if (!loadedRef.current || editAccess !== "editable") return;
-    const result = saveStoredDocument(getBrowserStorage(), {
+    const storage = getBrowserStorage();
+    const nextDoc: Doc = {
       groups,
       frames,
       paletteKey,
@@ -678,9 +701,29 @@ export default function Page() {
       customPalette: customPalette ?? undefined,
       dynamicColor,
       theme,
-    });
-    setStorageWarning(result.ok ? null : result.reason);
-  }, [editAccess, groups, frames, paletteKey, frame, title, brief, promptEdit, platform, customPalette, dynamicColor, theme]);
+    };
+    const result = saveStoredDocument(storage, nextDoc);
+    let library = projectLibraryRef.current;
+    let projectId = activeProjectId;
+    if (!projectId) {
+      const created = createLocalProject({
+        id: uid(),
+        doc: nextDoc,
+        name: title.trim() || `Project ${library.projects.length + 1}`,
+      });
+      library = upsertProject(library, created);
+      projectId = created.id;
+      setActiveProjectId(created.id);
+      writeActiveProjectId(storage, created.id);
+    } else {
+      library = saveProjectSnapshot(library, projectId, nextDoc);
+    }
+    const libraryResult = writeProjectLibrary(storage, library);
+    projectLibraryRef.current = library;
+    setProjectLibrary(library);
+    const failure = !result.ok ? result.reason : !libraryResult.ok ? libraryResult.reason : null;
+    setStorageWarning(failure);
+  }, [editAccess, groups, frames, paletteKey, frame, title, brief, promptEdit, platform, customPalette, dynamicColor, theme, activeProjectId]);
 
   useEffect(() => {
     if (!loadedRef.current) return;
@@ -2000,6 +2043,74 @@ const changeFrame = (f: FrameMode) => {
   const docRef = useRef(doc);
   docRef.current = doc;
 
+  const persistProjectLibrary = (library: ProjectLibrary) => {
+    projectLibraryRef.current = library;
+    setProjectLibrary(library);
+    const result = writeProjectLibrary(getBrowserStorage(), library);
+    if (!result.ok) setStorageWarning(result.reason);
+  };
+
+  const activateLocalProject = (project: LocalProject, closeManager = true) => {
+    const storage = getBrowserStorage();
+    setActiveProjectId(project.id);
+    writeActiveProjectId(storage, project.id);
+    saveStoredDocument(storage, project.doc);
+    applyDoc(project.doc, true);
+    pastRef.current = [];
+    futureRef.current = [];
+    bumpHistory((value) => value + 1);
+    setSelectedIds([]);
+    setSelectedFrameId(null);
+    setSelectedLinkId(null);
+    setLayersFrameId(project.doc.frames[0]?.id ?? null);
+    setDraftBefore(null);
+    clearStoredDraft(storage);
+    if (closeManager) setProjectManagerOpen(false);
+    queueMicrotask(() => fitRef.current());
+  };
+
+  const createManagedProject = () => {
+    const fresh: Doc = {
+      title: "",
+      brief: "",
+      paletteKey: "purple",
+      frame: "phone",
+      groups: mobileRef.current ? createMobileSeed(lang) : createDesktopSeed(lang),
+      frames: [localizedSeedFrame(lang)],
+      dynamicColor: false,
+      theme: DEFAULT_THEME,
+    };
+    const project = createLocalProject({
+      id: uid(),
+      doc: fresh,
+      name: `Project ${projectLibraryRef.current.projects.length + 1}`,
+    });
+    const library = upsertProject(projectLibraryRef.current, project);
+    persistProjectLibrary(library);
+    activateLocalProject(project);
+  };
+
+  const renameManagedProject = (id: string, name: string) => {
+    persistProjectLibrary(renameLocalProject(projectLibraryRef.current, id, name));
+  };
+
+  const duplicateManagedProject = (id: string) => {
+    const duplicated = duplicateLocalProject(projectLibraryRef.current, id, uid());
+    if (!duplicated) return;
+    persistProjectLibrary(duplicated.library);
+  };
+
+  const deleteManagedProject = (id: string) => {
+    const currentLibrary = projectLibraryRef.current;
+    if (currentLibrary.projects.length <= 1) return;
+    const nextLibrary = deleteLocalProject(currentLibrary, id);
+    persistProjectLibrary(nextLibrary);
+    if (id === activeProjectId) {
+      const next = nextLibrary.projects[0];
+      if (next) activateLocalProject(next, false);
+    }
+  };
+
   /** arrows from tappable parts to the frames they open */
   const links = useMemo(
     () =>
@@ -2818,6 +2929,7 @@ const changeFrame = (f: FrameMode) => {
             onAddFrame={addFrame}
             onPreview={() => openPreview()}
             onGraph={() => setGraphOpen(true)}
+            onProjects={() => setProjectManagerOpen(true)}
             tidy={tidyState ?? undefined}
             onTidy={tidyTarget ? () => tidy(tidyTarget) : undefined}
             note={aiNote}
@@ -3037,6 +3149,10 @@ const changeFrame = (f: FrameMode) => {
                     setSheet(null);
                     setGraphOpen(true);
                   }}
+                  onProjects={() => {
+                    setSheet(null);
+                    setProjectManagerOpen(true);
+                  }}
                 />
               </BottomSheet>
             )}
@@ -3058,6 +3174,25 @@ const changeFrame = (f: FrameMode) => {
               </BottomSheet>
             )}
           </AnimatePresence>
+
+          {projectManagerOpen && (
+            <ProjectManager
+              projects={projectLibrary.projects}
+              activeProjectId={activeProjectId}
+              palette={p}
+              onClose={() => setProjectManagerOpen(false)}
+              onCreate={createManagedProject}
+              onOpen={(project) => activateLocalProject(project)}
+              onRename={renameManagedProject}
+              onDuplicate={duplicateManagedProject}
+              onDelete={deleteManagedProject}
+              onExport={(projectDoc) => saveProject(projectDoc)}
+              onImport={() => {
+                setProjectManagerOpen(false);
+                projectFileRef.current?.click();
+              }}
+            />
+          )}
 
           {storageWarning && (
             <StorageWarning

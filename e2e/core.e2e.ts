@@ -341,3 +341,27 @@ test("navigation graph diagnostics jump to the affected source without mutating 
   await expect(page.getByTitle("Duplicate (Ctrl+D)")).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(before);
 });
+
+
+test("local project library creates and switches independent projects", async ({ page }) => {
+  await openSeeded(page);
+
+  await page.getByTitle("Project").click();
+  await page.getByTitle("Projects").click();
+  const manager = page.getByTestId("project-manager");
+  await expect(manager).toBeVisible();
+  await expect(manager.locator('[data-testid^="project-card-"]')).toHaveCount(1);
+
+  await manager.getByTestId("project-create").click();
+  await expect(manager).toBeHidden();
+  await expect.poll(async () =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem("m3e:projects:v1");
+      return raw ? JSON.parse(raw).projects?.length ?? 0 : 0;
+    }),
+  ).toBe(2);
+
+  await page.getByTitle("Project").click();
+  await page.getByTitle("Projects").click();
+  await expect(page.getByTestId("project-manager").locator('[data-testid^="project-card-"]')).toHaveCount(2);
+});

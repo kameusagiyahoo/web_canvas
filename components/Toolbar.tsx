@@ -74,6 +74,7 @@ export function Toolbar({
   onAddFrame,
   onPreview,
   onGraph,
+  onProjects,
   rightInset,
   mobile,
   onPrompt,
@@ -107,6 +108,7 @@ export function Toolbar({
   onAddFrame: () => void;
   onPreview: () => void;
   onGraph?: () => void;
+  onProjects?: () => void;
   /** width of the open right panel, so the zoom pill slides out of its way */
   rightInset: number;
   mobile?: boolean;
@@ -400,6 +402,18 @@ export function Toolbar({
             <Popover p={p} icon="folder_open" title={t("project", lang)} size={40}>
               {(close) => (
                 <div style={{ display: "flex", gap: 2 }}>
+                  {onProjects && (
+                    <IconBtn
+                      icon="folder"
+                      p={p}
+                      size={44}
+                      title={lang === "ja" ? "プロジェクト一覧" : lang === "zh" ? "项目列表" : lang === "ko" ? "프로젝트 목록" : "Projects"}
+                      onClick={() => {
+                        close();
+                        onProjects();
+                      }}
+                    />
+                  )}
                   <IconBtn
                     icon="download"
                     p={p}

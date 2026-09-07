@@ -16,6 +16,7 @@ export function MobileScreens({
   onDelete,
   onPreview,
   onGraph,
+  onProjects,
 }: {
   frames: Frame[];
   selectedId: string | null;
@@ -27,6 +28,7 @@ export function MobileScreens({
   onDelete: (id: string) => void;
   onPreview: (id: string) => void;
   onGraph: () => void;
+  onProjects: () => void;
 }) {
   const lang = useLang();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -224,6 +226,31 @@ export function MobileScreens({
           );
         })}
       </div>
+
+      <button
+        type="button"
+        onClick={onProjects}
+        aria-label={lang === "ja" ? "プロジェクト" : lang === "zh" ? "项目" : lang === "ko" ? "프로젝트" : "Projects"}
+        className="m3-press"
+        style={{
+          marginTop: 12,
+          width: "100%",
+          minHeight: 52,
+          border: `1px solid ${p.outlineVariant}`,
+          borderRadius: 26,
+          background: p.surfaceContainerHigh,
+          color: p.onSurface,
+          fontWeight: 750,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+        }}
+      >
+        <Icon name="folder" size={22} />
+        {lang === "ja" ? "プロジェクト" : lang === "zh" ? "项目" : lang === "ko" ? "프로젝트" : "Projects"}
+      </button>
 
       <button
         type="button"
