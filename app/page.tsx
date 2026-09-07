@@ -3285,6 +3285,16 @@ const changeFrame = (f: FrameMode) => {
               setFrames(result.frames);
               setGroups(result.groups);
             }}
+            onLocateEdge={(edge) => {
+              setSelectedIds(edge.itemId ? [edge.itemId] : []);
+              setSelectedLinkId(edge.itemId ? `${edge.itemId}|${edge.slot ?? ""}` : null);
+              setSelectedFrameId(edge.fromFrameId);
+              setLayersFrameId(edge.fromFrameId);
+              setRightTab("edit");
+              if (!isMobile) setRightOpen(true);
+              setGraphOpen(false);
+              focusFrame(edge.fromFrameId);
+            }}
             onCreateRoute={(sourceFrameId, targetFrameId, trigger, transition) => {
               const result = createNavigationRoute(doc, widthsRef.current, sourceFrameId, targetFrameId, trigger, transition);
               if (!result) return;

@@ -167,6 +167,7 @@ export function NavigationGraph({
   onSelectFrame,
   onPreviewFrame,
   onEditEdge,
+  onLocateEdge,
   onCreateRoute,
   onClose,
 }: {
@@ -177,6 +178,7 @@ export function NavigationGraph({
   onSelectFrame: (id: string) => void;
   onPreviewFrame: (id: string) => void;
   onEditEdge: (edge: NavigationEdge, patch: NavigationEdgePatch) => void;
+  onLocateEdge: (edge: NavigationEdge) => void;
   onCreateRoute: (sourceFrameId: string, targetFrameId: string, trigger: NavigationRouteTrigger, transition?: Transition) => void;
   onClose: () => void;
 }) {
@@ -187,6 +189,7 @@ export function NavigationGraph({
     remove: lang === "ja" ? "この遷移を削除" : lang === "zh" ? "删除此跳转" : lang === "ko" ? "이 이동 삭제" : "Remove route",
     back: lang === "ja" ? "戻る" : lang === "zh" ? "返回" : lang === "ko" ? "뒤로" : "Back",
     transition: lang === "ja" ? "トランジション" : lang === "zh" ? "过渡效果" : lang === "ko" ? "전환 효과" : "Transition",
+    locate: lang === "ja" ? "元の部品を編集" : lang === "zh" ? "编辑来源组件" : lang === "ko" ? "원본 항목 편집" : "Edit source",
   };
   const graph = useMemo(
     () => deriveNavigationGraph(doc, widths, selectedFrameId),
@@ -647,6 +650,28 @@ export function NavigationGraph({
             <span style={{ flex: "1 1 220px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {labelById.get(selectedEdge.fromFrameId) ?? selectedEdge.fromFrameId} → {labelById.get(selectedEdge.toFrameId) ?? selectedEdge.toFrameId} · {selectedEdgeDescription}
             </span>
+            <button
+              type="button"
+              onClick={() => onLocateEdge(selectedEdge)}
+              aria-label={editCopy.locate}
+              className="m3-press"
+              style={{
+                minHeight: 34,
+                border: `1px solid ${p.outlineVariant}`,
+                borderRadius: 17,
+                padding: "0 12px",
+                background: p.surface,
+                color: p.primary,
+                fontWeight: 800,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <Icon name="my_location" size={18} />
+              {editCopy.locate}
+            </button>
             <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 700 }}>
               {editCopy.destination}
               <select
