@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   deriveNavigationGraph,
   layoutNavigationGraph,
+  navigationProblemAction,
   type NavigationEdge,
   type NavigationLayoutNode,
   type NavigationProblem,
@@ -201,6 +202,7 @@ export function NavigationGraph({
   const [pendingRoute, setPendingRoute] = useState<{ sourceFrameId: string; targetFrameId: string } | null>(null);
   const [pendingTrigger, setPendingTrigger] = useState<NavigationRouteTrigger | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   useEffect(() => {
     if (!routeDrag) return;
     const sourceFrameId = routeDrag.sourceFrameId;
@@ -287,6 +289,23 @@ export function NavigationGraph({
       return `${labelById.get(problem.frameId) ?? problem.frameId}: ${copy.noIncoming}`;
     }
     return `${labelById.get(problem.fromFrameId) ?? problem.fromFrameId} → ${labelById.get(problem.toFrameId) ?? problem.toFrameId}: ${copy.parallel} (${problem.edgeIds.length})`;
+  };
+
+  const activateProblem = (problem: NavigationProblem) => {
+    const action = navigationProblemAction(problem);
+    setDiagnosticsOpen(false);
+    setSearchQuery("");
+    if (action.kind === "focus-frame") {
+      onSelectFrame(action.frameId);
+      return;
+    }
+    const edge = graph.edges.find((candidate) => candidate.id === action.edgeId);
+    if (!edge) return;
+    if (action.kind === "locate-edge") {
+      onLocateEdge(edge);
+      return;
+    }
+    setSelectedEdgeId(edge.id);
   };
 
   const selectedEdgeDescription = selectedEdge
@@ -630,7 +649,27 @@ export function NavigationGraph({
         <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><span style={{ width: 20, borderTop: `2px solid ${p.onSurfaceVariant}` }} /> {copy.tap}</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><span style={{ width: 20, borderTop: `2px dotted ${p.onSurfaceVariant}` }} /> {copy.slot}</span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><span style={{ width: 20, borderTop: `2px dashed ${p.onSurfaceVariant}` }} /> {copy.swipe}</span>
-        <span style={{ marginLeft: 6, fontWeight: 800, color: graph.problems.length ? p.error : p.onSurfaceVariant }}>{copy.issues} {graph.problems.length}</span>
+        <button
+          type="button"
+          data-testid="graph-problems-toggle"
+          aria-expanded={diagnosticsOpen}
+          onClick={() => graph.problems.length && setDiagnosticsOpen((open) => !open)}
+          disabled={graph.problems.length === 0}
+          className="m3-press"
+          style={{
+            marginLeft: 6,
+            minHeight: 32,
+            border: "none",
+            borderRadius: 16,
+            padding: "0 10px",
+            background: graph.problems.length ? p.errorContainer : "transparent",
+            color: graph.problems.length ? p.onErrorContainer : p.onSurfaceVariant,
+            fontWeight: 800,
+            cursor: graph.problems.length ? "pointer" : "default",
+          }}
+        >
+          {copy.issues} {graph.problems.length}
+        </button>
         {selectedEdge && (
           <div
             data-testid="graph-edge-editor"
@@ -729,11 +768,46 @@ export function NavigationGraph({
             </button>
           </div>
         )}
-        {!selectedEdge && graph.problems.length === 0 && <span>{copy.noIssues}</span>}
-        {!selectedEdge && graph.problems.length > 0 && (
+        {!selectedEdge && !diagnosticsOpen && graph.problems.length === 0 && <span>{copy.noIssues}</span>}
+        {!selectedEdge && !diagnosticsOpen && graph.problems.length > 0 && (
           <span title={graph.problems.map(problemText).join("\n")} style={{ flex: "1 1 260px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {problemText(graph.problems[0])}{graph.problems.length > 1 ? ` (+${graph.problems.length - 1})` : ""}
           </span>
+        )}
+        {diagnosticsOpen && graph.problems.length > 0 && (
+          <div
+            data-testid="graph-problems-panel"
+            style={{
+              flex: "1 0 100%",
+              display: "grid",
+              gap: 6,
+              paddingTop: 4,
+            }}
+          >
+            {graph.problems.map((problem, index) => (
+              <button
+                key={`${problem.kind}-${index}`}
+                type="button"
+                data-testid={`graph-problem-${problem.kind}-${index}`}
+                onClick={() => activateProblem(problem)}
+                className="m3-press"
+                style={{
+                  width: "100%",
+                  minHeight: 40,
+                  border: `1px solid ${p.outlineVariant}`,
+                  borderRadius: 14,
+                  padding: "8px 12px",
+                  background: p.surface,
+                  color: p.onSurface,
+                  textAlign: "left",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {problemText(problem)}
+              </button>
+            ))}
+          </div>
         )}
       </footer>
     </div>

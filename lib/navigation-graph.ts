@@ -54,6 +54,21 @@ export type NavigationProblem =
       edgeIds: string[];
     };
 
+export type NavigationProblemAction =
+  | { kind: "locate-edge"; edgeId: string }
+  | { kind: "select-edge"; edgeId: string }
+  | { kind: "focus-frame"; frameId: string };
+
+export function navigationProblemAction(problem: NavigationProblem): NavigationProblemAction {
+  if (problem.kind === "missing-target") {
+    return { kind: "locate-edge", edgeId: problem.edgeId };
+  }
+  if (problem.kind === "parallel") {
+    return { kind: "select-edge", edgeId: problem.edgeIds[0] };
+  }
+  return { kind: "focus-frame", frameId: problem.frameId };
+}
+
 export type NavigationGraph = {
   nodes: NavigationNode[];
   edges: NavigationEdge[];

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveNavigationGraph, layoutNavigationGraph } from "./navigation-graph";
+import { deriveNavigationGraph, layoutNavigationGraph, navigationProblemAction } from "./navigation-graph";
 import type { Doc } from "./tokens";
 
 const doc = (overrides: Partial<Doc> = {}): Doc => ({
@@ -174,5 +174,33 @@ describe("layoutNavigationGraph", () => {
     expect(layout.nodes).toEqual([]);
     expect(layout.width).toBeGreaterThan(0);
     expect(layout.height).toBeGreaterThan(0);
+  });
+});
+
+
+describe("navigationProblemAction", () => {
+  it("routes missing targets to their source edge", () => {
+    expect(navigationProblemAction({
+      kind: "missing-target",
+      edgeId: "item:home:broken:tap:missing",
+      fromFrameId: "home",
+      targetId: "missing",
+    })).toEqual({ kind: "locate-edge", edgeId: "item:home:broken:tap:missing" });
+  });
+
+  it("routes screen diagnostics to the affected frame", () => {
+    expect(navigationProblemAction({ kind: "unreachable", frameId: "details" }))
+      .toEqual({ kind: "focus-frame", frameId: "details" });
+    expect(navigationProblemAction({ kind: "no-incoming", frameId: "details" }))
+      .toEqual({ kind: "focus-frame", frameId: "details" });
+  });
+
+  it("routes parallel diagnostics to the first concrete route", () => {
+    expect(navigationProblemAction({
+      kind: "parallel",
+      fromFrameId: "home",
+      toFrameId: "details",
+      edgeIds: ["edge-a", "edge-b"],
+    })).toEqual({ kind: "select-edge", edgeId: "edge-a" });
   });
 });

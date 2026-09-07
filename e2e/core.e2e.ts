@@ -309,3 +309,35 @@ test("navigation graph route editor locates the source UI without mutating the d
   await expect(page.getByTitle("Undo")).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(before);
 });
+
+
+test("navigation graph diagnostics jump to the affected source without mutating the document", async ({ page }) => {
+  const brokenDoc = {
+    ...seedDoc,
+    groups: seedDoc.groups.map((group) => group.id !== "home-group" ? group : ({
+      ...group,
+      items: group.items.map((item) => item.id !== "go-details" ? item : ({
+        ...item,
+        action: { to: "missing-screen", transition: "slide" },
+      })),
+    })),
+  };
+  await page.addInitScript(({ doc }) => {
+    localStorage.setItem("m3e:doc", JSON.stringify(doc));
+    localStorage.setItem("m3e:ui", JSON.stringify({ lang: "en" }));
+  }, { doc: brokenDoc });
+  await page.goto("/");
+  await expect(page.getByTitle("Undo")).toBeVisible();
+  const before = await page.evaluate(() => localStorage.getItem("m3e:doc"));
+
+  await page.getByTitle("Screen flow").click();
+  const graph = page.getByTestId("navigation-graph");
+  await graph.getByTestId("graph-problems-toggle").click();
+  const problems = graph.getByTestId("graph-problems-panel");
+  await expect(problems).toBeVisible();
+  await problems.getByRole("button", { name: /Target screen is missing/ }).click();
+
+  await expect(graph).toBeHidden();
+  await expect(page.getByTitle("Duplicate (Ctrl+D)")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(before);
+});
