@@ -14,6 +14,7 @@
 - [x] Add per-slot actions for tabs, navigation bars and app-bar icons on mobile.
 - [x] Improve mobile preview/navigation workflow with per-screen preview entry and active-screen start.
 - [x] Add practical mobile layer/reordering controls.
+- [x] Add mobile access to the local project library from the Screens sheet.
 
 ## Priority S — Maintainability
 
@@ -42,6 +43,7 @@
 - [x] Extract runtime legacy document migration from the page component.
 - [x] Extract deterministic editor seed construction and document-language translation.
 - [x] Extract reusable bounded undo/redo stack helpers with unit tests.
+- [x] Extract local multi-project storage and project-library operations into `lib/project-library.ts`.
 - [x] Wire the existing `app/page.tsx` frame/layer callers to the extracted command helpers incrementally.
 - [x] Wire `app/page.tsx` frame creation and new-frame centering to shared frame/viewport helpers.
 - [x] Wire `app/page.tsx` frame preset changes to the shared resize command while keeping history/animation/platform state in the UI layer.
@@ -83,8 +85,10 @@
 - [x] Add focused tests for tidy-session, AI document commands, frame export, runtime migration, language translation and editor seeds.
 - [x] Add focused tests for the extracted history stack operations.
 - [x] Add focused tests for project serialization/parsing and preview session helpers.
+- [x] Add focused tests for local project creation, snapshot, rename, duplicate, delete and ordering.
 - [x] Add focused tests for editor storage parsing, draft recovery and failure classification.
 - [x] Add E2E coverage for core project flows: edit, save/export, import, multi-screen management and preview.
+- [x] Add E2E coverage for local project-library creation and independent project switching.
 - [x] Add E2E coverage for desktop/mobile navigation-graph entry, frame selection and graph-to-Preview behavior.
 - [x] Add E2E coverage proving graph route edits persist through the normal document path and Undo restores them.
 - [x] Add E2E coverage for graph drag-to-connect creation, transition selection, Undo and Redo.
@@ -109,6 +113,9 @@
 
 ## Priority B — Product direction
 
+- [x] Add a local-first multi-project library with create/open/rename/duplicate/delete and autosave.
+- [x] Preserve versioned JSON file import/export alongside the local project library.
+- [x] Migrate an existing single locally stored document into the project library automatically.
 - [x] Evaluate a visual navigation graph after basic mobile screen management works; use a derived graph rather than a second source of truth. See `docs/NAVIGATION_GRAPH.md`.
 - [x] Implement a derived navigation overview without a second persisted graph model.
 - [x] Add navigation diagnostics for missing targets, unreachable/no-incoming screens, and parallel routes.
@@ -121,10 +128,11 @@
 - [x] Add route-editor source location so a selected graph edge can jump back to its source screen/item without changing document data.
 - [x] Make existing graph diagnostics directly actionable by focusing the affected screen/route without mutating document data.
 - [ ] Evaluate pinned/manual graph layout only after real documents make deterministic layout plus search insufficient.
-- [ ] Consider cloud save/sync only after there is a concrete cross-device/account requirement.
+- [ ] Consider cloud save/sync only after there is a concrete cross-device/account requirement; keep the local library as the offline/local-first layer.
 
 ## Already available — do not duplicate
 
+- Local multi-project library (`m3e:projects:v1`) with one active project.
 - JSON project export via `saveProject()`.
 - JSON project import via `readProject()`.
 - Existing `Frame` model for screens.
