@@ -4,14 +4,15 @@
 
 The visual navigation graph is implemented as a **derived view of the existing document**, not a second navigation model.
 
-The graph now supports four levels of interaction:
+The graph now supports five levels of interaction:
 
 1. overview / diagnostics / screen focus / Preview;
 2. editing an **existing** item, slot, or swipe route by changing its destination, transition, or removing it;
 3. creating a **new** route by dragging from one screen to another and then choosing the underlying trigger;
-4. searching screen names in larger graphs without mutating or re-laying out the document.
+4. searching screen names in larger graphs without mutating or re-laying out the document;
+5. jumping from a selected route back to its source screen/item for normal editor work.
 
-Graph edits and graph-created routes write back to the existing navigation fields and enter the normal Undo/Redo history. Search is presentation-only. The graph itself is still never persisted.
+Graph edits and graph-created routes write back to the existing navigation fields and enter the normal Undo/Redo history. Search and source-location are presentation/navigation operations only. The graph itself is still never persisted.
 
 ## Source of truth
 
@@ -41,6 +42,7 @@ components/NavigationGraph.tsx
   ├─ screen-name search/highlighting
   ├─ screen selection/focus
   ├─ route selection/editing
+  ├─ source-location action
   ├─ drag-to-connect creation
   ├─ trigger + transition chooser
   └─ per-screen Preview entry
@@ -88,11 +90,16 @@ The UI distinguishes route sources without introducing new document semantics:
 
 Selecting an existing route opens a compact route editor. It can:
 
+- jump back to the route's source UI with **Edit source / 元の部品を編集**;
 - change the target screen;
 - change an item/slot route to `BACK_TARGET`;
 - change the transition for item/slot routes;
 - remove the route;
 - update swipe destinations without allowing `BACK_TARGET` for swipe navigation.
+
+The source-location action closes the graph and focuses the source `Frame`. For item/slot routes it also selects the underlying `Item` and opens the normal desktop inspector; for swipe routes it focuses the source screen without inventing a source item. Slot routes preserve the existing link identifier so normal action editing remains aligned with the selected slot.
+
+Source location does not change `Doc`, does not write browser storage, and does not create an Undo/Redo entry.
 
 Swipe transition semantics remain derived from the swipe direction rather than stored as a separate action transition.
 
@@ -117,7 +124,7 @@ This keeps the graph semantically honest: drawing Screen A → Screen B still re
 
 `app/page.tsx` takes a normal document snapshot before applying graph mutations. Route creation, retargeting, transition changes, and removal therefore participate in the same history stack as canvas/mobile edits.
 
-Browser E2E coverage verifies that a graph-created route with a chosen transition can be undone and redone through the normal editor controls.
+Browser E2E coverage verifies that a graph-created route with a chosen transition can be undone and redone through the normal editor controls. Presentation-only graph operations such as search and source-location are verified not to mutate the stored document.
 
 ## Diagnostics
 
@@ -152,15 +159,15 @@ Keeping the graph derived avoids these classes of inconsistency.
 - `lib/navigation-graph.test.ts` covers derivation, reachability, diagnostics and deterministic layout.
 - `lib/navigation-graph-edit.test.ts` covers existing item, slot and swipe mutation, removal, transition editing, and back-stack restrictions.
 - `lib/navigation-graph-create.test.ts` covers unused trigger discovery, item/swipe/new-button creation, and chosen transition persistence.
-- Playwright covers desktop/mobile graph entry, screen selection, graph-to-Preview behavior, existing-route edits, drag-created routes, transition selection, persistence, Undo/Redo, and screen search without document mutation.
+- Playwright covers desktop/mobile graph entry, screen selection, graph-to-Preview behavior, existing-route edits, drag-created routes, transition selection, persistence, Undo/Redo, screen search without document mutation, and route-source location without document mutation.
 
-The navigation graph creation/transition/search implementation passed type checking, Vitest, the production static build and Playwright E2E before being committed to `main`.
+The navigation graph creation/transition/search/source-location implementation passed type checking, Vitest, the production static build and Playwright E2E before being committed to `main`.
 
 ## Next graph work
 
-The current graph is functionally complete for small-to-medium screen flows and now has a lightweight search aid for larger flows. Future work should be driven by observed usability needs rather than by adding another graph model. Candidates include:
+The current graph is functionally complete for small-to-medium screen flows and now has search plus a direct route-to-editor path. Future work should be driven by observed usability needs rather than by adding another graph model. Candidates include:
 
-- highlighting the source UI element when a route is selected;
+- making diagnostics directly actionable by selecting/focusing the affected screen or route;
 - manual/pinned node layout stored only as presentation metadata if deterministic layout plus search becomes insufficient;
 - richer diagnostics such as dead ends or conflicting interaction intent.
 
