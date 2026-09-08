@@ -48,7 +48,7 @@
 - [x] Wire `app/page.tsx` frame creation and new-frame centering to shared frame/viewport helpers.
 - [x] Wire `app/page.tsx` frame preset changes to the shared resize command while keeping history/animation/platform state in the UI layer.
 - [x] Wire `app/page.tsx` item delete/duplicate callers to the extracted command helpers.
-- [x] Wire `app/page.tsx` item patch/resize-alignment callers to the extracted command helper.
+- [x] Wire `app/page.tsx` item patch/resize-alignment callers to the extracted document helper.
 - [x] Wire `app/page.tsx` group/ungroup and item/frame nudge callers to the extracted command helpers.
 - [x] Wire `app/page.tsx` marquee selection to the extracted canvas-selection helpers.
 - [x] Wire `app/page.tsx` frame/group drag updates to the extracted canvas-drag helpers.
@@ -88,7 +88,8 @@
 - [x] Add focused tests for local project creation, snapshot, rename, duplicate, delete and ordering.
 - [x] Add focused tests for editor storage parsing, draft recovery and failure classification.
 - [x] Add E2E coverage for core project flows: edit, save/export, import, multi-screen management and preview.
-- [x] Add E2E coverage for local project-library creation and independent project switching.
+- [x] Add E2E coverage for local project-library creation and actual independent project switching.
+- [x] Add E2E coverage proving Project Manager file import creates a separate managed project without replacing the current project.
 - [x] Add E2E coverage for desktop/mobile navigation-graph entry, frame selection and graph-to-Preview behavior.
 - [x] Add E2E coverage proving graph route edits persist through the normal document path and Undo restores them.
 - [x] Add E2E coverage for graph drag-to-connect creation, transition selection, Undo and Redo.
@@ -114,7 +115,9 @@
 ## Priority B — Product direction
 
 - [x] Add a local-first multi-project library with create/open/rename/duplicate/delete and autosave.
-- [x] Preserve versioned JSON file import/export alongside the local project library.
+- [x] Save the current project synchronously before switching, restore its editor frame mode, and provide an explicit Save now action alongside autosave.
+- [x] Make Project Manager file import create a separate managed project instead of destructively replacing the active project.
+- [x] Preserve versioned JSON file import/export alongside the local project library; toolbar Open project intentionally retains replace-with-confirmation behavior.
 - [x] Migrate an existing single locally stored document into the project library automatically.
 - [x] Evaluate a visual navigation graph after basic mobile screen management works; use a derived graph rather than a second source of truth. See `docs/NAVIGATION_GRAPH.md`.
 - [x] Implement a derived navigation overview without a second persisted graph model.
