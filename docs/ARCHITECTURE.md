@@ -76,8 +76,9 @@ The extracted boundaries now include:
 ### Project, preview and export
 
 - `lib/preview-session.ts` — preview start resolution and camera calculation
-- `lib/storage.ts` — safe browser persistence, restoration and failure classification
-- `lib/project.ts` — versioned project serialization, parsing and migration
+- `lib/storage.ts` — safe current-document/UI/draft persistence and failure classification
+- `lib/project.ts` — versioned project-file serialization, parsing and migration
+- `lib/project-library.ts` — local multi-project records, active-project persistence and project CRUD/snapshot operations
 - `lib/frame-export.ts` — PNG export readiness, dimensions, encoding and browser download
 - `components/FrameExportLayer.tsx` — isolated offscreen 1:1 frame rendering for PNG export
 
@@ -93,8 +94,9 @@ Important component areas include:
 - `components/Layers.tsx` — shared layer presentation
 - `components/Preview.tsx` — interaction preview
 - `components/NavigationGraph.tsx` — full-screen derived screen-flow UI with route editing and drag-to-connect creation
+- `components/ProjectManager.tsx` — local project creation, switching, naming, duplication, import/export and deletion UI
 - `components/Mobile.tsx` — mobile inspector/settings/action bar and bottom sheets
-- `components/MobileScreens.tsx` — mobile screen management and graph entry
+- `components/MobileScreens.tsx` — mobile screen management plus graph/project-library entry
 - `components/MobileParts.tsx` — mobile part selection
 - `components/AiPanel.tsx` — AI-related UI
 - `components/FrameExportLayer.tsx` — export-only static frame renderer
@@ -131,13 +133,37 @@ pointer / wheel / touch events       mobile Parts picker
 
 ## Persistence
 
-Primary browser persistence is `localStorage`, accessed through `lib/storage.ts`. The storage boundary centralizes safe read/write/remove behavior, document/UI/draft storage, AI-settings storage, and unavailable/quota failure classification. The editor surfaces a JSON recovery path when autosave fails.
+The editor is local-first and currently requires no backend.
 
-Project portability is implemented in `lib/project.ts`. Project JSON has an explicit format/version envelope and accepts legacy unversioned documents through a migration path. JSON export remains the recovery/portability mechanism even if cloud persistence is added later.
+`lib/storage.ts` owns the compatibility/current-document layer in `localStorage`: the current `m3e:doc`, editor UI, draft-recovery data and AI settings, including safe read/write/remove behavior and quota/unavailable failure classification. Keeping `m3e:doc` means existing users and the JSON recovery path continue to work.
+
+The multi-project layer is separate in `lib/project-library.ts`:
+
+```text
+localStorage
+├─ m3e:doc                 current/compatibility document
+├─ m3e:projects:v1         local project library
+└─ m3e:project:active      active project id
+```
+
+Each managed project stores its own full `Doc`, name and created/updated timestamps. Editing autosaves the current `Doc` to both the compatibility current-document key and the active project snapshot. An explicit **Save now** action is also available for the active project.
+
+Project switching snapshots the currently active `docRef` synchronously before activating another project. This closes the small timing window where a user could edit and immediately switch before the React autosave effect ran. Activating another project clears document-specific Undo/Redo/selection state, restores that project's desktop frame mode, then fits the canvas.
+
+An existing pre-library `m3e:doc` is migrated into the local project library automatically. The local library remains device/browser-local; it is not account sync.
+
+Project portability remains implemented by `lib/project.ts`. Project JSON has an explicit format/version envelope and accepts legacy unversioned documents through a migration path. Two file-open intents are deliberately distinct:
+
+- **Project Manager → Open file** imports the JSON as a new managed project and preserves the project that was previously active.
+- **Toolbar → Open project** retains the older replace-current workflow and asks for confirmation before replacing the current document.
+
+JSON export remains the recovery/portability mechanism even if cloud persistence is added later.
 
 ## History
 
 Undo/redo snapshots contain both `groups` and `frames`, with document metadata included for full-document replacement operations. Desktop, mobile, and navigation-graph commands enter the same history path. Language translation also preserves snapshot metadata, so switching editor language does not weaken whole-document undo information.
+
+History is intentionally project-local in practice: switching managed projects clears the editor's current undo/redo stacks rather than allowing an Undo command to cross project boundaries.
 
 ## Navigation model
 
@@ -191,8 +217,8 @@ This prevents canvas zoom, selection outlines, drag state and in-flight animatio
 
 The project has two complementary levels of automated coverage:
 
-- Vitest for document commands, persistence, project migration, preview, export, seeds, navigation graph/link derivation and canvas calculations.
-- Playwright for core browser flows including multi-screen editing, preview navigation, project export/import, mobile undo/redo, graph entry/editing, drag-to-connect creation, transition selection, and graph Undo/Redo.
+- Vitest for document commands, storage, local project-library operations, project-file migration, preview, export, seeds, navigation graph/link derivation and canvas calculations.
+- Playwright for core browser flows including multi-screen editing, preview navigation, project export/import, independent managed-project switching, safe project-manager import, mobile undo/redo, graph entry/editing, drag-to-connect creation, transition selection, and graph Undo/Redo.
 
 CI runs type checking, Vitest, the static build and Playwright coverage. Dependency security was also audited; the Playwright version is pinned to a non-vulnerable release for the identified browser-download certificate advisory.
 
@@ -212,7 +238,7 @@ Mobile UI ─┐
 Desktop UI ┘
 ```
 
-Mobile part creation uses the same frame-aware placement rules as desktop placement, Layers/Undo/Redo operate through the shared document paths, and the navigation graph reuses the same derived adapter and mutation commands as desktop in a full-screen phone presentation.
+Mobile part creation uses the same frame-aware placement rules as desktop placement, Layers/Undo/Redo operate through the shared document paths, and the navigation graph reuses the same derived adapter and mutation commands as desktop in a full-screen phone presentation. The mobile Screens sheet also links into the same `ProjectManager`; it does not maintain a mobile-only project store.
 
 ## Refactoring rule
 
