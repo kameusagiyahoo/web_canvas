@@ -12,6 +12,21 @@ Status: complete for the current static/local architecture.
 - Maintain typecheck, Vitest, static build and Playwright E2E coverage.
 - Avoid unnecessary backend infrastructure.
 
+### Local project management
+
+Status: complete for the current single-device/local-first scope.
+
+- Keep multiple independent projects in the browser instead of one global working document.
+- Create, open, rename, duplicate and delete projects from a shared desktop/mobile Project Manager.
+- Autosave edits into the active project and expose an explicit Save now action.
+- Snapshot the current project synchronously before switching so a rapid edit→switch cannot miss the latest editor state.
+- Restore project-specific editor frame mode when a project becomes active.
+- Migrate the pre-library single `m3e:doc` into the project library automatically.
+- Import a project file from Project Manager as a new managed project without replacing the active project.
+- Retain the toolbar's replace-with-confirmation JSON open path for intentional current-project replacement.
+- Keep JSON export as a portable backup/recovery mechanism.
+- Keep this layer local; cloud/account sync remains a separate future requirement.
+
 ## Phase 2 — Mobile editor expansion
 
 Status: core mobile editing flow complete.
@@ -44,6 +59,7 @@ Goal: make multi-screen editing usable on a phone without introducing a second d
 - Enter Preview from the active/selected screen.
 - Keep Preview navigation on the same `Frame`/action model as desktop.
 - Open the same derived visual navigation overview from the mobile Screens sheet.
+- Open the same local Project Manager from the mobile Screens sheet.
 
 ## Phase 3 — Architecture cleanup driven by features
 
@@ -54,7 +70,7 @@ Completed boundary areas include:
 - frame/screen creation, deletion, duplication and resizing
 - item/group/layer editing commands
 - document/history operations
-- browser persistence and project migrations
+- safe browser persistence, local multi-project operations and project-file migrations
 - preview and PNG-export calculations
 - canvas selection/drag/snap/placement/viewport geometry
 - navigation-link and navigation-graph derivation
@@ -97,7 +113,7 @@ Potential follow-up graph work is usability-driven rather than architectural. Se
 Only when a concrete use case requires it:
 
 - Cloudflare Worker for server-side AI/API handling and secret storage
-- cloud project persistence/sync
+- cloud project persistence/sync layered on top of the local project library
 - authentication
 - multi-user projects/collaboration
 - database/API layer
