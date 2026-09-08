@@ -297,6 +297,7 @@ export default function Page() {
   const [projectLibrary, setProjectLibrary] = useState<ProjectLibrary>({ version: 1, projects: [] });
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const projectLibraryRef = useRef<ProjectLibrary>({ version: 1, projects: [] });
+  const projectImportModeRef = useRef<"replace" | "new-project">("replace");
   /** the idea typed into the "ask an AI" dialog; kept here so a failed draft does not lose it */
   const [ideaText, setIdeaText] = useState("");
   /** a model is drafting a design right now */
@@ -2050,12 +2051,47 @@ const changeFrame = (f: FrameMode) => {
     if (!result.ok) setStorageWarning(result.reason);
   };
 
+  const saveCurrentManagedProject = (notify = true) => {
+    if (!activeProjectId) return;
+    const next = saveProjectSnapshot(
+      projectLibraryRef.current,
+      activeProjectId,
+      docRef.current,
+    );
+    persistProjectLibrary(next);
+    if (notify) {
+      showToast(
+        lang === "ja" ? "プロジェクトを保存しました" :
+        lang === "zh" ? "项目已保存" :
+        lang === "ko" ? "프로젝트를 저장했습니다" :
+        "Project saved",
+        1800,
+        "check",
+      );
+    }
+  };
+
   const activateLocalProject = (project: LocalProject, closeManager = true) => {
     const storage = getBrowserStorage();
+    if (activeProjectId && activeProjectId !== project.id) {
+      const current = saveProjectSnapshot(
+        projectLibraryRef.current,
+        activeProjectId,
+        docRef.current,
+      );
+      persistProjectLibrary(current);
+    }
     setActiveProjectId(project.id);
-    writeActiveProjectId(storage, project.id);
-    saveStoredDocument(storage, project.doc);
+    const activeResult = writeActiveProjectId(storage, project.id);
+    const docResult = saveStoredDocument(storage, project.doc);
+    if (!activeResult.ok) setStorageWarning(activeResult.reason);
+    else if (!docResult.ok) setStorageWarning(docResult.reason);
     applyDoc(project.doc, true);
+    if (!mobileRef.current) {
+      const nextFrame = project.doc.frame === "blank" ? "blank" : "phone";
+      setFrame(nextFrame);
+      frameRef.current = nextFrame;
+    }
     pastRef.current = [];
     futureRef.current = [];
     bumpHistory((value) => value + 1);
@@ -2063,10 +2099,24 @@ const changeFrame = (f: FrameMode) => {
     setSelectedFrameId(null);
     setSelectedLinkId(null);
     setLayersFrameId(project.doc.frames[0]?.id ?? null);
+    setWidths({});
+    lastPatchRef.current = { key: "", at: 0 };
     setDraftBefore(null);
     clearStoredDraft(storage);
     if (closeManager) setProjectManagerOpen(false);
     queueMicrotask(() => fitRef.current());
+  };
+
+  const importManagedProject = (nextDoc: Doc, fileName: string) => {
+    const fromFile = fileName.replace(/\.json$/i, "").trim();
+    const project = createLocalProject({
+      id: uid(),
+      doc: nextDoc,
+      name: nextDoc.title.trim() || fromFile || `Project ${projectLibraryRef.current.projects.length + 1}`,
+    });
+    const library = upsertProject(projectLibraryRef.current, project);
+    persistProjectLibrary(library);
+    activateLocalProject(project);
   };
 
   const createManagedProject = () => {
@@ -2934,7 +2984,10 @@ const changeFrame = (f: FrameMode) => {
             onTidy={tidyTarget ? () => tidy(tidyTarget) : undefined}
             note={aiNote}
             onSaveProject={() => saveProject(doc)}
-            onOpenProject={() => projectFileRef.current?.click()}
+            onOpenProject={() => {
+              projectImportModeRef.current = "replace";
+              projectFileRef.current?.click();
+            }}
             onShare={!isMobile ? () => setShareOpen(true) : undefined}
             shareState={draftBusy ? "busy" : draftBefore ? "review" : "idle"}
             onDraftKeep={keepDraft}
@@ -3186,8 +3239,10 @@ const changeFrame = (f: FrameMode) => {
               onRename={renameManagedProject}
               onDuplicate={duplicateManagedProject}
               onDelete={deleteManagedProject}
+              onSaveCurrent={() => saveCurrentManagedProject()}
               onExport={(projectDoc) => saveProject(projectDoc)}
               onImport={() => {
+                projectImportModeRef.current = "new-project";
                 setProjectManagerOpen(false);
                 projectFileRef.current?.click();
               }}
@@ -3350,8 +3405,21 @@ const changeFrame = (f: FrameMode) => {
           hidden
           onChange={(e) => {
             const file = e.target.files?.[0];
+            const mode = projectImportModeRef.current;
+            projectImportModeRef.current = "replace";
             e.target.value = "";
-            if (file) void readProject(file).then((next) => (next ? setPendingImport(next) : showToast(t("invalidProject", lang), 3000, "error")));
+            if (!file) return;
+            void readProject(file).then((next) => {
+              if (!next) {
+                showToast(t("invalidProject", lang), 3000, "error");
+                return;
+              }
+              if (mode === "new-project") {
+                importManagedProject(next, file.name);
+                return;
+              }
+              setPendingImport(next);
+            });
           }}
         />
 

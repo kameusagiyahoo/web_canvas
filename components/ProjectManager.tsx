@@ -16,6 +16,7 @@ export function ProjectManager({
   onRename,
   onDuplicate,
   onDelete,
+  onSaveCurrent,
   onExport,
   onImport,
 }: {
@@ -28,16 +29,18 @@ export function ProjectManager({
   onRename: (id: string, name: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
+  onSaveCurrent: () => void;
   onExport: (doc: Doc) => void;
   onImport: () => void;
 }) {
   const lang = useLang();
   const copy = {
     title: lang === "ja" ? "プロジェクト" : lang === "zh" ? "项目" : lang === "ko" ? "프로젝트" : "Projects",
-    subtitle: lang === "ja" ? "この端末に保存したプロジェクトを切り替えます" : lang === "zh" ? "切换保存在此设备上的项目" : lang === "ko" ? "이 기기에 저장된 프로젝트를 전환합니다" : "Switch between projects stored on this device",
+    subtitle: lang === "ja" ? "プロジェクトごとにこの端末へ自動保存します" : lang === "zh" ? "每个项目都会自动保存在此设备上" : lang === "ko" ? "프로젝트별로 이 기기에 자동 저장합니다" : "Each project is autosaved on this device",
     newProject: lang === "ja" ? "新規プロジェクト" : lang === "zh" ? "新建项目" : lang === "ko" ? "새 프로젝트" : "New project",
     open: lang === "ja" ? "開く" : lang === "zh" ? "打开" : lang === "ko" ? "열기" : "Open",
     current: lang === "ja" ? "編集中" : lang === "zh" ? "当前" : lang === "ko" ? "편집 중" : "Current",
+    saveNow: lang === "ja" ? "今すぐ保存" : lang === "zh" ? "立即保存" : lang === "ko" ? "지금 저장" : "Save now",
     rename: lang === "ja" ? "名前変更" : lang === "zh" ? "重命名" : lang === "ko" ? "이름 변경" : "Rename",
     duplicate: lang === "ja" ? "複製" : lang === "zh" ? "复制" : lang === "ko" ? "복제" : "Duplicate",
     delete: lang === "ja" ? "削除" : lang === "zh" ? "删除" : lang === "ko" ? "삭제" : "Delete",
@@ -64,7 +67,7 @@ export function ProjectManager({
 
       <div style={{ padding: 14, display: "flex", gap: 8, flexWrap: "wrap", borderBottom: `1px solid ${p.outlineVariant}` }}>
         <button type="button" onClick={onCreate} data-testid="project-create" className="m3-press" style={{ minHeight: 44, border: "none", borderRadius: 22, padding: "0 16px", background: p.primary, color: p.onPrimary, fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}><Icon name="add" size={20} />{copy.newProject}</button>
-        <button type="button" onClick={onImport} className="m3-press" style={{ minHeight: 44, border: `1px solid ${p.outlineVariant}`, borderRadius: 22, padding: "0 16px", background: p.surface, color: p.onSurface, fontWeight: 750, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}><Icon name="upload" size={20} />{copy.import}</button>
+        <button type="button" onClick={onImport} data-testid="project-import" className="m3-press" style={{ minHeight: 44, border: `1px solid ${p.outlineVariant}`, borderRadius: 22, padding: "0 16px", background: p.surface, color: p.onSurface, fontWeight: 750, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}><Icon name="upload" size={20} />{copy.import}</button>
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 14 }}>
@@ -95,6 +98,7 @@ export function ProjectManager({
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 14 }}>
                     {!active && <button type="button" onClick={() => onOpen(project)} className="m3-press" style={{ minHeight: 36, border: "none", borderRadius: 18, padding: "0 12px", background: p.primary, color: p.onPrimary, fontWeight: 800, cursor: "pointer" }}>{copy.open}</button>}
+                    {active && <button type="button" onClick={onSaveCurrent} data-testid="project-save-current" className="m3-press" style={{ minHeight: 36, border: "none", borderRadius: 18, padding: "0 12px", background: p.primary, color: p.onPrimary, fontWeight: 800, cursor: "pointer" }}>{copy.saveNow}</button>}
                     <button type="button" onClick={() => { setRenamingId(project.id); setRenameValue(project.name); }} className="m3-press" style={{ minHeight: 36, border: `1px solid ${p.outlineVariant}`, borderRadius: 18, padding: "0 12px", background: "transparent", color: "inherit", fontWeight: 700, cursor: "pointer" }}>{copy.rename}</button>
                     <button type="button" onClick={() => onDuplicate(project.id)} className="m3-press" style={{ minHeight: 36, border: `1px solid ${p.outlineVariant}`, borderRadius: 18, padding: "0 12px", background: "transparent", color: "inherit", fontWeight: 700, cursor: "pointer" }}>{copy.duplicate}</button>
                     <button type="button" onClick={() => onExport(project.doc)} className="m3-press" style={{ minHeight: 36, border: `1px solid ${p.outlineVariant}`, borderRadius: 18, padding: "0 12px", background: "transparent", color: "inherit", fontWeight: 700, cursor: "pointer" }}>{copy.export}</button>

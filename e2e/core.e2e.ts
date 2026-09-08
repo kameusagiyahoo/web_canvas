@@ -360,8 +360,59 @@ test("local project library creates and switches independent projects", async ({
       return raw ? JSON.parse(raw).projects?.length ?? 0 : 0;
     }),
   ).toBe(2);
+  await expect.poll(() => storedFrameCount(page)).toBe(1);
 
   await page.getByTitle("Project").click();
   await page.getByTitle("Projects").click();
-  await expect(page.getByTestId("project-manager").locator('[data-testid^="project-card-"]')).toHaveCount(2);
+  const reopened = page.getByTestId("project-manager");
+  await expect(reopened.locator('[data-testid^="project-card-"]')).toHaveCount(2);
+  const original = reopened.locator('article').filter({ hasText: "E2E demo" });
+  await original.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(reopened).toBeHidden();
+  await expect.poll(() => storedFrameCount(page)).toBe(2);
+});
+
+
+test("project manager imports a file as a separate managed project", async ({ page }) => {
+  await openSeeded(page);
+  await page.getByTitle("Project").click();
+  await page.getByTitle("Projects").click();
+  const manager = page.getByTestId("project-manager");
+  await expect(manager).toBeVisible();
+
+  const importedDoc = {
+    ...seedDoc,
+    title: "Imported library project",
+    groups: [],
+    frames: [{ id: "imported-library", name: "Imported", x: 0, y: 0 }],
+  };
+  const chooserPromise = page.waitForEvent("filechooser");
+  await manager.getByTestId("project-import").click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
+    name: "imported-library.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify({
+      format: "web-canvas-project",
+      version: 1,
+      doc: importedDoc,
+    })),
+  });
+
+  await expect(page.getByRole("alertdialog", { name: "Open this project?" })).toHaveCount(0);
+  await expect(page.locator('[data-frame="imported-library"]')).toHaveCount(1);
+  await expect.poll(async () =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem("m3e:projects:v1");
+      return raw ? JSON.parse(raw).projects?.length ?? 0 : 0;
+    }),
+  ).toBe(2);
+
+  await page.getByTitle("Project").click();
+  await page.getByTitle("Projects").click();
+  const reopened = page.getByTestId("project-manager");
+  await expect(reopened.getByText("Imported library project", { exact: true })).toBeVisible();
+  const original = reopened.locator('article').filter({ hasText: "E2E demo" });
+  await original.getByRole("button", { name: "Open", exact: true }).click();
+  await expect.poll(() => storedFrameCount(page)).toBe(2);
 });
