@@ -16,6 +16,7 @@ export function MobileScreens({
   onDelete,
   onPreview,
   onGraph,
+  onArchitecture,
   onProjects,
 }: {
   frames: Frame[];
@@ -28,6 +29,7 @@ export function MobileScreens({
   onDelete: (id: string) => void;
   onPreview: (id: string) => void;
   onGraph: () => void;
+  onArchitecture: () => void;
   onProjects: () => void;
 }) {
   const lang = useLang();
@@ -250,6 +252,32 @@ export function MobileScreens({
       >
         <Icon name="folder" size={22} />
         {lang === "ja" ? "プロジェクト" : lang === "zh" ? "项目" : lang === "ko" ? "프로젝트" : "Projects"}
+      </button>
+
+      <button
+        type="button"
+        onClick={onArchitecture}
+        aria-label={lang === "ja" ? "アプリアーキテクチャ" : lang === "zh" ? "应用架构" : lang === "ko" ? "앱 아키텍처" : "App architecture"}
+        className="m3-press"
+        style={{
+          marginTop: 12,
+          width: "100%",
+          minHeight: 52,
+          border: `1px solid ${p.outlineVariant}`,
+          borderRadius: 26,
+          background: p.tertiaryContainer,
+          color: p.onTertiaryContainer,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          cursor: "pointer",
+          fontSize: 15,
+          fontWeight: 700,
+        }}
+      >
+        <Icon name="schema" size={22} />
+        {lang === "ja" ? "アプリアーキテクチャ" : lang === "zh" ? "应用架构" : lang === "ko" ? "앱 아키텍처" : "App architecture"}
       </button>
 
       <button

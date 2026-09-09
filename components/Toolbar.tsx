@@ -74,6 +74,7 @@ export function Toolbar({
   onAddFrame,
   onPreview,
   onGraph,
+  onArchitecture,
   onProjects,
   rightInset,
   mobile,
@@ -108,6 +109,7 @@ export function Toolbar({
   onAddFrame: () => void;
   onPreview: () => void;
   onGraph?: () => void;
+  onArchitecture?: () => void;
   onProjects?: () => void;
   /** width of the open right panel, so the zoom pill slides out of its way */
   rightInset: number;
@@ -136,6 +138,7 @@ export function Toolbar({
 }) {
   const lang = useLang();
   const graphTitle = lang === "ja" ? "画面フロー" : lang === "zh" ? "画面流程" : lang === "ko" ? "화면 흐름" : "Screen flow";
+  const architectureTitle = lang === "ja" ? "アプリアーキテクチャ" : lang === "zh" ? "应用架构" : lang === "ko" ? "앱 아키텍처" : "App architecture";
   if (mobile) {
     const S = 42;
     return (
@@ -369,6 +372,15 @@ export function Toolbar({
               p={p}
               onClick={onGraph}
               title={graphTitle}
+              size={40}
+            />
+          )}
+          {onArchitecture && (
+            <IconBtn
+              icon="schema"
+              p={p}
+              onClick={onArchitecture}
+              title={architectureTitle}
               size={40}
             />
           )}

@@ -12,6 +12,9 @@ import { AnimatePresence, motion, useReducedMotion, useSpring } from "motion/rea
 import { buildPrompt, effectivePrompt } from "@/lib/prompt";
 import {
   Action,
+  ArchitectureEndpoint,
+  ArchitectureFlow,
+  emptyArchitectureFlow,
   actionsOf,
   Axis,
   BACK_TARGET,
@@ -119,8 +122,10 @@ import { MobileParts } from "@/components/MobileParts";
 import { StorageWarning } from "@/components/StorageWarning";
 import { FrameExportLayer } from "@/components/FrameExportLayer";
 import { NavigationGraph } from "@/components/NavigationGraph";
+import { ArchitectureFlowView } from "@/components/ArchitectureFlow";
 import { ProjectManager } from "@/components/ProjectManager";
 import { createNavigationRoute, editNavigationEdge } from "@/lib/navigation-graph-edit";
+import { addArchitectureAction, connectArchitectureNodes, deleteArchitectureAction, deleteArchitectureEdge, renameArchitectureAction } from "@/lib/architecture-flow";
 import { createLocalProject, deleteProject as deleteLocalProject, duplicateProject as duplicateLocalProject, readActiveProjectId, readProjectLibrary, renameProject as renameLocalProject, saveProjectSnapshot, upsertProject, writeActiveProjectId, writeProjectLibrary, type ProjectLibrary, type LocalProject } from "@/lib/project-library";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
@@ -252,6 +257,7 @@ export default function Page() {
   const [editAccess, setEditAccess] = useState<"checking" | "editable" | "readonly">("checking");
   const [groups, setGroups] = useState<Group[]>(createDesktopSeed);
   const [frames, setFrames] = useState<Frame[]>(DEFAULT_SEED_FRAMES);
+  const [architecture, setArchitecture] = useState<ArchitectureFlow>(emptyArchitectureFlow);
   const [paletteKey, setPaletteKey] = useState("purple");
   const [customPalette, setCustomPalette] = useState<Palette | null>(null);
   const [dynamicColor, setDynamicColor] = useState(false);
@@ -293,6 +299,7 @@ export default function Page() {
   const [pendingImport, setPendingImport] = useState<Doc | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
+  const [architectureOpen, setArchitectureOpen] = useState(false);
   const [projectManagerOpen, setProjectManagerOpen] = useState(false);
   const [projectLibrary, setProjectLibrary] = useState<ProjectLibrary>({ version: 1, projects: [] });
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -531,6 +538,8 @@ export default function Page() {
     const frames = Array.isArray(doc.frames) ? doc.frames : framesRef.current;
     if (Array.isArray(doc.groups)) setGroups(migrateLegacyGroups(doc.groups, frames));
     if (Array.isArray(doc.frames)) setFrames(doc.frames);
+    if (doc.architecture?.version === 1) setArchitecture(doc.architecture);
+    else if (reset) setArchitecture(emptyArchitectureFlow());
     if (typeof doc.paletteKey === "string" && doc.paletteKey) setPaletteKey(doc.paletteKey);
     else if (reset) setPaletteKey("purple");
     if (doc.customPalette && typeof doc.customPalette.primary === "string") setCustomPalette(doc.customPalette);
@@ -693,6 +702,7 @@ export default function Page() {
     const nextDoc: Doc = {
       groups,
       frames,
+      architecture,
       paletteKey,
       frame,
       title,
@@ -724,7 +734,7 @@ export default function Page() {
     setProjectLibrary(library);
     const failure = !result.ok ? result.reason : !libraryResult.ok ? libraryResult.reason : null;
     setStorageWarning(failure);
-  }, [editAccess, groups, frames, paletteKey, frame, title, brief, promptEdit, platform, customPalette, dynamicColor, theme, activeProjectId]);
+  }, [editAccess, groups, frames, architecture, paletteKey, frame, title, brief, promptEdit, platform, customPalette, dynamicColor, theme, activeProjectId]);
 
   useEffect(() => {
     if (!loadedRef.current) return;
@@ -1500,14 +1510,15 @@ export default function Page() {
 
   const clearAll = () => {
     setConfirmClear(false);
-    if (groupsRef.current.length === 0 && framesRef.current.length === 0)
+    if (groupsRef.current.length === 0 && framesRef.current.length === 0 && architecture.nodes.length === 0 && architecture.edges.length === 0)
       return;
     setDraftBefore(null);
     setQuickUndo(false);
     clearStoredDraft(getBrowserStorage());
-    snapshot();
+    snapshot(true);
     setGroups([]);
     setFrames([]);
+    setArchitecture(emptyArchitectureFlow());
     setSelectedIds([]);
     setSelectedFrameId(null);
   };
@@ -2033,12 +2044,29 @@ const changeFrame = (f: FrameMode) => {
   const openPreviewRef = useRef(openPreview);
   openPreviewRef.current = openPreview;
 
+  const commitArchitecture = (next: ArchitectureFlow) => {
+    if (next === architecture) return;
+    snapshot(true);
+    setArchitecture(next);
+  };
+
+  const addArchitectureActionNode = (name: string) =>
+    commitArchitecture(addArchitectureAction(architecture, { id: uid(), kind: "action", name }));
+  const renameArchitectureActionNode = (id: string, name: string) =>
+    commitArchitecture(renameArchitectureAction(architecture, id, name));
+  const deleteArchitectureActionNode = (id: string) =>
+    commitArchitecture(deleteArchitectureAction(architecture, id));
+  const connectArchitecture = (from: ArchitectureEndpoint, to: ArchitectureEndpoint, label: string) =>
+    commitArchitecture(connectArchitectureNodes(architecture, { id: uid(), from, to, label }, framesRef.current));
+  const removeArchitectureEdge = (id: string) =>
+    commitArchitecture(deleteArchitectureEdge(architecture, id));
+
   /* ---------- render ---------- */
   const dragSize = drag ? sizeOf(drag.item, widths) : { w: 0, h: 0 };
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const doc: Doc = useMemo(
-    () => ({ groups, frames, paletteKey, frame, title, brief, promptEdit, platform: platform ?? undefined, customPalette: customPalette ?? undefined, dynamicColor, theme }),
-    [groups, frames, paletteKey, frame, title, brief, promptEdit, platform, customPalette, dynamicColor, theme],
+    () => ({ groups, frames, architecture, paletteKey, frame, title, brief, promptEdit, platform: platform ?? undefined, customPalette: customPalette ?? undefined, dynamicColor, theme }),
+    [groups, frames, architecture, paletteKey, frame, title, brief, promptEdit, platform, customPalette, dynamicColor, theme],
   );
   /** the same document, for callbacks that were created on an earlier render */
   const docRef = useRef(doc);
@@ -2979,6 +3007,7 @@ const changeFrame = (f: FrameMode) => {
             onAddFrame={addFrame}
             onPreview={() => openPreview()}
             onGraph={() => setGraphOpen(true)}
+            onArchitecture={() => setArchitectureOpen(true)}
             onProjects={() => setProjectManagerOpen(true)}
             tidy={tidyState ?? undefined}
             onTidy={tidyTarget ? () => tidy(tidyTarget) : undefined}
@@ -3202,6 +3231,10 @@ const changeFrame = (f: FrameMode) => {
                     setSheet(null);
                     setGraphOpen(true);
                   }}
+                  onArchitecture={() => {
+                    setSheet(null);
+                    setArchitectureOpen(true);
+                  }}
                   onProjects={() => {
                     setSheet(null);
                     setProjectManagerOpen(true);
@@ -3227,6 +3260,20 @@ const changeFrame = (f: FrameMode) => {
               </BottomSheet>
             )}
           </AnimatePresence>
+
+          {architectureOpen && (
+            <ArchitectureFlowView
+              flow={architecture}
+              frames={frames}
+              palette={p}
+              onClose={() => setArchitectureOpen(false)}
+              onAddAction={addArchitectureActionNode}
+              onRenameAction={renameArchitectureActionNode}
+              onDeleteAction={deleteArchitectureActionNode}
+              onConnect={connectArchitecture}
+              onDeleteEdge={removeArchitectureEdge}
+            />
+          )}
 
           {projectManagerOpen && (
             <ProjectManager

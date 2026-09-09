@@ -67,6 +67,37 @@ const validFrame = (frame: unknown) =>
   (frame.h === undefined || (Number.isFinite(frame.h) && (frame.h as number) > 0)) &&
   (frame.note === undefined || typeof frame.note === "string");
 
+const validArchitectureEndpoint = (value: unknown) =>
+  isRecord(value) &&
+  (value.kind === "frame" || value.kind === "action") &&
+  typeof value.id === "string" &&
+  value.id.length > 0;
+
+const validArchitectureNode = (value: unknown) =>
+  isRecord(value) &&
+  value.kind === "action" &&
+  typeof value.id === "string" &&
+  value.id.length > 0 &&
+  typeof value.name === "string" &&
+  (value.note === undefined || typeof value.note === "string");
+
+const validArchitectureEdge = (value: unknown) =>
+  isRecord(value) &&
+  typeof value.id === "string" &&
+  value.id.length > 0 &&
+  validArchitectureEndpoint(value.from) &&
+  validArchitectureEndpoint(value.to) &&
+  (value.label === undefined || typeof value.label === "string");
+
+const validArchitecture = (value: unknown) =>
+  value === undefined ||
+  (isRecord(value) &&
+    value.version === 1 &&
+    Array.isArray(value.nodes) &&
+    value.nodes.every(validArchitectureNode) &&
+    Array.isArray(value.edges) &&
+    value.edges.every(validArchitectureEdge));
+
 /**
  * Version 0 is the historical raw `Doc` JSON format, before project files had
  * an explicit envelope. Keep this recognizer separate so that a future latest
@@ -78,6 +109,7 @@ const isLegacyProjectV0 = (value: unknown): value is Doc =>
   Array.isArray(value.frames) &&
   value.groups.every(validGroup) &&
   value.frames.every(validFrame) &&
+  validArchitecture(value.architecture) &&
   (value.platform === undefined || isPlatform(value.platform));
 
 /** whether a value already has the latest document shape */

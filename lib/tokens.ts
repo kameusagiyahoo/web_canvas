@@ -1431,9 +1431,46 @@ export const isPlatform = (v: unknown): v is Platform => v === "android" || v ==
  *  soon as a desktop screen exists, Android otherwise. */
 export const defaultPlatformOf = (frames: Frame[], mode: FrameMode): Platform => (mode === "phone" && frames.some((f) => !isPhoneFrame(f)) ? "web" : DEFAULT_PLATFORM);
 
+export type ArchitectureNodeKind = "action";
+
+export type ArchitectureActionNode = {
+  id: string;
+  kind: "action";
+  name: string;
+  note?: string;
+};
+
+export type ArchitectureEndpointKind = "frame" | ArchitectureNodeKind;
+
+export type ArchitectureEndpoint = {
+  kind: ArchitectureEndpointKind;
+  id: string;
+};
+
+export type ArchitectureEdge = {
+  id: string;
+  from: ArchitectureEndpoint;
+  to: ArchitectureEndpoint;
+  label?: string;
+};
+
+export type ArchitectureFlow = {
+  version: 1;
+  nodes: ArchitectureActionNode[];
+  edges: ArchitectureEdge[];
+};
+
+export const emptyArchitectureFlow = (): ArchitectureFlow => ({
+  version: 1,
+  nodes: [],
+  edges: [],
+});
+
 export type Doc = {
   groups: Group[];
   frames: Frame[];
+  /** semantic app flow; screen nodes remain derived from `frames` */
+  architecture?: ArchitectureFlow;
   paletteKey: string;
   /** the author's own scheme, used when paletteKey is "custom" */
   customPalette?: Palette;

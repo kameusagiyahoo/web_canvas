@@ -416,3 +416,28 @@ test("project manager imports a file as a separate managed project", async ({ pa
   await original.getByRole("button", { name: "Open", exact: true }).click();
   await expect.poll(() => storedFrameCount(page)).toBe(2);
 });
+
+
+test("app architecture adds semantic Action nodes and Undo restores the previous project state", async ({ page }) => {
+  await openSeeded(page);
+
+  await page.getByTitle("App architecture").click();
+  const architecture = page.getByTestId("architecture-flow");
+  await expect(architecture).toBeVisible();
+  await page.getByTestId("architecture-action-name").fill("Validate login");
+  await page.getByTestId("architecture-add-action").click();
+  await expect(architecture.getByText("Validate login", { exact: true })).toBeVisible();
+
+  await expect.poll(() =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem("m3e:doc");
+      const doc = raw ? JSON.parse(raw) : null;
+      return doc?.architecture?.nodes?.some((node: { name?: string }) => node.name === "Validate login") ?? false;
+    }),
+  ).toBe(true);
+
+  await architecture.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByTitle("Undo").click();
+  await page.getByTitle("App architecture").click();
+  await expect(page.getByTestId("architecture-flow").getByText("Validate login", { exact: true })).toHaveCount(0);
+});
