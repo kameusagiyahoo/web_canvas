@@ -6,6 +6,7 @@ import {
   connectArchitectureNodes,
   deleteArchitectureAction,
   deleteArchitectureEdge,
+  diagnoseArchitectureFlow,
   renameArchitectureAction,
   layoutArchitectureGraph,
 } from "./architecture-flow";
@@ -66,6 +67,57 @@ describe("architecture flow commands", () => {
   });
 });
 
+
+
+describe("architecture flow diagnostics", () => {
+  it("reports a disconnected Action once as an isolated error", () => {
+    const flow = addArchitectureAction(empty(), { id: "lonely", kind: "action", name: "Lonely" });
+    expect(diagnoseArchitectureFlow(frames, flow)).toEqual([
+      {
+        id: "isolated-action-lonely",
+        kind: "isolated-action",
+        severity: "error",
+        endpoint: { kind: "action", id: "lonely" },
+      },
+    ]);
+  });
+
+  it("distinguishes Actions with no entry from Actions with no exit", () => {
+    const nodes: ArchitectureFlow = {
+      version: 1,
+      nodes: [
+        { id: "source", kind: "action", name: "Source" },
+        { id: "sink", kind: "action", name: "Sink" },
+      ],
+      edges: [
+        { id: "source-home", from: { kind: "action", id: "source" }, to: { kind: "frame", id: "home" } },
+        { id: "home-sink", from: { kind: "frame", id: "home" }, to: { kind: "action", id: "sink" } },
+      ],
+    };
+    expect(diagnoseArchitectureFlow(frames, nodes).map((item) => [item.kind, item.endpoint.id])).toEqual([
+      ["no-incoming-action", "source"],
+      ["no-outgoing-action", "sink"],
+    ]);
+  });
+
+  it("marks every Action that participates in a directed cycle", () => {
+    const flow: ArchitectureFlow = {
+      version: 1,
+      nodes: [
+        { id: "a", kind: "action", name: "A" },
+        { id: "b", kind: "action", name: "B" },
+      ],
+      edges: [
+        { id: "ab", from: { kind: "action", id: "a" }, to: { kind: "action", id: "b" } },
+        { id: "ba", from: { kind: "action", id: "b" }, to: { kind: "action", id: "a" } },
+      ],
+    };
+    expect(diagnoseArchitectureFlow([], flow).map((item) => [item.kind, item.endpoint.id])).toEqual([
+      ["cycle", "a"],
+      ["cycle", "b"],
+    ]);
+  });
+});
 
 
 describe("architecture graph layout", () => {

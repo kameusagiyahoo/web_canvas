@@ -343,6 +343,25 @@ test("navigation graph diagnostics jump to the affected source without mutating 
 });
 
 
+
+test("architecture diagnostics focus an affected Action without mutating the document", async ({ page }) => {
+  await openSeeded(page);
+  await page.getByTitle("App architecture").click();
+  const architecture = page.getByTestId("architecture-flow");
+  await architecture.getByTestId("architecture-action-name").fill("Validate login");
+  await architecture.getByTestId("architecture-add-action").click();
+
+  const actionNode = architecture.locator('[data-testid^="architecture-graph-node-action-"]').filter({ hasText: "Validate login" });
+  await expect(actionNode).toHaveCount(1);
+  await expect(architecture.getByTestId("architecture-diagnostic-count")).toHaveText("1");
+  const before = await page.evaluate(() => localStorage.getItem("m3e:doc"));
+
+  await architecture.getByRole("button", { name: "Action is not connected: Validate login" }).click();
+  await expect(actionNode).toBeFocused();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(before);
+});
+
+
 test("local project library creates and switches independent projects", async ({ page }) => {
   await openSeeded(page);
 

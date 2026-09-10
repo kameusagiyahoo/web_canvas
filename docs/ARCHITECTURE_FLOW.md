@@ -36,6 +36,8 @@ No manual graph coordinates are persisted. Layout remains a UI concern until rea
 
 The editor now renders the combined Screen + Action model as a deterministic flow diagram. Screen nodes remain derived from `Frame`; Action nodes remain the only persisted semantic nodes. The graph supports direct node-to-node connection mode and edge selection/deletion, while the detailed forms remain available for labeled links and Action management. Graph coordinates are still UI-only and are recalculated from the current topology.
 
+The same derived graph now exposes Action diagnostics for disconnected Actions, missing incoming flow, missing outgoing flow, and directed cycles. Diagnostics do not mutate project data: selecting an issue only scrolls/focuses the affected Action node and visually highlights it.
+
 ## Editing and persistence
 
 The editor exposes **App architecture** on desktop and from the mobile Screens sheet. Action/link mutations:
@@ -49,4 +51,4 @@ Deleting an Action also deletes architecture links incident to that Action. Dele
 
 ## Next safe extension
 
-Use the visual Action flow in real projects first. The next model extension remains an `api` node, followed by diagnostics for missing semantic endpoints before any execution semantics are introduced. Do not make Architecture Flow a second source of truth for Screen navigation.
+Use the visual Action flow and Action diagnostics in real projects first. The next diagnostics extension should cover missing semantic endpoints (for example, a deleted Screen still referenced by an architecture link). The next model extension remains an `api` node, and execution semantics should still wait for a concrete use case. Do not make Architecture Flow a second source of truth for Screen navigation.

@@ -114,6 +114,128 @@ export function architectureEndpointOptions(
 }
 
 
+export type ArchitectureDiagnosticKind =
+  | "isolated-action"
+  | "no-incoming-action"
+  | "no-outgoing-action"
+  | "cycle";
+
+export type ArchitectureDiagnostic = {
+  id: string;
+  kind: ArchitectureDiagnosticKind;
+  severity: "error" | "warning";
+  endpoint: ArchitectureEndpoint;
+};
+
+/**
+ * Derive Action-level architecture problems without mutating or normalizing the model.
+ * Missing/unknown endpoints are ignored here because they cannot be focused as graph nodes;
+ * this pass intentionally covers the four actionable Action diagnostics surfaced by the UI.
+ */
+export function diagnoseArchitectureFlow(
+  frames: readonly Frame[],
+  flow: ArchitectureFlow,
+): ArchitectureDiagnostic[] {
+  const options = architectureEndpointOptions(frames, flow);
+  const keys = options.map((option) => architectureEndpointKey(option.endpoint));
+  const known = new Set(keys);
+  const incoming = new Map(keys.map((key) => [key, 0]));
+  const outgoing = new Map(keys.map((key) => [key, [] as string[]]));
+
+  for (const edge of flow.edges) {
+    const from = architectureEndpointKey(edge.from);
+    const to = architectureEndpointKey(edge.to);
+    if (!known.has(from) || !known.has(to)) continue;
+    outgoing.get(from)?.push(to);
+    incoming.set(to, (incoming.get(to) ?? 0) + 1);
+  }
+
+  // Tarjan SCC: cycle participants are components with >1 node, or a self-loop.
+  let nextIndex = 0;
+  const indices = new Map<string, number>();
+  const lowLinks = new Map<string, number>();
+  const stack: string[] = [];
+  const onStack = new Set<string>();
+  const cycleKeys = new Set<string>();
+
+  const visit = (key: string) => {
+    const index = nextIndex++;
+    indices.set(key, index);
+    lowLinks.set(key, index);
+    stack.push(key);
+    onStack.add(key);
+
+    for (const target of outgoing.get(key) ?? []) {
+      if (!indices.has(target)) {
+        visit(target);
+        lowLinks.set(key, Math.min(lowLinks.get(key) ?? index, lowLinks.get(target) ?? index));
+      } else if (onStack.has(target)) {
+        lowLinks.set(key, Math.min(lowLinks.get(key) ?? index, indices.get(target) ?? index));
+      }
+    }
+
+    if (lowLinks.get(key) !== indices.get(key)) return;
+    const component: string[] = [];
+    while (stack.length) {
+      const member = stack.pop()!;
+      onStack.delete(member);
+      component.push(member);
+      if (member === key) break;
+    }
+    if (component.length > 1) component.forEach((member) => cycleKeys.add(member));
+    else if ((outgoing.get(key) ?? []).includes(key)) cycleKeys.add(key);
+  };
+
+  keys.forEach((key) => {
+    if (!indices.has(key)) visit(key);
+  });
+
+  const diagnostics: ArchitectureDiagnostic[] = [];
+  for (const action of flow.nodes) {
+    const endpoint: ArchitectureEndpoint = { kind: "action", id: action.id };
+    const key = architectureEndpointKey(endpoint);
+    const incomingCount = incoming.get(key) ?? 0;
+    const outgoingCount = outgoing.get(key)?.length ?? 0;
+
+    if (incomingCount === 0 && outgoingCount === 0) {
+      diagnostics.push({
+        id: `isolated-action-${action.id}`,
+        kind: "isolated-action",
+        severity: "error",
+        endpoint,
+      });
+    } else {
+      if (incomingCount === 0) {
+        diagnostics.push({
+          id: `no-incoming-action-${action.id}`,
+          kind: "no-incoming-action",
+          severity: "warning",
+          endpoint,
+        });
+      }
+      if (outgoingCount === 0) {
+        diagnostics.push({
+          id: `no-outgoing-action-${action.id}`,
+          kind: "no-outgoing-action",
+          severity: "warning",
+          endpoint,
+        });
+      }
+    }
+
+    if (cycleKeys.has(key)) {
+      diagnostics.push({
+        id: `cycle-${action.id}`,
+        kind: "cycle",
+        severity: "warning",
+        endpoint,
+      });
+    }
+  }
+
+  return diagnostics;
+}
+
 export type ArchitectureGraphLayoutNode = {
   key: string;
   endpoint: ArchitectureEndpoint;

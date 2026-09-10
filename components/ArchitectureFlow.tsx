@@ -10,6 +10,7 @@ import type {
 import {
   architectureEndpointKey,
   architectureEndpointOptions,
+  diagnoseArchitectureFlow,
   layoutArchitectureGraph,
 } from "@/lib/architecture-flow";
 import { useLang } from "@/lib/i18n";
@@ -60,6 +61,9 @@ export function ArchitectureFlowView({
     pickTarget: lang === "ja" ? "接続先ノードを選択してください" : "Choose a target node",
     selectedLink: lang === "ja" ? "選択した接続" : "Selected link",
     deleteLink: lang === "ja" ? "接続を削除" : "Delete link",
+    diagnostics: lang === "ja" ? "診断" : "Diagnostics",
+    diagnosticsHint: lang === "ja" ? "Actionの接続漏れや循環を検出します。項目を押すと該当ノードへ移動します。" : "Detect missing Action links and cycles. Select an issue to focus its node.",
+    diagnosticsOk: lang === "ja" ? "Actionの接続に問題は見つかりませんでした" : "No Action flow problems found",
     screens: lang === "ja" ? "画面" : lang === "zh" ? "屏幕" : lang === "ko" ? "화면" : "Screens",
     actions: "Actions",
     links: lang === "ja" ? "意味上の接続" : lang === "zh" ? "语义连接" : lang === "ko" ? "의미 연결" : "Semantic links",
@@ -84,6 +88,7 @@ export function ArchitectureFlowView({
   const [connectMode, setConnectMode] = useState(false);
   const [graphSource, setGraphSource] = useState<ArchitectureEndpoint | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [highlightedEndpointKey, setHighlightedEndpointKey] = useState<string | null>(null);
 
   const options = useMemo(() => architectureEndpointOptions(frames, flow), [frames, flow]);
   const labels = useMemo(() => {
@@ -94,6 +99,15 @@ export function ArchitectureFlowView({
   const layout = useMemo(() => layoutArchitectureGraph(frames, flow), [frames, flow]);
   const graphNodes = useMemo(() => new Map(layout.nodes.map((node) => [node.key, node])), [layout.nodes]);
   const selectedEdge = flow.edges.find((edge) => edge.id === selectedEdgeId) ?? null;
+  const diagnostics = useMemo(() => diagnoseArchitectureFlow(frames, flow), [frames, flow]);
+  const diagnosticsByKey = useMemo(() => {
+    const map = new Map<string, typeof diagnostics>();
+    diagnostics.forEach((diagnostic) => {
+      const key = architectureEndpointKey(diagnostic.endpoint);
+      map.set(key, [...(map.get(key) ?? []), diagnostic]);
+    });
+    return map;
+  }, [diagnostics]);
 
   useEffect(() => {
     if (selectedEdgeId && !flow.edges.some((edge) => edge.id === selectedEdgeId)) {
@@ -133,6 +147,7 @@ export function ArchitectureFlowView({
   };
 
   const clickGraphNode = (endpoint: ArchitectureEndpoint) => {
+    setHighlightedEndpointKey(null);
     if (!connectMode) return;
     if (!graphSource) {
       setGraphSource(endpoint);
@@ -146,6 +161,32 @@ export function ArchitectureFlowView({
     );
     if (sourceKey !== targetKey && !duplicate) onConnect(graphSource, endpoint, "");
     setGraphSource(null);
+  };
+
+  const diagnosticMessage = (kind: string, name: string) => {
+    if (lang === "ja") {
+      if (kind === "isolated-action") return `どこにも接続されていないAction: ${name}`;
+      if (kind === "no-incoming-action") return `入口がないAction: ${name}`;
+      if (kind === "no-outgoing-action") return `出口がないAction: ${name}`;
+      return `循環しているAction: ${name}`;
+    }
+    if (kind === "isolated-action") return `Action is not connected: ${name}`;
+    if (kind === "no-incoming-action") return `Action has no incoming flow: ${name}`;
+    if (kind === "no-outgoing-action") return `Action has no outgoing flow: ${name}`;
+    return `Action participates in a cycle: ${name}`;
+  };
+
+  const focusDiagnostic = (endpoint: ArchitectureEndpoint) => {
+    const key = architectureEndpointKey(endpoint);
+    setHighlightedEndpointKey(key);
+    setConnectMode(false);
+    setGraphSource(null);
+    setSelectedEdgeId(null);
+    requestAnimationFrame(() => {
+      const element = document.querySelector(`[data-testid="${endpointTestId(endpoint)}"]`) as HTMLElement | null;
+      element?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      element?.focus({ preventScroll: true });
+    });
   };
 
   const graphPath = (edge: ArchitectureFlow["edges"][number]) => {
@@ -279,6 +320,10 @@ export function ArchitectureFlowView({
                 {layout.nodes.map((node) => {
                   const source = graphSource && architectureEndpointKey(graphSource) === node.key;
                   const action = node.endpoint.kind === "action";
+                  const nodeDiagnostics = diagnosticsByKey.get(node.key) ?? [];
+                  const highlighted = highlightedEndpointKey === node.key;
+                  const diagnosticColor = nodeDiagnostics.some((diagnostic) => diagnostic.severity === "error") ? p.error : p.primary;
+                  const diagnosticBorder = highlighted || nodeDiagnostics.length > 0;
                   return (
                     <button
                       key={node.key}
@@ -294,12 +339,12 @@ export function ArchitectureFlowView({
                         top: node.y,
                         width: node.w,
                         height: node.h,
-                        border: `${source ? 3 : 1}px solid ${source ? p.primary : p.outlineVariant}`,
+                        border: `${source || highlighted ? 3 : nodeDiagnostics.length ? 2 : 1}px solid ${source ? p.primary : diagnosticBorder ? diagnosticColor : p.outlineVariant}`,
                         borderRadius: 20,
                         padding: "11px 13px",
                         background: action ? p.secondaryContainer : p.surface,
                         color: action ? p.onSecondaryContainer : p.onSurface,
-                        boxShadow: source ? `0 0 0 4px ${p.primaryContainer}` : "0 4px 12px rgba(0,0,0,0.08)",
+                        boxShadow: source ? `0 0 0 4px ${p.primaryContainer}` : highlighted ? `0 0 0 4px ${nodeDiagnostics.some((diagnostic) => diagnostic.severity === "error") ? p.errorContainer : p.primaryContainer}` : "0 4px 12px rgba(0,0,0,0.08)",
                         textAlign: "left",
                         cursor: connectMode ? "crosshair" : "default",
                         overflow: "hidden",
@@ -308,6 +353,11 @@ export function ArchitectureFlowView({
                       <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 10, fontWeight: 900, color: action ? p.primary : p.onSurfaceVariant }}>
                         <Icon name={action ? "bolt" : "web_asset"} size={16} />
                         {action ? copy.actionBadge : copy.screenBadge}
+                        {nodeDiagnostics.length > 0 && (
+                          <span aria-label={`${copy.diagnostics}: ${nodeDiagnostics.length}`} style={{ marginLeft: "auto", minWidth: 19, height: 19, padding: "0 5px", borderRadius: 10, display: "grid", placeItems: "center", background: nodeDiagnostics.some((diagnostic) => diagnostic.severity === "error") ? p.errorContainer : p.primaryContainer, color: nodeDiagnostics.some((diagnostic) => diagnostic.severity === "error") ? p.onErrorContainer : p.onPrimaryContainer, fontSize: 10, fontWeight: 900 }}>
+                            {nodeDiagnostics.length}
+                          </span>
+                        )}
                       </span>
                       <span style={{ display: "block", marginTop: 6, fontSize: 14, fontWeight: 850, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{node.label}</span>
                     </button>
@@ -315,6 +365,45 @@ export function ArchitectureFlowView({
                 })}
               </div>
             </div>
+          </section>
+
+          <section data-testid="architecture-diagnostics" style={{ border: `1px solid ${p.outlineVariant}`, borderRadius: 20, padding: 14, background: p.surfaceContainerLow }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Icon name={diagnostics.length ? "warning" : "check_circle"} size={21} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 900 }}>{copy.diagnostics}</div>
+                <div style={{ marginTop: 2, fontSize: 11, color: p.onSurfaceVariant }}>{copy.diagnosticsHint}</div>
+              </div>
+              <span data-testid="architecture-diagnostic-count" style={{ marginLeft: "auto", minWidth: 28, height: 28, borderRadius: 14, display: "grid", placeItems: "center", background: diagnostics.some((diagnostic) => diagnostic.severity === "error") ? p.errorContainer : p.surfaceContainer, color: diagnostics.some((diagnostic) => diagnostic.severity === "error") ? p.onErrorContainer : p.onSurfaceVariant, fontWeight: 900, fontSize: 12 }}>
+                {diagnostics.length}
+              </span>
+            </div>
+            {diagnostics.length ? (
+              <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+                {diagnostics.map((diagnostic) => {
+                  const key = architectureEndpointKey(diagnostic.endpoint);
+                  const name = labels.get(key) ?? diagnostic.endpoint.id;
+                  const message = diagnosticMessage(diagnostic.kind, name);
+                  return (
+                    <button
+                      key={diagnostic.id}
+                      type="button"
+                      data-testid={`architecture-diagnostic-${diagnostic.id}`}
+                      aria-label={message}
+                      onClick={() => focusDiagnostic(diagnostic.endpoint)}
+                      className="m3-press"
+                      style={{ minHeight: 44, borderRadius: 14, border: `1px solid ${diagnostic.severity === "error" ? p.error : p.outlineVariant}`, background: diagnostic.severity === "error" ? p.errorContainer : p.surface, color: diagnostic.severity === "error" ? p.onErrorContainer : p.onSurface, padding: "8px 11px", display: "flex", alignItems: "center", gap: 9, textAlign: "left", cursor: "pointer" }}
+                    >
+                      <Icon name={diagnostic.kind === "cycle" ? "sync" : "warning"} size={18} />
+                      <span style={{ fontSize: 12, fontWeight: 800 }}>{message}</span>
+                      <Icon name="my_location" size={17} />
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ marginTop: 10, fontSize: 12, color: p.onSurfaceVariant }}>{copy.diagnosticsOk}</div>
+            )}
           </section>
 
           <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: 14 }}>
