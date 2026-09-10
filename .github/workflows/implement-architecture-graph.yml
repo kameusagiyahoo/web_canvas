@@ -1,0 +1,47 @@
+name: Implement architecture visual graph
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/implement-architecture-graph.py
+      - .github/workflows/implement-architecture-graph.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: implement-architecture-graph
+  cancel-in-progress: false
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: python scripts/implement-architecture-graph.py
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Commit implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f scripts/implement-architecture-graph.py .github/workflows/implement-architecture-graph.yml
+          git add components/ArchitectureFlow.tsx lib/architecture-flow.ts lib/architecture-flow.test.ts e2e/core.e2e.ts docs/ARCHITECTURE_FLOW.md docs/TODO.md docs/ROADMAP.md
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Add interactive architecture graph"
+          git push
