@@ -7,6 +7,7 @@ import {
   deleteArchitectureAction,
   deleteArchitectureEdge,
   renameArchitectureAction,
+  layoutArchitectureGraph,
 } from "./architecture-flow";
 
 const empty = (): ArchitectureFlow => ({ version: 1, nodes: [], edges: [] });
@@ -62,5 +63,49 @@ describe("architecture flow commands", () => {
       frames,
     );
     expect(deleteArchitectureEdge(connected, "edge").edges).toEqual([]);
+  });
+});
+
+
+
+describe("architecture graph layout", () => {
+  it("places a Screen → Action → Screen chain in successive columns", () => {
+    const chainFrames: Frame[] = [
+      { id: "home", name: "Home", x: 0, y: 0 },
+      { id: "done", name: "Done", x: 500, y: 0 },
+    ];
+    const flow: ArchitectureFlow = {
+      version: 1,
+      nodes: [{ id: "validate", kind: "action", name: "Validate" }],
+      edges: [
+        { id: "a", from: { kind: "frame", id: "home" }, to: { kind: "action", id: "validate" } },
+        { id: "b", from: { kind: "action", id: "validate" }, to: { kind: "frame", id: "done" } },
+      ],
+    };
+    const layout = layoutArchitectureGraph(chainFrames, flow);
+    const byKey = new Map(layout.nodes.map((node) => [node.key, node]));
+    expect(byKey.get("frame:home")?.column).toBe(0);
+    expect(byKey.get("action:validate")?.column).toBe(1);
+    expect(byKey.get("frame:done")?.column).toBe(2);
+    expect(layout.width).toBeGreaterThan(600);
+  });
+
+  it("keeps cycles finite and deterministic without persisted coordinates", () => {
+    const flow: ArchitectureFlow = {
+      version: 1,
+      nodes: [
+        { id: "a", kind: "action", name: "A" },
+        { id: "b", kind: "action", name: "B" },
+      ],
+      edges: [
+        { id: "ab", from: { kind: "action", id: "a" }, to: { kind: "action", id: "b" } },
+        { id: "ba", from: { kind: "action", id: "b" }, to: { kind: "action", id: "a" } },
+      ],
+    };
+    const first = layoutArchitectureGraph([], flow);
+    const second = layoutArchitectureGraph([], flow);
+    expect(first).toEqual(second);
+    expect(first.nodes).toHaveLength(2);
+    expect(first.nodes.every((node) => Number.isFinite(node.x) && Number.isFinite(node.y))).toBe(true);
   });
 });

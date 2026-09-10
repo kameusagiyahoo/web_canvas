@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type {
   ArchitectureEndpoint,
   ArchitectureFlow,
@@ -10,6 +10,7 @@ import type {
 import {
   architectureEndpointKey,
   architectureEndpointOptions,
+  layoutArchitectureGraph,
 } from "@/lib/architecture-flow";
 import { useLang } from "@/lib/i18n";
 import { Icon } from "./M3Node";
@@ -22,6 +23,9 @@ const parseEndpoint = (value: string): ArchitectureEndpoint | null => {
   if (!id || (kind !== "frame" && kind !== "action")) return null;
   return { kind, id } as ArchitectureEndpoint;
 };
+
+const endpointTestId = (endpoint: ArchitectureEndpoint) =>
+  `architecture-graph-node-${endpoint.kind}-${endpoint.id}`;
 
 export function ArchitectureFlowView({
   flow,
@@ -47,7 +51,15 @@ export function ArchitectureFlowView({
   const lang = useLang();
   const copy = {
     title: lang === "ja" ? "アプリアーキテクチャ" : lang === "zh" ? "应用架构" : lang === "ko" ? "앱 아키텍처" : "App architecture",
-    subtitle: lang === "ja" ? "画面は既存Screenから参照し、処理だけをActionとして追加します" : lang === "zh" ? "屏幕来自现有Screen，仅将处理添加为Action" : lang === "ko" ? "화면은 기존 Screen을 참조하고 처리만 Action으로 추가합니다" : "Screens stay derived from the editor; only semantic Actions are added here",
+    subtitle: lang === "ja" ? "ScreenとActionの意味上の流れを可視化します" : lang === "zh" ? "可视化 Screen 与 Action 的语义流程" : lang === "ko" ? "Screen과 Action의 의미 흐름을 시각화합니다" : "Visualize the semantic flow between Screens and Actions",
+    visual: lang === "ja" ? "フロー図" : lang === "zh" ? "流程图" : lang === "ko" ? "흐름도" : "Flow graph",
+    graphHint: lang === "ja" ? "位置は自動配置です。ノード位置はプロジェクトには保存しません。" : "Layout is automatic and node positions are not stored in the project.",
+    connectMode: lang === "ja" ? "グラフ上で接続" : "Connect on graph",
+    endConnectMode: lang === "ja" ? "接続モードを終了" : "Exit connect mode",
+    pickSource: lang === "ja" ? "開始ノードを選択してください" : "Choose a source node",
+    pickTarget: lang === "ja" ? "接続先ノードを選択してください" : "Choose a target node",
+    selectedLink: lang === "ja" ? "選択した接続" : "Selected link",
+    deleteLink: lang === "ja" ? "接続を削除" : "Delete link",
     screens: lang === "ja" ? "画面" : lang === "zh" ? "屏幕" : lang === "ko" ? "화면" : "Screens",
     actions: "Actions",
     links: lang === "ja" ? "意味上の接続" : lang === "zh" ? "语义连接" : lang === "ko" ? "의미 연결" : "Semantic links",
@@ -62,27 +74,48 @@ export function ArchitectureFlowView({
     none: lang === "ja" ? "まだありません" : "None yet",
     close: lang === "ja" ? "閉じる" : lang === "zh" ? "关闭" : lang === "ko" ? "닫기" : "Close",
     confirmDelete: lang === "ja" ? "このActionと接続を削除しますか？" : "Delete this Action and its links?",
-    screenBadge: lang === "ja" ? "Screen" : "Screen",
+    screenBadge: "Screen",
     actionBadge: "Action",
   };
   const [actionName, setActionName] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [label, setLabel] = useState("");
+  const [connectMode, setConnectMode] = useState(false);
+  const [graphSource, setGraphSource] = useState<ArchitectureEndpoint | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+
   const options = useMemo(() => architectureEndpointOptions(frames, flow), [frames, flow]);
   const labels = useMemo(() => {
     const map = new Map<string, string>();
     options.forEach((option) => map.set(architectureEndpointKey(option.endpoint), option.label));
     return map;
   }, [options]);
+  const layout = useMemo(() => layoutArchitectureGraph(frames, flow), [frames, flow]);
+  const graphNodes = useMemo(() => new Map(layout.nodes.map((node) => [node.key, node])), [layout.nodes]);
+  const selectedEdge = flow.edges.find((edge) => edge.id === selectedEdgeId) ?? null;
+
+  useEffect(() => {
+    if (selectedEdgeId && !flow.edges.some((edge) => edge.id === selectedEdgeId)) {
+      setSelectedEdgeId(null);
+    }
+  }, [flow.edges, selectedEdgeId]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        if (connectMode || selectedEdgeId) {
+          setConnectMode(false);
+          setGraphSource(null);
+          setSelectedEdgeId(null);
+        } else {
+          onClose();
+        }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [connectMode, onClose, selectedEdgeId]);
 
   const addAction = () => {
     const name = actionName.trim();
@@ -99,13 +132,47 @@ export function ArchitectureFlowView({
     setLabel("");
   };
 
-  const card = (background: string, color: string): React.CSSProperties => ({
+  const clickGraphNode = (endpoint: ArchitectureEndpoint) => {
+    if (!connectMode) return;
+    if (!graphSource) {
+      setGraphSource(endpoint);
+      setSelectedEdgeId(null);
+      return;
+    }
+    const sourceKey = architectureEndpointKey(graphSource);
+    const targetKey = architectureEndpointKey(endpoint);
+    const duplicate = flow.edges.some(
+      (edge) => architectureEndpointKey(edge.from) === sourceKey && architectureEndpointKey(edge.to) === targetKey,
+    );
+    if (sourceKey !== targetKey && !duplicate) onConnect(graphSource, endpoint, "");
+    setGraphSource(null);
+  };
+
+  const graphPath = (edge: ArchitectureFlow["edges"][number]) => {
+    const source = graphNodes.get(architectureEndpointKey(edge.from));
+    const target = graphNodes.get(architectureEndpointKey(edge.to));
+    if (!source || !target) return null;
+    const sx = source.x + source.w;
+    const sy = source.y + source.h / 2;
+    const tx = target.x;
+    const ty = target.y + target.h / 2;
+    if (tx > sx + 20) {
+      const curve = Math.max(42, (tx - sx) * 0.48);
+      return `M ${sx} ${sy} C ${sx + curve} ${sy}, ${tx - curve} ${ty}, ${tx} ${ty}`;
+    }
+    const lift = Math.max(72, Math.abs(sy - ty) * 0.45 + 56);
+    return `M ${sx} ${sy} C ${sx + 72} ${sy - lift}, ${tx - 72} ${ty - lift}, ${tx} ${ty}`;
+  };
+
+  const card = (background: string, color: string): CSSProperties => ({
     borderRadius: 18,
     padding: 14,
     background,
     color,
     border: `1px solid ${p.outlineVariant}`,
   });
+
+  const sourceLabel = graphSource ? labels.get(architectureEndpointKey(graphSource)) : null;
 
   return (
     <div
@@ -129,7 +196,127 @@ export function ArchitectureFlowView({
       </header>
 
       <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 16 }}>
-        <div style={{ width: "min(1100px, 100%)", margin: "0 auto", display: "grid", gap: 16 }}>
+        <div style={{ width: "min(1180px, 100%)", margin: "0 auto", display: "grid", gap: 18 }}>
+          <section data-testid="architecture-graph" style={{ border: `1px solid ${p.outlineVariant}`, borderRadius: 24, overflow: "hidden", background: p.surfaceContainerLow }}>
+            <div style={{ padding: "12px 14px", borderBottom: `1px solid ${p.outlineVariant}`, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 900 }}>{copy.visual}</div>
+                <div style={{ marginTop: 2, fontSize: 11, color: p.onSurfaceVariant }}>{copy.graphHint}</div>
+              </div>
+              <span style={{ marginLeft: "auto", fontSize: 12, color: p.onSurfaceVariant }}>{layout.nodes.length} nodes · {flow.edges.length} links</span>
+              <button
+                type="button"
+                data-testid="architecture-connect-mode"
+                onClick={() => {
+                  setConnectMode((current) => !current);
+                  setGraphSource(null);
+                  setSelectedEdgeId(null);
+                }}
+                className="m3-press"
+                style={{ minHeight: 38, border: "none", borderRadius: 19, padding: "0 13px", background: connectMode ? p.primary : p.secondaryContainer, color: connectMode ? p.onPrimary : p.onSecondaryContainer, fontWeight: 800, cursor: "pointer" }}
+              >
+                {connectMode ? copy.endConnectMode : copy.connectMode}
+              </button>
+            </div>
+
+            {(connectMode || selectedEdge) && (
+              <div data-testid={selectedEdge ? "architecture-graph-edge-editor" : "architecture-connect-status"} style={{ minHeight: 44, padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, borderBottom: `1px solid ${p.outlineVariant}`, background: p.surface }}>
+                {selectedEdge ? (
+                  <>
+                    <Icon name="link" size={19} />
+                    <span style={{ fontSize: 12, fontWeight: 800 }}>{copy.selectedLink}: {labels.get(architectureEndpointKey(selectedEdge.from)) ?? architectureEndpointKey(selectedEdge.from)} → {labels.get(architectureEndpointKey(selectedEdge.to)) ?? architectureEndpointKey(selectedEdge.to)}</span>
+                    <button type="button" onClick={() => { onDeleteEdge(selectedEdge.id); setSelectedEdgeId(null); }} className="m3-press" style={{ marginLeft: "auto", minHeight: 34, border: "none", borderRadius: 17, padding: "0 11px", background: p.errorContainer, color: p.onErrorContainer, fontWeight: 800, cursor: "pointer" }}>{copy.deleteLink}</button>
+                  </>
+                ) : (
+                  <>
+                    <Icon name={graphSource ? "arrow_forward" : "touch_app"} size={19} />
+                    <span style={{ fontSize: 12, fontWeight: 750, color: p.onSurfaceVariant }}>{graphSource ? `${copy.pickTarget} · ${sourceLabel ?? architectureEndpointKey(graphSource)}` : copy.pickSource}</span>
+                  </>
+                )}
+              </div>
+            )}
+
+            <div style={{ overflow: "auto", overscrollBehavior: "contain", maxHeight: "min(58vh, 620px)" }}>
+              <div style={{ position: "relative", width: layout.width, height: layout.height, minWidth: "100%", minHeight: 260 }}>
+                <svg width={layout.width} height={layout.height} aria-hidden style={{ position: "absolute", inset: 0, overflow: "visible" }}>
+                  <defs>
+                    <marker id="architecture-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+                      <path d="M 0 0 L 8 4 L 0 8 z" fill={p.outline} />
+                    </marker>
+                  </defs>
+                  {flow.edges.map((edge) => {
+                    const d = graphPath(edge);
+                    if (!d) return null;
+                    const selected = edge.id === selectedEdgeId;
+                    return (
+                      <g key={edge.id}>
+                        <path d={d} fill="none" stroke={selected ? p.primary : p.outline} strokeWidth={selected ? 3 : 2} markerEnd="url(#architecture-arrow)" />
+                        <path
+                          d={d}
+                          fill="none"
+                          stroke="transparent"
+                          strokeWidth={18}
+                          data-testid={`architecture-graph-link-${edge.id}`}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`${copy.selectedLink}: ${labels.get(architectureEndpointKey(edge.from)) ?? edge.from.id} → ${labels.get(architectureEndpointKey(edge.to)) ?? edge.to.id}`}
+                          style={{ cursor: "pointer" }}
+                          onClick={() => { setSelectedEdgeId(edge.id); setConnectMode(false); setGraphSource(null); }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setSelectedEdgeId(edge.id);
+                              setConnectMode(false);
+                              setGraphSource(null);
+                            }
+                          }}
+                        />
+                      </g>
+                    );
+                  })}
+                </svg>
+
+                {layout.nodes.map((node) => {
+                  const source = graphSource && architectureEndpointKey(graphSource) === node.key;
+                  const action = node.endpoint.kind === "action";
+                  return (
+                    <button
+                      key={node.key}
+                      type="button"
+                      data-testid={endpointTestId(node.endpoint)}
+                      aria-pressed={source || undefined}
+                      aria-disabled={!connectMode}
+                      onClick={() => clickGraphNode(node.endpoint)}
+                      className="m3-press"
+                      style={{
+                        position: "absolute",
+                        left: node.x,
+                        top: node.y,
+                        width: node.w,
+                        height: node.h,
+                        border: `${source ? 3 : 1}px solid ${source ? p.primary : p.outlineVariant}`,
+                        borderRadius: 20,
+                        padding: "11px 13px",
+                        background: action ? p.secondaryContainer : p.surface,
+                        color: action ? p.onSecondaryContainer : p.onSurface,
+                        boxShadow: source ? `0 0 0 4px ${p.primaryContainer}` : "0 4px 12px rgba(0,0,0,0.08)",
+                        textAlign: "left",
+                        cursor: connectMode ? "crosshair" : "default",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 10, fontWeight: 900, color: action ? p.primary : p.onSurfaceVariant }}>
+                        <Icon name={action ? "bolt" : "web_asset"} size={16} />
+                        {action ? copy.actionBadge : copy.screenBadge}
+                      </span>
+                      <span style={{ display: "block", marginTop: 6, fontSize: 14, fontWeight: 850, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{node.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
           <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: 14 }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 850, color: p.onSurfaceVariant, marginBottom: 8 }}>{copy.screens}</div>
@@ -202,7 +389,7 @@ export function ArchitectureFlowView({
                     <Icon name="arrow_forward" size={20} />
                     <span style={{ fontWeight: 750 }}>{toLabel}</span>
                     {edge.label && <span style={{ fontSize: 12, color: p.onSurfaceVariant }}>· {edge.label}</span>}
-                    <button type="button" onClick={() => onDeleteEdge(edge.id)} aria-label={lang === "ja" ? "接続を削除" : "Delete link"} className="m3-press" style={{ marginLeft: "auto", width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: p.error, cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="link_off" size={18} /></button>
+                    <button type="button" onClick={() => onDeleteEdge(edge.id)} aria-label={copy.deleteLink} className="m3-press" style={{ marginLeft: "auto", width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: p.error, cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="link_off" size={18} /></button>
                   </div>
                 );
               })}

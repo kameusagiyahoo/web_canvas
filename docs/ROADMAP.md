@@ -110,12 +110,13 @@ Potential follow-up graph work is usability-driven rather than architectural. Se
 
 ## Phase 5 — App Architecture Flow
 
-Status: **foundation implemented**.
+Status: **interactive Action-flow foundation implemented**.
 
 - Keep Screen nodes derived from the existing `Frame` model rather than storing duplicate screens.
 - Persist semantic Action nodes and semantic links as optional document architecture metadata.
 - Expose the same architecture editor from desktop and mobile.
 - Keep Action/link changes inside normal project autosave, JSON import/export and Undo/Redo.
+- Render Screen + Action nodes as a deterministic visual graph with direct graph connection and edge selection/deletion.
 - Do not make semantic architecture links drive Preview navigation.
 - Add `api` / `agent` / `database` node kinds only when a concrete workflow requires them.
 

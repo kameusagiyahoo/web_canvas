@@ -426,7 +426,7 @@ test("app architecture adds semantic Action nodes and Undo restores the previous
   await expect(architecture).toBeVisible();
   await page.getByTestId("architecture-action-name").fill("Validate login");
   await page.getByTestId("architecture-add-action").click();
-  await expect(architecture.getByText("Validate login", { exact: true })).toBeVisible();
+  await expect(architecture.locator('[data-testid^="architecture-action-"]:not([data-testid="architecture-action-name"])').filter({ hasText: "Validate login" })).toHaveCount(1);
 
   await expect.poll(() =>
     page.evaluate(() => {
@@ -440,4 +440,33 @@ test("app architecture adds semantic Action nodes and Undo restores the previous
   await page.getByTitle("Undo").click();
   await page.getByTitle("App architecture").click();
   await expect(page.getByTestId("architecture-flow").getByText("Validate login", { exact: true })).toHaveCount(0);
+});
+
+
+
+test("architecture visual graph creates semantic links and participates in undo", async ({ page }) => {
+  await openSeeded(page);
+  await page.getByTitle("App architecture").click();
+  const architecture = page.getByTestId("architecture-flow");
+  await expect(architecture).toBeVisible();
+
+  await architecture.getByTestId("architecture-action-name").fill("Validate login");
+  await architecture.getByTestId("architecture-add-action").click();
+  const actionNode = architecture.locator('[data-testid^="architecture-graph-node-action-"]').filter({ hasText: "Validate login" });
+  await expect(actionNode).toHaveCount(1);
+
+  await architecture.getByTestId("architecture-connect-mode").click();
+  await architecture.getByTestId("architecture-graph-node-frame-home").click();
+  await actionNode.click();
+  await expect(architecture.locator('[data-testid^="architecture-graph-link-"]')).toHaveCount(1);
+
+  const storedEdgeCount = () => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    return raw ? JSON.parse(raw).architecture?.edges?.length ?? 0 : 0;
+  });
+  await expect.poll(storedEdgeCount).toBe(1);
+
+  await architecture.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByTitle("Undo").click();
+  await expect.poll(storedEdgeCount).toBe(0);
 });
