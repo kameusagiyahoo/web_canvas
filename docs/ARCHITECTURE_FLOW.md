@@ -36,7 +36,7 @@ No manual graph coordinates are persisted. Layout remains a UI concern until rea
 
 The editor now renders the combined Screen + Action model as a deterministic flow diagram. Screen nodes remain derived from `Frame`; Action nodes remain the only persisted semantic nodes. The graph supports direct node-to-node connection mode and edge selection/deletion, while the detailed forms remain available for labeled links and Action management. Graph coordinates are still UI-only and are recalculated from the current topology.
 
-The same derived graph now exposes Action diagnostics for disconnected Actions, missing incoming flow, missing outgoing flow, and directed cycles. Diagnostics do not mutate project data: selecting an issue only scrolls/focuses the affected Action node and visually highlights it.
+The same derived graph now exposes Action diagnostics for disconnected Actions, missing incoming flow, missing outgoing flow, and directed cycles. It also detects preserved semantic links whose source or target Screen/Action endpoint no longer exists. Action issues focus the affected node; broken-link issues select the preserved edge in the editor so the user can inspect or explicitly delete it. Merely selecting diagnostics never mutates project data.
 
 ## Editing and persistence
 
@@ -47,8 +47,8 @@ The editor exposes **App architecture** on desktop and from the mobile Screens s
 - travel with JSON project export/import;
 - require no backend or cloud service.
 
-Deleting an Action also deletes architecture links incident to that Action. Deleting a Screen does not currently rewrite semantic links automatically; missing Screen endpoints are preserved as explicit architecture information for a later diagnostics pass rather than silently guessing intent.
+Deleting an Action also deletes architecture links incident to that Action. Deleting a Screen does not rewrite semantic links automatically; missing Screen/Action endpoints remain preserved as explicit architecture information and are surfaced as broken-link diagnostics rather than being silently guessed or removed.
 
 ## Next safe extension
 
-Use the visual Action flow and Action diagnostics in real projects first. The next diagnostics extension should cover missing semantic endpoints (for example, a deleted Screen still referenced by an architecture link). The next model extension remains an `api` node, and execution semantics should still wait for a concrete use case. Do not make Architecture Flow a second source of truth for Screen navigation.
+Use the visual Action flow and diagnostics in real projects first. Broken semantic endpoints are now detected without silently rewriting project data. The next model extension remains an `api` node, and execution semantics should still wait for a concrete use case. Do not make Architecture Flow a second source of truth for Screen navigation.

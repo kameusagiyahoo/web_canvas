@@ -362,6 +362,37 @@ test("architecture diagnostics focus an affected Action without mutating the doc
 });
 
 
+test("architecture diagnostics expose a broken semantic link without mutating the document", async ({ page }) => {
+  const brokenDoc = {
+    ...seedDoc,
+    architecture: {
+      version: 1,
+      nodes: [],
+      edges: [
+        { id: "stale-link", from: { kind: "frame", id: "home" }, to: { kind: "frame", id: "deleted-screen" } },
+      ],
+    },
+  };
+  await page.addInitScript(({ doc }) => {
+    localStorage.setItem("m3e:doc", JSON.stringify(doc));
+    localStorage.setItem("m3e:ui", JSON.stringify({ lang: "en" }));
+  }, { doc: brokenDoc });
+  await page.goto("/");
+  await expect(page.getByTitle("Undo")).toBeVisible();
+  const before = await page.evaluate(() => localStorage.getItem("m3e:doc"));
+
+  await page.getByTitle("App architecture").click();
+  const architecture = page.getByTestId("architecture-flow");
+  await expect(architecture.getByTestId("architecture-diagnostic-count")).toHaveText("1");
+  await architecture.getByRole("button", { name: "Link target is missing: frame:deleted-screen" }).click();
+
+  const editor = architecture.getByTestId("architecture-graph-edge-editor");
+  await expect(editor).toBeVisible();
+  await expect(editor).toContainText("Home → frame:deleted-screen");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(before);
+});
+
+
 test("local project library creates and switches independent projects", async ({ page }) => {
   await openSeeded(page);
 

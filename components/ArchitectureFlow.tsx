@@ -62,8 +62,8 @@ export function ArchitectureFlowView({
     selectedLink: lang === "ja" ? "選択した接続" : "Selected link",
     deleteLink: lang === "ja" ? "接続を削除" : "Delete link",
     diagnostics: lang === "ja" ? "診断" : "Diagnostics",
-    diagnosticsHint: lang === "ja" ? "Actionの接続漏れや循環を検出します。項目を押すと該当ノードへ移動します。" : "Detect missing Action links and cycles. Select an issue to focus its node.",
-    diagnosticsOk: lang === "ja" ? "Actionの接続に問題は見つかりませんでした" : "No Action flow problems found",
+    diagnosticsHint: lang === "ja" ? "Actionの接続漏れ・循環・削除済みノードを参照する壊れた接続を検出します。" : "Detect Action flow problems, cycles, and links that reference deleted endpoints.",
+    diagnosticsOk: lang === "ja" ? "Architecture Flowに問題は見つかりませんでした" : "No Architecture Flow problems found",
     screens: lang === "ja" ? "画面" : lang === "zh" ? "屏幕" : lang === "ko" ? "화면" : "Screens",
     actions: "Actions",
     links: lang === "ja" ? "意味上の接続" : lang === "zh" ? "语义连接" : lang === "ko" ? "의미 연결" : "Semantic links",
@@ -163,27 +163,35 @@ export function ArchitectureFlowView({
     setGraphSource(null);
   };
 
-  const diagnosticMessage = (kind: string, name: string) => {
+  const diagnosticMessage = (kind: string, name: string, missingName?: string) => {
     if (lang === "ja") {
       if (kind === "isolated-action") return `どこにも接続されていないAction: ${name}`;
       if (kind === "no-incoming-action") return `入口がないAction: ${name}`;
       if (kind === "no-outgoing-action") return `出口がないAction: ${name}`;
+      if (kind === "missing-source-endpoint") return `接続元が見つからないリンク: ${missingName ?? name}`;
+      if (kind === "missing-target-endpoint") return `接続先が見つからないリンク: ${missingName ?? name}`;
       return `循環しているAction: ${name}`;
     }
     if (kind === "isolated-action") return `Action is not connected: ${name}`;
     if (kind === "no-incoming-action") return `Action has no incoming flow: ${name}`;
     if (kind === "no-outgoing-action") return `Action has no outgoing flow: ${name}`;
+    if (kind === "missing-source-endpoint") return `Link source is missing: ${missingName ?? name}`;
+    if (kind === "missing-target-endpoint") return `Link target is missing: ${missingName ?? name}`;
     return `Action participates in a cycle: ${name}`;
   };
 
-  const focusDiagnostic = (endpoint: ArchitectureEndpoint) => {
+  const focusDiagnostic = (diagnostic: (typeof diagnostics)[number]) => {
+    const endpoint = diagnostic.endpoint;
     const key = architectureEndpointKey(endpoint);
-    setHighlightedEndpointKey(key);
+    const hasFocusableNode = graphNodes.has(key);
+    setHighlightedEndpointKey(hasFocusableNode ? key : null);
     setConnectMode(false);
     setGraphSource(null);
-    setSelectedEdgeId(null);
+    setSelectedEdgeId(diagnostic.edgeId ?? null);
     requestAnimationFrame(() => {
-      const element = document.querySelector(`[data-testid="${endpointTestId(endpoint)}"]`) as HTMLElement | null;
+      const element = hasFocusableNode
+        ? document.querySelector(`[data-testid="${endpointTestId(endpoint)}"]`) as HTMLElement | null
+        : document.querySelector('[data-testid="architecture-graph-edge-editor"]') as HTMLElement | null;
       element?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
       element?.focus({ preventScroll: true });
     });
@@ -383,18 +391,21 @@ export function ArchitectureFlowView({
                 {diagnostics.map((diagnostic) => {
                   const key = architectureEndpointKey(diagnostic.endpoint);
                   const name = labels.get(key) ?? diagnostic.endpoint.id;
-                  const message = diagnosticMessage(diagnostic.kind, name);
+                  const missingName = diagnostic.missingEndpoint
+                    ? labels.get(architectureEndpointKey(diagnostic.missingEndpoint)) ?? architectureEndpointKey(diagnostic.missingEndpoint)
+                    : undefined;
+                  const message = diagnosticMessage(diagnostic.kind, name, missingName);
                   return (
                     <button
                       key={diagnostic.id}
                       type="button"
                       data-testid={`architecture-diagnostic-${diagnostic.id}`}
                       aria-label={message}
-                      onClick={() => focusDiagnostic(diagnostic.endpoint)}
+                      onClick={() => focusDiagnostic(diagnostic)}
                       className="m3-press"
                       style={{ minHeight: 44, borderRadius: 14, border: `1px solid ${diagnostic.severity === "error" ? p.error : p.outlineVariant}`, background: diagnostic.severity === "error" ? p.errorContainer : p.surface, color: diagnostic.severity === "error" ? p.onErrorContainer : p.onSurface, padding: "8px 11px", display: "flex", alignItems: "center", gap: 9, textAlign: "left", cursor: "pointer" }}
                     >
-                      <Icon name={diagnostic.kind === "cycle" ? "sync" : "warning"} size={18} />
+                      <Icon name={diagnostic.kind === "cycle" ? "sync" : diagnostic.edgeId ? "link_off" : "warning"} size={18} />
                       <span style={{ fontSize: 12, fontWeight: 800 }}>{message}</span>
                       <Icon name="my_location" size={17} />
                     </button>

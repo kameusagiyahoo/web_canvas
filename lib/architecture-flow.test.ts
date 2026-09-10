@@ -100,6 +100,36 @@ describe("architecture flow diagnostics", () => {
     ]);
   });
 
+  it("reports semantic links whose source or target endpoint no longer exists", () => {
+    const flow: ArchitectureFlow = {
+      version: 1,
+      nodes: [{ id: "load", kind: "action", name: "Load" }],
+      edges: [
+        { id: "missing-target", from: { kind: "action", id: "load" }, to: { kind: "frame", id: "deleted-screen" } },
+        { id: "missing-source", from: { kind: "frame", id: "deleted-source" }, to: { kind: "action", id: "load" } },
+      ],
+    };
+    const broken = diagnoseArchitectureFlow(frames, flow).filter((item) => item.kind.startsWith("missing-"));
+    expect(broken).toEqual([
+      {
+        id: "missing-target-endpoint-missing-target",
+        kind: "missing-target-endpoint",
+        severity: "error",
+        endpoint: { kind: "action", id: "load" },
+        edgeId: "missing-target",
+        missingEndpoint: { kind: "frame", id: "deleted-screen" },
+      },
+      {
+        id: "missing-source-endpoint-missing-source",
+        kind: "missing-source-endpoint",
+        severity: "error",
+        endpoint: { kind: "action", id: "load" },
+        edgeId: "missing-source",
+        missingEndpoint: { kind: "frame", id: "deleted-source" },
+      },
+    ]);
+  });
+
   it("marks every Action that participates in a directed cycle", () => {
     const flow: ArchitectureFlow = {
       version: 1,

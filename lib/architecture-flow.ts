@@ -118,19 +118,25 @@ export type ArchitectureDiagnosticKind =
   | "isolated-action"
   | "no-incoming-action"
   | "no-outgoing-action"
-  | "cycle";
+  | "cycle"
+  | "missing-source-endpoint"
+  | "missing-target-endpoint";
 
 export type ArchitectureDiagnostic = {
   id: string;
   kind: ArchitectureDiagnosticKind;
   severity: "error" | "warning";
+  /** Existing endpoint to focus when possible; may itself be missing when both ends are broken. */
   endpoint: ArchitectureEndpoint;
+  /** Broken link diagnostics select the preserved semantic edge so it can be inspected/deleted. */
+  edgeId?: string;
+  missingEndpoint?: ArchitectureEndpoint;
 };
 
 /**
- * Derive Action-level architecture problems without mutating or normalizing the model.
- * Missing/unknown endpoints are ignored here because they cannot be focused as graph nodes;
- * this pass intentionally covers the four actionable Action diagnostics surfaced by the UI.
+ * Derive architecture problems without mutating or normalizing the model.
+ * Broken semantic links are preserved as explicit diagnostics instead of being silently deleted,
+ * while Action-level connectivity and cycle checks only use edges whose endpoints still exist.
  */
 export function diagnoseArchitectureFlow(
   frames: readonly Frame[],
@@ -191,6 +197,32 @@ export function diagnoseArchitectureFlow(
   });
 
   const diagnostics: ArchitectureDiagnostic[] = [];
+
+  for (const edge of flow.edges) {
+    const fromExists = architectureEndpointExists(edge.from, frames, flow);
+    const toExists = architectureEndpointExists(edge.to, frames, flow);
+    if (!fromExists) {
+      diagnostics.push({
+        id: `missing-source-endpoint-${edge.id}`,
+        kind: "missing-source-endpoint",
+        severity: "error",
+        endpoint: toExists ? edge.to : edge.from,
+        edgeId: edge.id,
+        missingEndpoint: edge.from,
+      });
+    }
+    if (!toExists) {
+      diagnostics.push({
+        id: `missing-target-endpoint-${edge.id}`,
+        kind: "missing-target-endpoint",
+        severity: "error",
+        endpoint: fromExists ? edge.from : edge.to,
+        edgeId: edge.id,
+        missingEndpoint: edge.to,
+      });
+    }
+  }
+
   for (const action of flow.nodes) {
     const endpoint: ArchitectureEndpoint = { kind: "action", id: action.id };
     const key = architectureEndpointKey(endpoint);
