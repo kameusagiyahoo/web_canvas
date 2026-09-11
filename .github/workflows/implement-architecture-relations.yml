@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "scripts/implement-architecture-relations.py"
+      - "scripts/patch-architecture-relations.py"
       - ".github/workflows/implement-architecture-relations.yml"
 
 permissions:
@@ -22,7 +23,9 @@ jobs:
           node-version: 22.12.0
           cache: npm
       - name: Apply implementation
-        run: python scripts/implement-architecture-relations.py
+        run: |
+          python scripts/implement-architecture-relations.py
+          python scripts/patch-architecture-relations.py
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
@@ -34,6 +37,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add components/ArchitectureFlow.tsx lib/architecture-flow.ts lib/architecture-flow.test.ts e2e/core.e2e.ts docs/ARCHITECTURE_FLOW.md docs/TODO.md
-          git rm scripts/implement-architecture-relations.py .github/workflows/implement-architecture-relations.yml
+          git rm scripts/implement-architecture-relations.py scripts/patch-architecture-relations.py .github/workflows/implement-architecture-relations.yml
           git commit -m "Add architecture relation tracing"
           git push
