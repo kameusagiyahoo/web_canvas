@@ -127,7 +127,7 @@ import { NavigationGraph } from "@/components/NavigationGraph";
 import { ArchitectureFlowView } from "@/components/ArchitectureFlow";
 import { ProjectManager } from "@/components/ProjectManager";
 import { createNavigationRoute, editNavigationEdge } from "@/lib/navigation-graph-edit";
-import { addArchitectureAction, addArchitectureApi, connectArchitectureNodes, deleteArchitectureAction, deleteArchitectureApi, deleteArchitectureEdge, renameArchitectureAction, updateArchitectureApi } from "@/lib/architecture-flow";
+import { addArchitectureAction, addArchitectureApi, connectArchitectureNodes, deleteArchitectureAction, deleteArchitectureApi, deleteArchitectureEdge, duplicateArchitectureNode, renameArchitectureAction, updateArchitectureApi, updateArchitectureEdgeLabel } from "@/lib/architecture-flow";
 import { createLocalProject, deleteProject as deleteLocalProject, duplicateProject as duplicateLocalProject, readActiveProjectId, readProjectLibrary, renameProject as renameLocalProject, saveProjectSnapshot, upsertProject, writeActiveProjectId, writeProjectLibrary, type ProjectLibrary, type LocalProject } from "@/lib/project-library";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
@@ -2064,8 +2064,17 @@ const changeFrame = (f: FrameMode) => {
     commitArchitecture(updateArchitectureApi(architecture, id, patch));
   const deleteArchitectureApiNode = (id: string) =>
     commitArchitecture(deleteArchitectureApi(architecture, id));
+  const duplicateArchitectureSemanticNode = (endpoint: ArchitectureEndpoint) => {
+    if (endpoint.kind === "frame") return;
+    const source = architecture.nodes.find((node) => node.kind === endpoint.kind && node.id === endpoint.id);
+    if (!source) return;
+    const suffix = lang === "ja" ? " のコピー" : lang === "zh" ? " 副本" : lang === "ko" ? " 복사본" : " copy";
+    commitArchitecture(duplicateArchitectureNode(architecture, endpoint, uid(), `${source.name}${suffix}`));
+  };
   const connectArchitecture = (from: ArchitectureEndpoint, to: ArchitectureEndpoint, label: string) =>
     commitArchitecture(connectArchitectureNodes(architecture, { id: uid(), from, to, label }, framesRef.current));
+  const updateArchitectureLinkLabel = (id: string, label: string) =>
+    commitArchitecture(updateArchitectureEdgeLabel(architecture, id, label));
   const removeArchitectureEdge = (id: string) =>
     commitArchitecture(deleteArchitectureEdge(architecture, id));
 
@@ -3281,7 +3290,9 @@ const changeFrame = (f: FrameMode) => {
               onAddApi={addArchitectureApiNode}
               onUpdateApi={updateArchitectureApiNode}
               onDeleteApi={deleteArchitectureApiNode}
+              onDuplicateNode={duplicateArchitectureSemanticNode}
               onConnect={connectArchitecture}
+              onUpdateEdgeLabel={updateArchitectureLinkLabel}
               onDeleteEdge={removeArchitectureEdge}
             />
           )}

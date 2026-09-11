@@ -626,6 +626,50 @@ test("architecture graph search and kind filters focus nodes without mutating th
 
 
 
+test("architecture node duplication and edge label editing use normal undo history", async ({ page }) => {
+  await openSeeded(page);
+  await page.getByTitle("App architecture").click();
+  let architecture = page.getByTestId("architecture-flow");
+
+  await architecture.getByTestId("architecture-action-name").fill("Validate login");
+  await architecture.getByTestId("architecture-add-action").click();
+  let actionNode = architecture.locator('[data-testid^="architecture-graph-node-action-"]').filter({ hasText: "Validate login" }).first();
+  await actionNode.click();
+  await architecture.getByTestId("architecture-duplicate-focused-node").click();
+  await expect(architecture.getByText("Validate login copy", { exact: true })).toHaveCount(2);
+  await expect.poll(() => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    return raw ? JSON.parse(raw).architecture?.nodes?.filter((node: { kind?: string }) => node.kind === "action").length ?? 0 : 0;
+  })).toBe(2);
+
+  await architecture.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByTitle("Undo").click();
+  await page.getByTitle("App architecture").click();
+  architecture = page.getByTestId("architecture-flow");
+  await expect(architecture.getByText("Validate login copy", { exact: true })).toHaveCount(0);
+
+  actionNode = architecture.locator('[data-testid^="architecture-graph-node-action-"]').filter({ hasText: "Validate login" });
+  await architecture.getByTestId("architecture-connect-mode").click();
+  await architecture.getByTestId("architecture-graph-node-frame-home").click();
+  await actionNode.click();
+  await architecture.getByTestId("architecture-connect-mode").click();
+  await architecture.locator('[data-testid^="architecture-edit-edge-"]').first().click();
+  await architecture.getByTestId("architecture-edge-label-editor").fill("submit credentials");
+  await architecture.getByTestId("architecture-save-edge-label").click();
+  await expect.poll(() => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    return raw ? JSON.parse(raw).architecture?.edges?.[0]?.label ?? "" : "";
+  })).toBe("submit credentials");
+
+  await architecture.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByTitle("Undo").click();
+  await expect.poll(() => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    return raw ? JSON.parse(raw).architecture?.edges?.[0]?.label ?? "" : "";
+  })).toBe("");
+});
+
+
 test("architecture graph viewport controls are view-only", async ({ page }) => {
   await openSeeded(page);
   await page.getByTitle("App architecture").click();

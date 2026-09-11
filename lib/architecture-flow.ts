@@ -62,6 +62,25 @@ export function updateArchitectureApi(
   return { ...flow, nodes };
 }
 
+export function duplicateArchitectureNode(
+  flow: ArchitectureFlow,
+  endpoint: ArchitectureEndpoint,
+  newId: string,
+  newName: string,
+): ArchitectureFlow {
+  if (endpoint.kind === "frame") return flow;
+  const source = flow.nodes.find((node) => node.kind === endpoint.kind && node.id === endpoint.id);
+  const id = newId.trim();
+  const name = newName.trim();
+  if (!source || !id || !name || flow.nodes.some((node) => node.id === id)) return flow;
+  return {
+    ...flow,
+    // Duplicate only the semantic node. Connections are intentionally not copied,
+    // because duplicating topology would silently invent app behavior.
+    nodes: [...flow.nodes, { ...source, id, name }],
+  };
+}
+
 export function deleteArchitectureApi(flow: ArchitectureFlow, id: string): ArchitectureFlow {
   if (!flow.nodes.some((node) => node.kind === "api" && node.id === id)) return flow;
   return {
@@ -127,6 +146,21 @@ export function connectArchitectureNodes(
     ...flow,
     edges: [...flow.edges, { ...edge, label: label || undefined }],
   };
+}
+
+export function updateArchitectureEdgeLabel(
+  flow: ArchitectureFlow,
+  id: string,
+  label: string,
+): ArchitectureFlow {
+  const index = flow.edges.findIndex((edge) => edge.id === id);
+  if (index < 0) return flow;
+  const nextLabel = label.trim() || undefined;
+  const current = flow.edges[index];
+  if (current.label === nextLabel) return flow;
+  const edges = [...flow.edges];
+  edges[index] = { ...current, label: nextLabel };
+  return { ...flow, edges };
 }
 
 export function deleteArchitectureEdge(

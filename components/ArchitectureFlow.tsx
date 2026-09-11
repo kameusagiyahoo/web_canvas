@@ -43,7 +43,9 @@ export function ArchitectureFlowView({
   onAddApi,
   onUpdateApi,
   onDeleteApi,
+  onDuplicateNode,
   onConnect,
+  onUpdateEdgeLabel,
   onDeleteEdge,
 }: {
   flow: ArchitectureFlow;
@@ -56,7 +58,9 @@ export function ArchitectureFlowView({
   onAddApi: (name: string, method: ArchitectureHttpMethod, path: string) => void;
   onUpdateApi: (id: string, patch: Partial<Pick<ArchitectureApiNode, "name" | "method" | "path">>) => void;
   onDeleteApi: (id: string) => void;
+  onDuplicateNode: (endpoint: ArchitectureEndpoint) => void;
   onConnect: (from: ArchitectureEndpoint, to: ArchitectureEndpoint, label: string) => void;
+  onUpdateEdgeLabel: (id: string, label: string) => void;
   onDeleteEdge: (id: string) => void;
 }) {
   const lang = useLang();
@@ -83,6 +87,8 @@ export function ArchitectureFlowView({
     pickSource: lang === "ja" ? "開始ノードを選択してください" : "Choose a source node",
     pickTarget: lang === "ja" ? "接続先ノードを選択してください" : "Choose a target node",
     selectedLink: lang === "ja" ? "選択した接続" : "Selected link",
+    editLinkLabel: lang === "ja" ? "接続ラベルを編集" : "Edit link label",
+    saveLinkLabel: lang === "ja" ? "ラベルを保存" : "Save label",
     deleteLink: lang === "ja" ? "接続を削除" : "Delete link",
     diagnostics: lang === "ja" ? "診断" : "Diagnostics",
     diagnosticsHint: lang === "ja" ? "Action/APIの接続漏れ・API重複・循環・削除済みノードを参照する壊れた接続を検出します。" : "Detect Action/API connectivity problems, duplicate API endpoints, cycles, and links that reference deleted endpoints.",
@@ -98,6 +104,8 @@ export function ArchitectureFlowView({
     apiPath: lang === "ja" ? "パス（例: /api/login）" : "Path (e.g. /api/login)",
     editApi: lang === "ja" ? "APIを編集" : "Edit API",
     deleteApi: lang === "ja" ? "APIを削除" : "Delete API",
+    editDetails: lang === "ja" ? "詳細を編集" : "Edit details",
+    duplicateNode: lang === "ja" ? "複製" : "Duplicate",
     rename: lang === "ja" ? "Action名を変更" : "Rename Action",
     deleteAction: lang === "ja" ? "Actionを削除" : "Delete Action",
     source: lang === "ja" ? "開始" : "From",
@@ -119,6 +127,7 @@ export function ArchitectureFlowView({
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [label, setLabel] = useState("");
+  const [edgeLabelDraft, setEdgeLabelDraft] = useState("");
   const [connectMode, setConnectMode] = useState(false);
   const [graphSource, setGraphSource] = useState<ArchitectureEndpoint | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
@@ -153,6 +162,7 @@ export function ArchitectureFlowView({
     return endpoint ? traceArchitectureRelations(frames, flow, endpoint) : null;
   }, [flow, frames, highlightedEndpointKey]);
   const relationshipLabel = relationshipTrace ? labels.get(relationshipTrace.focusKey) ?? relationshipTrace.focusKey : null;
+  const relationshipEndpoint = relationshipTrace ? parseEndpoint(relationshipTrace.focusKey) : null;
   const selectedEdge = flow.edges.find((edge) => edge.id === selectedEdgeId) ?? null;
   const actionNodes = useMemo(() => flow.nodes.filter((node) => node.kind === "action"), [flow.nodes]);
   const apiNodes = useMemo(() => flow.nodes.filter((node) => node.kind === "api"), [flow.nodes]);
@@ -171,6 +181,10 @@ export function ArchitectureFlowView({
       setSelectedEdgeId(null);
     }
   }, [flow.edges, selectedEdgeId]);
+
+  useEffect(() => {
+    setEdgeLabelDraft(selectedEdge?.label ?? "");
+  }, [selectedEdgeId, selectedEdge?.label]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -279,6 +293,16 @@ export function ArchitectureFlowView({
     );
     if (sourceKey !== targetKey && !duplicate) onConnect(graphSource, endpoint, "");
     setGraphSource(null);
+  };
+
+  const focusDetailEditor = (endpoint: ArchitectureEndpoint) => {
+    if (endpoint.kind === "frame") return;
+    const cardElement = document.querySelector(`[data-testid="architecture-${endpoint.kind}-${endpoint.id}"]`) as HTMLElement | null;
+    cardElement?.scrollIntoView({ behavior: "smooth", block: "center" });
+    requestAnimationFrame(() => {
+      const edit = document.querySelector(`[data-testid="architecture-${endpoint.kind}-edit-${endpoint.id}"]`) as HTMLElement | null;
+      edit?.focus({ preventScroll: true });
+    });
   };
 
   const diagnosticMessage = (kind: string, name: string, missingName?: string) => {
@@ -451,17 +475,33 @@ export function ArchitectureFlowView({
                 <span style={{ fontSize: 12, fontWeight: 850 }}>{copy.relationFocus}: {relationshipLabel}</span>
                 <span data-testid="architecture-relation-upstream-count" style={{ fontSize: 11, fontWeight: 800, color: p.onTertiaryContainer, background: p.tertiaryContainer, borderRadius: 12, padding: "4px 8px" }}>{copy.relationUpstream} {relationshipTrace.upstreamNodeKeys.size}</span>
                 <span data-testid="architecture-relation-downstream-count" style={{ fontSize: 11, fontWeight: 800, color: p.onPrimaryContainer, background: p.primaryContainer, borderRadius: 12, padding: "4px 8px" }}>{copy.relationDownstream} {relationshipTrace.downstreamNodeKeys.size}</span>
+                {relationshipEndpoint && relationshipEndpoint.kind !== "frame" && (
+                  <>
+                    <button type="button" data-testid="architecture-edit-focused-node" onClick={() => focusDetailEditor(relationshipEndpoint)} className="m3-press" style={{ minHeight: 32, border: `1px solid ${p.outlineVariant}`, borderRadius: 16, background: p.surface, color: p.onSurface, padding: "0 10px", fontWeight: 800, cursor: "pointer" }}>{copy.editDetails}</button>
+                    <button type="button" data-testid="architecture-duplicate-focused-node" onClick={() => onDuplicateNode(relationshipEndpoint)} className="m3-press" style={{ minHeight: 32, border: `1px solid ${p.outlineVariant}`, borderRadius: 16, background: p.secondaryContainer, color: p.onSecondaryContainer, padding: "0 10px", fontWeight: 800, cursor: "pointer" }}>{copy.duplicateNode}</button>
+                  </>
+                )}
                 <button type="button" data-testid="architecture-clear-relation-focus" onClick={() => setHighlightedEndpointKey(null)} className="m3-press" style={{ marginLeft: "auto", minHeight: 32, border: `1px solid ${p.outlineVariant}`, borderRadius: 16, background: p.surface, color: p.onSurfaceVariant, padding: "0 10px", fontWeight: 800, cursor: "pointer" }}>{copy.clearRelation}</button>
               </div>
             )}
 
             {(connectMode || selectedEdge) && (
-              <div data-testid={selectedEdge ? "architecture-graph-edge-editor" : "architecture-connect-status"} style={{ minHeight: 44, padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, borderBottom: `1px solid ${p.outlineVariant}`, background: p.surface }}>
+              <div data-testid={selectedEdge ? "architecture-graph-edge-editor" : "architecture-connect-status"} style={{ minHeight: 44, padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", borderBottom: `1px solid ${p.outlineVariant}`, background: p.surface }}>
                 {selectedEdge ? (
                   <>
                     <Icon name="link" size={19} />
-                    <span style={{ fontSize: 12, fontWeight: 800 }}>{copy.selectedLink}: {labels.get(architectureEndpointKey(selectedEdge.from)) ?? architectureEndpointKey(selectedEdge.from)} → {labels.get(architectureEndpointKey(selectedEdge.to)) ?? architectureEndpointKey(selectedEdge.to)}</span>
-                    <button type="button" onClick={() => { onDeleteEdge(selectedEdge.id); setSelectedEdgeId(null); }} className="m3-press" style={{ marginLeft: "auto", minHeight: 34, border: "none", borderRadius: 17, padding: "0 11px", background: p.errorContainer, color: p.onErrorContainer, fontWeight: 800, cursor: "pointer" }}>{copy.deleteLink}</button>
+                    <span style={{ fontSize: 12, fontWeight: 800, flex: "1 1 260px" }}>{copy.selectedLink}: {labels.get(architectureEndpointKey(selectedEdge.from)) ?? architectureEndpointKey(selectedEdge.from)} → {labels.get(architectureEndpointKey(selectedEdge.to)) ?? architectureEndpointKey(selectedEdge.to)}</span>
+                    <input
+                      data-testid="architecture-edge-label-editor"
+                      value={edgeLabelDraft}
+                      onChange={(event) => setEdgeLabelDraft(event.target.value)}
+                      onKeyDown={(event) => { if (event.key === "Enter") onUpdateEdgeLabel(selectedEdge.id, edgeLabelDraft); }}
+                      aria-label={copy.editLinkLabel}
+                      placeholder={copy.label}
+                      style={{ flex: "1 1 180px", minWidth: 150, height: 34, borderRadius: 17, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit" }}
+                    />
+                    <button type="button" data-testid="architecture-save-edge-label" onClick={() => onUpdateEdgeLabel(selectedEdge.id, edgeLabelDraft)} disabled={(selectedEdge.label ?? "") === edgeLabelDraft.trim()} className="m3-press" style={{ minHeight: 34, border: "none", borderRadius: 17, padding: "0 11px", background: p.primaryContainer, color: p.onPrimaryContainer, fontWeight: 800, cursor: (selectedEdge.label ?? "") === edgeLabelDraft.trim() ? "default" : "pointer", opacity: (selectedEdge.label ?? "") === edgeLabelDraft.trim() ? 0.5 : 1 }}>{copy.saveLinkLabel}</button>
+                    <button type="button" onClick={() => { onDeleteEdge(selectedEdge.id); setSelectedEdgeId(null); }} className="m3-press" style={{ minHeight: 34, border: "none", borderRadius: 17, padding: "0 11px", background: p.errorContainer, color: p.onErrorContainer, fontWeight: 800, cursor: "pointer" }}>{copy.deleteLink}</button>
                   </>
                 ) : (
                   <>
@@ -670,7 +710,8 @@ export function ArchitectureFlowView({
                     <div style={{ fontSize: 10, fontWeight: 900, color: p.primary }}>{copy.actionBadge}</div>
                     <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
                       <div style={{ flex: 1, minWidth: 0, fontWeight: 850, overflow: "hidden", textOverflow: "ellipsis" }}>{node.name}</div>
-                      <button type="button" onClick={() => { const next = window.prompt(copy.rename, node.name); if (next !== null) onRenameAction(node.id, next); }} aria-label={copy.rename} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: "inherit", cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="edit" size={18} /></button>
+                      <button type="button" data-testid={`architecture-action-edit-${node.id}`} onClick={() => { const next = window.prompt(copy.rename, node.name); if (next !== null) onRenameAction(node.id, next); }} aria-label={copy.rename} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: "inherit", cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="edit" size={18} /></button>
+                      <button type="button" data-testid={`architecture-action-duplicate-${node.id}`} onClick={() => onDuplicateNode({ kind: "action", id: node.id })} aria-label={copy.duplicateNode} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: "inherit", cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="content_copy" size={18} /></button>
                       <button type="button" onClick={() => { if (window.confirm(copy.confirmDelete)) onDeleteAction(node.id); }} aria-label={copy.deleteAction} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: p.errorContainer, color: p.onErrorContainer, cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="delete" size={18} /></button>
                     </div>
                   </div>
@@ -706,7 +747,8 @@ export function ArchitectureFlowView({
                     <div style={{ marginTop: 5, fontWeight: 850 }}>{node.name}</div>
                     <div style={{ marginTop: 3, fontSize: 12, fontFamily: "monospace", overflowWrap: "anywhere" }}>{node.path}</div>
                     <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                      <button type="button" onClick={() => { const nextName = window.prompt(copy.apiName, node.name); if (nextName === null) return; const nextPath = window.prompt(copy.apiPath, node.path); if (nextPath !== null) onUpdateApi(node.id, { name: nextName, path: nextPath }); }} aria-label={copy.editApi} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: "inherit", cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="edit" size={18} /></button>
+                      <button type="button" data-testid={`architecture-api-edit-${node.id}`} onClick={() => { const nextName = window.prompt(copy.apiName, node.name); if (nextName === null) return; const nextPath = window.prompt(copy.apiPath, node.path); if (nextPath !== null) onUpdateApi(node.id, { name: nextName, path: nextPath }); }} aria-label={copy.editApi} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: "inherit", cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="edit" size={18} /></button>
+                      <button type="button" data-testid={`architecture-api-duplicate-${node.id}`} onClick={() => onDuplicateNode({ kind: "api", id: node.id })} aria-label={copy.duplicateNode} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: "inherit", cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="content_copy" size={18} /></button>
                       <button type="button" onClick={() => { if (window.confirm(copy.confirmDeleteApi)) onDeleteApi(node.id); }} aria-label={copy.deleteApi} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: p.errorContainer, color: p.onErrorContainer, cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="delete" size={18} /></button>
                     </div>
                   </div>
@@ -741,7 +783,8 @@ export function ArchitectureFlowView({
                     <Icon name="arrow_forward" size={20} />
                     <span style={{ fontWeight: 750 }}>{toLabel}</span>
                     {edge.label && <span style={{ fontSize: 12, color: p.onSurfaceVariant }}>· {edge.label}</span>}
-                    <button type="button" onClick={() => onDeleteEdge(edge.id)} aria-label={copy.deleteLink} className="m3-press" style={{ marginLeft: "auto", width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: p.error, cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="link_off" size={18} /></button>
+                    <button type="button" data-testid={`architecture-edit-edge-${edge.id}`} onClick={() => { setSelectedEdgeId(edge.id); setConnectMode(false); setGraphSource(null); setHighlightedEndpointKey(null); requestAnimationFrame(() => document.querySelector('[data-testid="architecture-graph-edge-editor"]')?.scrollIntoView({ behavior: "smooth", block: "nearest" })); }} aria-label={copy.editLinkLabel} className="m3-press" style={{ marginLeft: "auto", width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: p.primary, cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="edit" size={18} /></button>
+                    <button type="button" onClick={() => onDeleteEdge(edge.id)} aria-label={copy.deleteLink} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: p.error, cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="link_off" size={18} /></button>
                   </div>
                 );
               })}

@@ -9,8 +9,10 @@ import {
   deleteArchitectureApi,
   deleteArchitectureEdge,
   diagnoseArchitectureFlow,
+  duplicateArchitectureNode,
   renameArchitectureAction,
   updateArchitectureApi,
+  updateArchitectureEdgeLabel,
   layoutArchitectureGraph,
   traceArchitectureRelations,
 } from "./architecture-flow";
@@ -58,6 +60,47 @@ describe("architecture flow commands", () => {
         frames,
       ),
     ).toBe(connected);
+  });
+
+  it("duplicates semantic nodes without duplicating their connections", () => {
+    const flow: ArchitectureFlow = {
+      version: 1,
+      nodes: [
+        { id: "validate", kind: "action", name: "Validate", note: "check credentials" },
+        { id: "login", kind: "api", name: "Login API", method: "POST", path: "/api/login" },
+      ],
+      edges: [
+        { id: "home-validate", from: { kind: "frame", id: "home" }, to: { kind: "action", id: "validate" } },
+      ],
+    };
+
+    const actionCopy = duplicateArchitectureNode(flow, { kind: "action", id: "validate" }, "validate-copy", "Validate copy");
+    expect(actionCopy.nodes).toContainEqual({ id: "validate-copy", kind: "action", name: "Validate copy", note: "check credentials" });
+    expect(actionCopy.edges).toEqual(flow.edges);
+
+    const apiCopy = duplicateArchitectureNode(actionCopy, { kind: "api", id: "login" }, "login-copy", "Login API copy");
+    expect(apiCopy.nodes).toContainEqual({ id: "login-copy", kind: "api", name: "Login API copy", method: "POST", path: "/api/login" });
+    expect(apiCopy.edges).toEqual(flow.edges);
+    expect(duplicateArchitectureNode(apiCopy, { kind: "frame", id: "home" }, "screen-copy", "Home copy")).toBe(apiCopy);
+    expect(duplicateArchitectureNode(apiCopy, { kind: "action", id: "validate" }, "login-copy", "Collision")).toBe(apiCopy);
+  });
+
+  it("updates and clears a semantic link label without changing its endpoints", () => {
+    const flow: ArchitectureFlow = {
+      version: 1,
+      nodes: [{ id: "validate", kind: "action", name: "Validate" }],
+      edges: [{ id: "edge", from: { kind: "frame", id: "home" }, to: { kind: "action", id: "validate" }, label: "tap" }],
+    };
+    const updated = updateArchitectureEdgeLabel(flow, "edge", "  submit  ");
+    expect(updated.edges[0]).toEqual({
+      id: "edge",
+      from: { kind: "frame", id: "home" },
+      to: { kind: "action", id: "validate" },
+      label: "submit",
+    });
+    const cleared = updateArchitectureEdgeLabel(updated, "edge", "   ");
+    expect(cleared.edges[0].label).toBeUndefined();
+    expect(updateArchitectureEdgeLabel(cleared, "missing", "x")).toBe(cleared);
   });
 
   it("deleting an Action removes its incident architecture links", () => {
