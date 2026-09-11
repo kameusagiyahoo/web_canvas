@@ -46,11 +46,18 @@ export function ProjectManager({
     delete: lang === "ja" ? "削除" : lang === "zh" ? "删除" : lang === "ko" ? "삭제" : "Delete",
     export: lang === "ja" ? "ファイル保存" : lang === "zh" ? "导出文件" : lang === "ko" ? "파일 저장" : "Export file",
     import: lang === "ja" ? "ファイルから開く" : lang === "zh" ? "从文件打开" : lang === "ko" ? "파일에서 열기" : "Open file",
+    search: lang === "ja" ? "プロジェクトを検索" : lang === "zh" ? "搜索项目" : lang === "ko" ? "프로젝트 검색" : "Search projects",
+    noMatches: lang === "ja" ? "一致するプロジェクトはありません" : lang === "zh" ? "没有匹配的项目" : lang === "ko" ? "일치하는 프로젝트가 없습니다" : "No matching projects",
     empty: lang === "ja" ? "保存済みプロジェクトはありません" : lang === "zh" ? "没有已保存项目" : lang === "ko" ? "저장된 프로젝트가 없습니다" : "No saved projects yet",
     close: lang === "ja" ? "閉じる" : lang === "zh" ? "关闭" : lang === "ko" ? "닫기" : "Close",
     confirmDelete: lang === "ja" ? "このプロジェクトを削除しますか？" : lang === "zh" ? "删除此项目？" : lang === "ko" ? "이 프로젝트를 삭제할까요?" : "Delete this project?",
   };
   const sorted = useMemo(() => sortProjectsByUpdated(projects), [projects]);
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase();
+    return needle ? sorted.filter((project) => project.name.toLocaleLowerCase().includes(needle)) : sorted;
+  }, [query, sorted]);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
@@ -68,14 +75,21 @@ export function ProjectManager({
       <div style={{ padding: 14, display: "flex", gap: 8, flexWrap: "wrap", borderBottom: `1px solid ${p.outlineVariant}` }}>
         <button type="button" onClick={onCreate} data-testid="project-create" className="m3-press" style={{ minHeight: 44, border: "none", borderRadius: 22, padding: "0 16px", background: p.primary, color: p.onPrimary, fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}><Icon name="add" size={20} />{copy.newProject}</button>
         <button type="button" onClick={onImport} data-testid="project-import" className="m3-press" style={{ minHeight: 44, border: `1px solid ${p.outlineVariant}`, borderRadius: 22, padding: "0 16px", background: p.surface, color: p.onSurface, fontWeight: 750, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}><Icon name="upload" size={20} />{copy.import}</button>
+        <label style={{ flex: "1 1 220px", minWidth: "min(100%, 220px)", height: 44, border: `1px solid ${p.outlineVariant}`, borderRadius: 22, background: p.surface, color: p.onSurfaceVariant, display: "flex", alignItems: "center", gap: 8, padding: "0 13px" }}>
+          <Icon name="search" size={20} />
+          <input data-testid="project-search" value={query} onChange={(event) => setQuery(event.target.value)} aria-label={copy.search} placeholder={copy.search} style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", color: p.onSurface, font: "inherit" }} />
+          {query && <button type="button" onClick={() => setQuery("")} aria-label={lang === "ja" ? "検索をクリア" : "Clear search"} className="m3-press" style={{ width: 30, height: 30, border: "none", borderRadius: 15, background: "transparent", color: p.onSurfaceVariant, cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="close" size={17} /></button>}
+        </label>
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 14 }}>
         {!sorted.length ? (
           <div style={{ minHeight: 220, display: "grid", placeItems: "center", color: p.onSurfaceVariant }}>{copy.empty}</div>
+        ) : !filtered.length ? (
+          <div data-testid="project-search-empty" style={{ minHeight: 220, display: "grid", placeItems: "center", color: p.onSurfaceVariant }}>{copy.noMatches}</div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 12 }}>
-            {sorted.map((project) => {
+            {filtered.map((project) => {
               const active = project.id === activeProjectId;
               return (
                 <article key={project.id} data-testid={`project-card-${project.id}`} style={{ border: `1px solid ${active ? p.primary : p.outlineVariant}`, borderRadius: 22, padding: 14, background: active ? p.secondaryContainer : p.surfaceContainerLow, color: active ? p.onSecondaryContainer : p.onSurface }}>

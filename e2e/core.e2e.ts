@@ -416,6 +416,12 @@ test("local project library creates and switches independent projects", async ({
   await page.getByTitle("Projects").click();
   const reopened = page.getByTestId("project-manager");
   await expect(reopened.locator('[data-testid^="project-card-"]')).toHaveCount(2);
+  await reopened.getByTestId("project-search").fill("E2E demo");
+  await expect(reopened.locator('[data-testid^="project-card-"]')).toHaveCount(1);
+  await reopened.getByTestId("project-search").fill("does-not-exist");
+  await expect(reopened.getByTestId("project-search-empty")).toBeVisible();
+  await reopened.getByTestId("project-search").fill("");
+  await expect(reopened.locator('[data-testid^="project-card-"]')).toHaveCount(2);
   const original = reopened.locator('article').filter({ hasText: "E2E demo" });
   await original.getByRole("button", { name: "Open", exact: true }).click();
   await expect(reopened).toBeHidden();

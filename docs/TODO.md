@@ -121,6 +121,7 @@
 - [x] Extend Architecture Flow with a design-only `api` node (name, HTTP method, path) while keeping execution semantics out of the model.
 - [ ] Evaluate an `agent` or `database` architecture node only after real projects demonstrate the need; do not add execution semantics by default.
 - [x] Add a local-first multi-project library with create/open/rename/duplicate/delete and autosave.
+- [x] Add lightweight project-name search/filtering to Project Manager without changing project storage semantics.
 - [x] Save the current project synchronously before switching, restore its editor frame mode, and provide an explicit Save now action alongside autosave.
 - [x] Make Project Manager file import create a separate managed project instead of destructively replacing the active project.
 - [x] Preserve versioned JSON file import/export alongside the local project library; toolbar Open project intentionally retains replace-with-confirmation behavior.
