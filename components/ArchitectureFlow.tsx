@@ -70,7 +70,7 @@ export function ArchitectureFlowView({
     selectedLink: lang === "ja" ? "選択した接続" : "Selected link",
     deleteLink: lang === "ja" ? "接続を削除" : "Delete link",
     diagnostics: lang === "ja" ? "診断" : "Diagnostics",
-    diagnosticsHint: lang === "ja" ? "Actionの接続漏れ・循環・削除済みノードを参照する壊れた接続を検出します。" : "Detect Action flow problems, cycles, and links that reference deleted endpoints.",
+    diagnosticsHint: lang === "ja" ? "Action/APIの接続漏れ・API重複・循環・削除済みノードを参照する壊れた接続を検出します。" : "Detect Action/API connectivity problems, duplicate API endpoints, cycles, and links that reference deleted endpoints.",
     diagnosticsOk: lang === "ja" ? "Architecture Flowに問題は見つかりませんでした" : "No Architecture Flow problems found",
     screens: lang === "ja" ? "画面" : lang === "zh" ? "屏幕" : lang === "ko" ? "화면" : "Screens",
     actions: "Actions",
@@ -196,18 +196,22 @@ export function ArchitectureFlowView({
   const diagnosticMessage = (kind: string, name: string, missingName?: string) => {
     if (lang === "ja") {
       if (kind === "isolated-action") return `どこにも接続されていないAction: ${name}`;
+      if (kind === "isolated-api") return `どこにも接続されていないAPI: ${name}`;
+      if (kind === "duplicate-api-endpoint") return `同じメソッドとパスのAPIが複数あります: ${name}`;
       if (kind === "no-incoming-action") return `入口がないAction: ${name}`;
       if (kind === "no-outgoing-action") return `出口がないAction: ${name}`;
       if (kind === "missing-source-endpoint") return `接続元が見つからないリンク: ${missingName ?? name}`;
       if (kind === "missing-target-endpoint") return `接続先が見つからないリンク: ${missingName ?? name}`;
-      return `循環しているAction: ${name}`;
+      return `循環しているノード: ${name}`;
     }
     if (kind === "isolated-action") return `Action is not connected: ${name}`;
+    if (kind === "isolated-api") return `API is not connected: ${name}`;
+    if (kind === "duplicate-api-endpoint") return `Duplicate API method/path: ${name}`;
     if (kind === "no-incoming-action") return `Action has no incoming flow: ${name}`;
     if (kind === "no-outgoing-action") return `Action has no outgoing flow: ${name}`;
     if (kind === "missing-source-endpoint") return `Link source is missing: ${missingName ?? name}`;
     if (kind === "missing-target-endpoint") return `Link target is missing: ${missingName ?? name}`;
-    return `Action participates in a cycle: ${name}`;
+    return `Node participates in a cycle: ${name}`;
   };
 
   const focusDiagnostic = (diagnostic: (typeof diagnostics)[number]) => {

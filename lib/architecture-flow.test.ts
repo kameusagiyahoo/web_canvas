@@ -166,6 +166,46 @@ describe("architecture flow diagnostics", () => {
 });
 
 
+  it("reports isolated and duplicate API endpoints", () => {
+    const flow: ArchitectureFlow = {
+      version: 1,
+      nodes: [
+        { id: "users-a", kind: "api", name: "Users A", method: "GET", path: "/api/users" },
+        { id: "users-b", kind: "api", name: "Users B", method: "GET", path: "/api/users" },
+      ],
+      edges: [],
+    };
+    expect(diagnoseArchitectureFlow([], flow).map((item) => [item.kind, item.endpoint.id])).toEqual([
+      ["isolated-api", "users-a"],
+      ["isolated-api", "users-b"],
+      ["duplicate-api-endpoint", "users-a"],
+      ["duplicate-api-endpoint", "users-b"],
+    ]);
+  });
+
+  it("marks API nodes that participate in a directed cycle", () => {
+    const flow: ArchitectureFlow = {
+      version: 1,
+      nodes: [
+        { id: "action", kind: "action", name: "Action" },
+        { id: "api", kind: "api", name: "API", method: "POST", path: "/api/run" },
+      ],
+      edges: [
+        { id: "to-api", from: { kind: "action", id: "action" }, to: { kind: "api", id: "api" } },
+        { id: "to-action", from: { kind: "api", id: "api" }, to: { kind: "action", id: "action" } },
+      ],
+    };
+    expect(
+      diagnoseArchitectureFlow([], flow)
+        .filter((item) => item.kind === "cycle")
+        .map((item) => [item.endpoint.kind, item.endpoint.id]),
+    ).toEqual([
+      ["action", "action"],
+      ["api", "api"],
+    ]);
+  });
+
+
 describe("architecture graph layout", () => {
   it("places a Screen → Action → Screen chain in successive columns", () => {
     const chainFrames: Frame[] = [

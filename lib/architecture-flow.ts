@@ -161,8 +161,10 @@ export function architectureEndpointOptions(
 
 export type ArchitectureDiagnosticKind =
   | "isolated-action"
+  | "isolated-api"
   | "no-incoming-action"
   | "no-outgoing-action"
+  | "duplicate-api-endpoint"
   | "cycle"
   | "missing-source-endpoint"
   | "missing-target-endpoint";
@@ -181,7 +183,7 @@ export type ArchitectureDiagnostic = {
 /**
  * Derive architecture problems without mutating or normalizing the model.
  * Broken semantic links are preserved as explicit diagnostics instead of being silently deleted,
- * while Action-level connectivity and cycle checks only use edges whose endpoints still exist.
+ * while semantic-node connectivity and cycle checks only use edges whose endpoints still exist.
  */
 export function diagnoseArchitectureFlow(
   frames: readonly Frame[],
@@ -306,6 +308,48 @@ export function diagnoseArchitectureFlow(
         kind: "cycle",
         severity: "warning",
         endpoint,
+      });
+    }
+  }
+
+  const apiNodes = flow.nodes.filter((node): node is ArchitectureApiNode => node.kind === "api");
+  const apiSignatures = new Map<string, ArchitectureApiNode[]>();
+  for (const api of apiNodes) {
+    const endpoint: ArchitectureEndpoint = { kind: "api", id: api.id };
+    const key = architectureEndpointKey(endpoint);
+    const incomingCount = incoming.get(key) ?? 0;
+    const outgoingCount = outgoing.get(key)?.length ?? 0;
+
+    if (incomingCount === 0 && outgoingCount === 0) {
+      diagnostics.push({
+        id: `isolated-api-${api.id}`,
+        kind: "isolated-api",
+        severity: "error",
+        endpoint,
+      });
+    }
+
+    if (cycleKeys.has(key)) {
+      diagnostics.push({
+        id: `cycle-${api.id}`,
+        kind: "cycle",
+        severity: "warning",
+        endpoint,
+      });
+    }
+
+    const signature = `${api.method} ${api.path}`;
+    apiSignatures.set(signature, [...(apiSignatures.get(signature) ?? []), api]);
+  }
+
+  for (const duplicates of apiSignatures.values()) {
+    if (duplicates.length < 2) continue;
+    for (const api of duplicates) {
+      diagnostics.push({
+        id: `duplicate-api-endpoint-${api.id}`,
+        kind: "duplicate-api-endpoint",
+        severity: "warning",
+        endpoint: { kind: "api", id: api.id },
       });
     }
   }

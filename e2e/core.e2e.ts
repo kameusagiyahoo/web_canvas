@@ -557,3 +557,27 @@ test("architecture API nodes are design-only and participate in undo", async ({ 
     return raw ? JSON.parse(raw).architecture?.edges?.length ?? 0 : 0;
   })).toBe(0);
 });
+
+
+
+test("architecture API diagnostics identify isolated duplicate endpoints without mutating the document", async ({ page }) => {
+  await openSeeded(page);
+  await page.getByTitle("App architecture").click();
+  const architecture = page.getByTestId("architecture-flow");
+
+  const addApi = async (name: string) => {
+    await architecture.getByTestId("architecture-api-method").selectOption("GET");
+    await architecture.getByTestId("architecture-api-path").fill("/api/health");
+    await architecture.getByTestId("architecture-api-name").fill(name);
+    await architecture.getByTestId("architecture-add-api").click();
+  };
+  await addApi("Health A");
+  await addApi("Health B");
+
+  await expect(architecture.getByTestId("architecture-diagnostic-count")).toHaveText("4");
+  const before = await page.evaluate(() => localStorage.getItem("m3e:doc"));
+  const apiNode = architecture.locator('[data-testid^="architecture-graph-node-api-"]').filter({ hasText: "Health A" });
+  await architecture.getByRole("button", { name: /API is not connected: GET \/api\/health · Health A/ }).click();
+  await expect(apiNode).toBeFocused();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(before);
+});
