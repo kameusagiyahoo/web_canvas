@@ -520,3 +520,34 @@ test("architecture visual graph creates semantic links and participates in undo"
   await page.getByTitle("Undo").click();
   await expect.poll(storedEdgeCount).toBe(0);
 });
+
+
+test("architecture API nodes are design-only and participate in undo", async ({ page }) => {
+  await openSeeded(page);
+  await page.getByTitle("App architecture").click();
+  const architecture = page.getByTestId("architecture-flow");
+  await architecture.getByTestId("architecture-api-method").selectOption("POST");
+  await architecture.getByTestId("architecture-api-path").fill("/api/login");
+  await architecture.getByTestId("architecture-api-name").fill("Login API");
+  await architecture.getByTestId("architecture-add-api").click();
+
+  const apiNode = architecture.locator('[data-testid^="architecture-graph-node-api-"]').filter({ hasText: "Login API" });
+  await expect(apiNode).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    const node = raw ? JSON.parse(raw).architecture?.nodes?.find((item: { kind?: string }) => item.kind === "api") : null;
+    return node ? `${node.method} ${node.path} ${node.name}` : "";
+  })).toBe("POST /api/login Login API");
+
+  await architecture.getByTestId("architecture-connect-mode").click();
+  await architecture.getByTestId("architecture-graph-node-frame-home").click();
+  await apiNode.click();
+  await expect(architecture.locator('[data-testid^="architecture-graph-link-"]')).toHaveCount(1);
+
+  await architecture.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByTitle("Undo").click();
+  await expect.poll(() => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    return raw ? JSON.parse(raw).architecture?.edges?.length ?? 0 : 0;
+  })).toBe(0);
+});

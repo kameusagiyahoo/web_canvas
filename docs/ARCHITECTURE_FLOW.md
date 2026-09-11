@@ -7,7 +7,7 @@ The Architecture Flow is a semantic layer for describing what the app does betwe
 - Screen nodes are always derived from `Doc.frames`; they are never duplicated in architecture state.
 - Existing UI navigation remains derived from `Item.action`, `Item.actions`, and `Frame.swipe`.
 - `Doc.architecture` stores only semantic architecture nodes/links that cannot be inferred from the visual editor.
-- The first persisted semantic node kind is `action`.
+- Persisted semantic node kinds are `action` and design-only `api`.
 - Architecture links are descriptive today; they do **not** change Preview navigation or invent hidden UI behavior.
 
 This keeps one source of truth for screens/navigation while creating a safe extension point for later `api`, `agent`, or `database` nodes.
@@ -21,20 +21,24 @@ Screen (derived from Frame)
 Action (persisted semantic node)
        |
        v
-Screen / Action
+API (design-only semantic node)
+       |
+       v
+Screen / Action / API
 ```
 
 `ArchitectureFlow` is additive and versioned independently inside the document:
 
 - `version: 1`
-- `nodes`: Action nodes
-- `edges`: semantic links whose endpoints reference either a Frame or Action
+- `nodes`: Action and API nodes
+- `edges`: semantic links whose endpoints reference a Frame, Action, or API
+- API nodes store a display name, HTTP method, and path only; they never execute network requests
 
 No manual graph coordinates are persisted. Layout remains a UI concern until real projects demonstrate a need for pinned positions.
 
 ## Visual graph
 
-The editor now renders the combined Screen + Action model as a deterministic flow diagram. Screen nodes remain derived from `Frame`; Action nodes remain the only persisted semantic nodes. The graph supports direct node-to-node connection mode and edge selection/deletion, while the detailed forms remain available for labeled links and Action management. Graph coordinates are still UI-only and are recalculated from the current topology.
+The editor now renders the combined Screen + Action + API model as a deterministic flow diagram. Screen nodes remain derived from `Frame`; Action and API nodes are persisted semantic nodes. The graph supports direct node-to-node connection mode and edge selection/deletion, while the detailed forms remain available for labeled links and Action management. Graph coordinates are still UI-only and are recalculated from the current topology.
 
 The same derived graph now exposes Action diagnostics for disconnected Actions, missing incoming flow, missing outgoing flow, and directed cycles. It also detects preserved semantic links whose source or target Screen/Action endpoint no longer exists. Action issues focus the affected node; broken-link issues select the preserved edge in the editor so the user can inspect or explicitly delete it. Merely selecting diagnostics never mutates project data.
 
@@ -51,4 +55,4 @@ Deleting an Action also deletes architecture links incident to that Action. Dele
 
 ## Next safe extension
 
-Use the visual Action flow and diagnostics in real projects first. Broken semantic endpoints are now detected without silently rewriting project data. The next model extension remains an `api` node, and execution semantics should still wait for a concrete use case. Do not make Architecture Flow a second source of truth for Screen navigation.
+Use the Screen → Action → API model in real projects before adding more node types. API nodes are intentionally descriptive only: no fetch, credentials, request body, response schema, or execution state is attached yet. A later `agent` or `database` node should only be added after a concrete design need appears. Do not make Architecture Flow a second source of truth for Screen navigation.

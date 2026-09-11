@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { ArchitectureFlow, Frame } from "./tokens";
 import {
   addArchitectureAction,
+  addArchitectureApi,
   architectureEndpointOptions,
   connectArchitectureNodes,
   deleteArchitectureAction,
+  deleteArchitectureApi,
   deleteArchitectureEdge,
   diagnoseArchitectureFlow,
   renameArchitectureAction,
+  updateArchitectureApi,
   layoutArchitectureGraph,
 } from "./architecture-flow";
 
@@ -20,6 +23,19 @@ describe("architecture flow commands", () => {
     expect(added.nodes).toEqual([{ id: "load", kind: "action", name: "Load profile" }]);
     const renamed = renameArchitectureAction(added, "load", "Fetch profile");
     expect(renamed.nodes[0].name).toBe("Fetch profile");
+  });
+
+  it("adds, updates and deletes design-only API nodes", () => {
+    const added = addArchitectureApi(empty(), { id: "login", kind: "api", name: " Login API ", method: "POST", path: " /api/login " });
+    expect(added.nodes).toEqual([{ id: "login", kind: "api", name: "Login API", method: "POST", path: "/api/login" }]);
+    expect(architectureEndpointOptions(frames, added).map((item) => [item.endpoint.kind, item.label])).toContainEqual(["api", "POST /api/login · Login API"]);
+    const updated = updateArchitectureApi(added, "login", { method: "PATCH", path: "/api/session" });
+    expect(updated.nodes[0]).toMatchObject({ kind: "api", method: "PATCH", path: "/api/session" });
+    const linked = connectArchitectureNodes(updated, { id: "to-api", from: { kind: "frame", id: "home" }, to: { kind: "api", id: "login" } }, frames);
+    expect(linked.edges).toHaveLength(1);
+    const deleted = deleteArchitectureApi(linked, "login");
+    expect(deleted.nodes).toEqual([]);
+    expect(deleted.edges).toEqual([]);
   });
 
   it("connects known screen/action endpoints and rejects duplicate or self links", () => {

@@ -1431,7 +1431,7 @@ export const isPlatform = (v: unknown): v is Platform => v === "android" || v ==
  *  soon as a desktop screen exists, Android otherwise. */
 export const defaultPlatformOf = (frames: Frame[], mode: FrameMode): Platform => (mode === "phone" && frames.some((f) => !isPhoneFrame(f)) ? "web" : DEFAULT_PLATFORM);
 
-export type ArchitectureNodeKind = "action";
+export type ArchitectureNodeKind = "action" | "api";
 
 export type ArchitectureActionNode = {
   id: string;
@@ -1439,6 +1439,20 @@ export type ArchitectureActionNode = {
   name: string;
   note?: string;
 };
+
+export type ArchitectureHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+/** Design-only API endpoint. It describes an integration; it never executes a request. */
+export type ArchitectureApiNode = {
+  id: string;
+  kind: "api";
+  name: string;
+  method: ArchitectureHttpMethod;
+  path: string;
+  note?: string;
+};
+
+export type ArchitectureNode = ArchitectureActionNode | ArchitectureApiNode;
 
 export type ArchitectureEndpointKind = "frame" | ArchitectureNodeKind;
 
@@ -1456,7 +1470,7 @@ export type ArchitectureEdge = {
 
 export type ArchitectureFlow = {
   version: 1;
-  nodes: ArchitectureActionNode[];
+  nodes: ArchitectureNode[];
   edges: ArchitectureEdge[];
 };
 

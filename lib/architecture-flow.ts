@@ -1,5 +1,6 @@
 import type {
   ArchitectureActionNode,
+  ArchitectureApiNode,
   ArchitectureEdge,
   ArchitectureEndpoint,
   ArchitectureFlow,
@@ -15,7 +16,7 @@ export function architectureEndpointExists(
   flow: ArchitectureFlow,
 ): boolean {
   if (endpoint.kind === "frame") return frames.some((frame) => frame.id === endpoint.id);
-  return flow.nodes.some((node) => node.id === endpoint.id);
+  return flow.nodes.some((node) => node.kind === endpoint.kind && node.id === endpoint.id);
 }
 
 export function addArchitectureAction(
@@ -27,6 +28,50 @@ export function addArchitectureAction(
   return {
     ...flow,
     nodes: [...flow.nodes, { ...action, name }],
+  };
+}
+
+export function addArchitectureApi(
+  flow: ArchitectureFlow,
+  api: ArchitectureApiNode,
+): ArchitectureFlow {
+  const name = api.name.trim();
+  const path = api.path.trim();
+  if (!name || !path || flow.nodes.some((node) => node.kind === "api" && node.id === api.id)) return flow;
+  return { ...flow, nodes: [...flow.nodes, { ...api, name, path }] };
+}
+
+export function updateArchitectureApi(
+  flow: ArchitectureFlow,
+  id: string,
+  patch: Partial<Pick<ArchitectureApiNode, "name" | "method" | "path" | "note">>,
+): ArchitectureFlow {
+  const index = flow.nodes.findIndex((node) => node.kind === "api" && node.id === id);
+  if (index < 0) return flow;
+  const current = flow.nodes[index] as ArchitectureApiNode;
+  const next = {
+    ...current,
+    ...patch,
+    name: patch.name === undefined ? current.name : patch.name.trim(),
+    path: patch.path === undefined ? current.path : patch.path.trim(),
+  };
+  if (!next.name || !next.path) return flow;
+  if (JSON.stringify(current) === JSON.stringify(next)) return flow;
+  const nodes = [...flow.nodes];
+  nodes[index] = next;
+  return { ...flow, nodes };
+}
+
+export function deleteArchitectureApi(flow: ArchitectureFlow, id: string): ArchitectureFlow {
+  if (!flow.nodes.some((node) => node.kind === "api" && node.id === id)) return flow;
+  return {
+    ...flow,
+    nodes: flow.nodes.filter((node) => !(node.kind === "api" && node.id === id)),
+    edges: flow.edges.filter(
+      (edge) =>
+        !(edge.from.kind === "api" && edge.from.id === id) &&
+        !(edge.to.kind === "api" && edge.to.id === id),
+    ),
   };
 }
 
@@ -107,8 +152,8 @@ export function architectureEndpointOptions(
       label: frame.name || "Screen",
     })),
     ...flow.nodes.map((node) => ({
-      endpoint: { kind: "action" as const, id: node.id },
-      label: node.name,
+      endpoint: { kind: node.kind, id: node.id },
+      label: node.kind === "api" ? `${node.method} ${node.path} · ${node.name}` : node.name,
     })),
   ];
 }
@@ -223,7 +268,7 @@ export function diagnoseArchitectureFlow(
     }
   }
 
-  for (const action of flow.nodes) {
+  for (const action of flow.nodes.filter((node): node is ArchitectureActionNode => node.kind === "action")) {
     const endpoint: ArchitectureEndpoint = { kind: "action", id: action.id };
     const key = architectureEndpointKey(endpoint);
     const incomingCount = incoming.get(key) ?? 0;

@@ -12,8 +12,10 @@ import { AnimatePresence, motion, useReducedMotion, useSpring } from "motion/rea
 import { buildPrompt, effectivePrompt } from "@/lib/prompt";
 import {
   Action,
+  ArchitectureApiNode,
   ArchitectureEndpoint,
   ArchitectureFlow,
+  ArchitectureHttpMethod,
   emptyArchitectureFlow,
   actionsOf,
   Axis,
@@ -125,7 +127,7 @@ import { NavigationGraph } from "@/components/NavigationGraph";
 import { ArchitectureFlowView } from "@/components/ArchitectureFlow";
 import { ProjectManager } from "@/components/ProjectManager";
 import { createNavigationRoute, editNavigationEdge } from "@/lib/navigation-graph-edit";
-import { addArchitectureAction, connectArchitectureNodes, deleteArchitectureAction, deleteArchitectureEdge, renameArchitectureAction } from "@/lib/architecture-flow";
+import { addArchitectureAction, addArchitectureApi, connectArchitectureNodes, deleteArchitectureAction, deleteArchitectureApi, deleteArchitectureEdge, renameArchitectureAction, updateArchitectureApi } from "@/lib/architecture-flow";
 import { createLocalProject, deleteProject as deleteLocalProject, duplicateProject as duplicateLocalProject, readActiveProjectId, readProjectLibrary, renameProject as renameLocalProject, saveProjectSnapshot, upsertProject, writeActiveProjectId, writeProjectLibrary, type ProjectLibrary, type LocalProject } from "@/lib/project-library";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
@@ -2056,6 +2058,12 @@ const changeFrame = (f: FrameMode) => {
     commitArchitecture(renameArchitectureAction(architecture, id, name));
   const deleteArchitectureActionNode = (id: string) =>
     commitArchitecture(deleteArchitectureAction(architecture, id));
+  const addArchitectureApiNode = (name: string, method: ArchitectureHttpMethod, path: string) =>
+    commitArchitecture(addArchitectureApi(architecture, { id: uid(), kind: "api", name, method, path }));
+  const updateArchitectureApiNode = (id: string, patch: Partial<Pick<ArchitectureApiNode, "name" | "method" | "path">>) =>
+    commitArchitecture(updateArchitectureApi(architecture, id, patch));
+  const deleteArchitectureApiNode = (id: string) =>
+    commitArchitecture(deleteArchitectureApi(architecture, id));
   const connectArchitecture = (from: ArchitectureEndpoint, to: ArchitectureEndpoint, label: string) =>
     commitArchitecture(connectArchitectureNodes(architecture, { id: uid(), from, to, label }, framesRef.current));
   const removeArchitectureEdge = (id: string) =>
@@ -3270,6 +3278,9 @@ const changeFrame = (f: FrameMode) => {
               onAddAction={addArchitectureActionNode}
               onRenameAction={renameArchitectureActionNode}
               onDeleteAction={deleteArchitectureActionNode}
+              onAddApi={addArchitectureApiNode}
+              onUpdateApi={updateArchitectureApiNode}
+              onDeleteApi={deleteArchitectureApiNode}
               onConnect={connectArchitecture}
               onDeleteEdge={removeArchitectureEdge}
             />

@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type {
+  ArchitectureApiNode,
   ArchitectureEndpoint,
   ArchitectureFlow,
+  ArchitectureHttpMethod,
   Frame,
   Palette,
 } from "@/lib/tokens";
@@ -21,7 +23,7 @@ const parseEndpoint = (value: string): ArchitectureEndpoint | null => {
   if (colon <= 0) return null;
   const kind = value.slice(0, colon);
   const id = value.slice(colon + 1);
-  if (!id || (kind !== "frame" && kind !== "action")) return null;
+  if (!id || (kind !== "frame" && kind !== "action" && kind !== "api")) return null;
   return { kind, id } as ArchitectureEndpoint;
 };
 
@@ -36,6 +38,9 @@ export function ArchitectureFlowView({
   onAddAction,
   onRenameAction,
   onDeleteAction,
+  onAddApi,
+  onUpdateApi,
+  onDeleteApi,
   onConnect,
   onDeleteEdge,
 }: {
@@ -46,13 +51,16 @@ export function ArchitectureFlowView({
   onAddAction: (name: string) => void;
   onRenameAction: (id: string, name: string) => void;
   onDeleteAction: (id: string) => void;
+  onAddApi: (name: string, method: ArchitectureHttpMethod, path: string) => void;
+  onUpdateApi: (id: string, patch: Partial<Pick<ArchitectureApiNode, "name" | "method" | "path">>) => void;
+  onDeleteApi: (id: string) => void;
   onConnect: (from: ArchitectureEndpoint, to: ArchitectureEndpoint, label: string) => void;
   onDeleteEdge: (id: string) => void;
 }) {
   const lang = useLang();
   const copy = {
     title: lang === "ja" ? "アプリアーキテクチャ" : lang === "zh" ? "应用架构" : lang === "ko" ? "앱 아키텍처" : "App architecture",
-    subtitle: lang === "ja" ? "ScreenとActionの意味上の流れを可視化します" : lang === "zh" ? "可视化 Screen 与 Action 的语义流程" : lang === "ko" ? "Screen과 Action의 의미 흐름을 시각화합니다" : "Visualize the semantic flow between Screens and Actions",
+    subtitle: lang === "ja" ? "Screen・Action・APIの意味上の流れを可視化します" : lang === "zh" ? "可视化 Screen、Action 与 API 的语义流程" : lang === "ko" ? "Screen, Action, API의 의미 흐름을 시각화합니다" : "Visualize the semantic flow between Screens, Actions, and APIs",
     visual: lang === "ja" ? "フロー図" : lang === "zh" ? "流程图" : lang === "ko" ? "흐름도" : "Flow graph",
     graphHint: lang === "ja" ? "位置は自動配置です。ノード位置はプロジェクトには保存しません。" : "Layout is automatic and node positions are not stored in the project.",
     connectMode: lang === "ja" ? "グラフ上で接続" : "Connect on graph",
@@ -66,9 +74,15 @@ export function ArchitectureFlowView({
     diagnosticsOk: lang === "ja" ? "Architecture Flowに問題は見つかりませんでした" : "No Architecture Flow problems found",
     screens: lang === "ja" ? "画面" : lang === "zh" ? "屏幕" : lang === "ko" ? "화면" : "Screens",
     actions: "Actions",
+    apis: "APIs",
     links: lang === "ja" ? "意味上の接続" : lang === "zh" ? "语义连接" : lang === "ko" ? "의미 연결" : "Semantic links",
     addAction: lang === "ja" ? "Actionを追加" : lang === "zh" ? "添加Action" : lang === "ko" ? "Action 추가" : "Add Action",
     actionName: lang === "ja" ? "処理名（例: ログインを検証）" : "Action name (e.g. Validate login)",
+    addApi: lang === "ja" ? "APIを追加" : "Add API",
+    apiName: lang === "ja" ? "API名（例: ログインAPI）" : "API name (e.g. Login API)",
+    apiPath: lang === "ja" ? "パス（例: /api/login）" : "Path (e.g. /api/login)",
+    editApi: lang === "ja" ? "APIを編集" : "Edit API",
+    deleteApi: lang === "ja" ? "APIを削除" : "Delete API",
     rename: lang === "ja" ? "Action名を変更" : "Rename Action",
     deleteAction: lang === "ja" ? "Actionを削除" : "Delete Action",
     source: lang === "ja" ? "開始" : "From",
@@ -78,10 +92,15 @@ export function ArchitectureFlowView({
     none: lang === "ja" ? "まだありません" : "None yet",
     close: lang === "ja" ? "閉じる" : lang === "zh" ? "关闭" : lang === "ko" ? "닫기" : "Close",
     confirmDelete: lang === "ja" ? "このActionと接続を削除しますか？" : "Delete this Action and its links?",
+    confirmDeleteApi: lang === "ja" ? "このAPIと接続を削除しますか？" : "Delete this API and its links?",
     screenBadge: "Screen",
     actionBadge: "Action",
+    apiBadge: "API",
   };
   const [actionName, setActionName] = useState("");
+  const [apiName, setApiName] = useState("");
+  const [apiMethod, setApiMethod] = useState<ArchitectureHttpMethod>("GET");
+  const [apiPath, setApiPath] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [label, setLabel] = useState("");
@@ -99,6 +118,8 @@ export function ArchitectureFlowView({
   const layout = useMemo(() => layoutArchitectureGraph(frames, flow), [frames, flow]);
   const graphNodes = useMemo(() => new Map(layout.nodes.map((node) => [node.key, node])), [layout.nodes]);
   const selectedEdge = flow.edges.find((edge) => edge.id === selectedEdgeId) ?? null;
+  const actionNodes = useMemo(() => flow.nodes.filter((node) => node.kind === "action"), [flow.nodes]);
+  const apiNodes = useMemo(() => flow.nodes.filter((node) => node.kind === "api"), [flow.nodes]);
   const diagnostics = useMemo(() => diagnoseArchitectureFlow(frames, flow), [frames, flow]);
   const diagnosticsByKey = useMemo(() => {
     const map = new Map<string, typeof diagnostics>();
@@ -136,6 +157,15 @@ export function ArchitectureFlowView({
     if (!name) return;
     onAddAction(name);
     setActionName("");
+  };
+
+  const addApi = () => {
+    const name = apiName.trim();
+    const path = apiPath.trim();
+    if (!name || !path) return;
+    onAddApi(name, apiMethod, path);
+    setApiName("");
+    setApiPath("");
   };
 
   const addLink = () => {
@@ -328,6 +358,7 @@ export function ArchitectureFlowView({
                 {layout.nodes.map((node) => {
                   const source = graphSource && architectureEndpointKey(graphSource) === node.key;
                   const action = node.endpoint.kind === "action";
+                  const api = node.endpoint.kind === "api";
                   const nodeDiagnostics = diagnosticsByKey.get(node.key) ?? [];
                   const highlighted = highlightedEndpointKey === node.key;
                   const diagnosticColor = nodeDiagnostics.some((diagnostic) => diagnostic.severity === "error") ? p.error : p.primary;
@@ -350,17 +381,17 @@ export function ArchitectureFlowView({
                         border: `${source || highlighted ? 3 : nodeDiagnostics.length ? 2 : 1}px solid ${source ? p.primary : diagnosticBorder ? diagnosticColor : p.outlineVariant}`,
                         borderRadius: 20,
                         padding: "11px 13px",
-                        background: action ? p.secondaryContainer : p.surface,
-                        color: action ? p.onSecondaryContainer : p.onSurface,
+                        background: api ? p.tertiaryContainer : action ? p.secondaryContainer : p.surface,
+                        color: api ? p.onTertiaryContainer : action ? p.onSecondaryContainer : p.onSurface,
                         boxShadow: source ? `0 0 0 4px ${p.primaryContainer}` : highlighted ? `0 0 0 4px ${nodeDiagnostics.some((diagnostic) => diagnostic.severity === "error") ? p.errorContainer : p.primaryContainer}` : "0 4px 12px rgba(0,0,0,0.08)",
                         textAlign: "left",
                         cursor: connectMode ? "crosshair" : "default",
                         overflow: "hidden",
                       }}
                     >
-                      <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 10, fontWeight: 900, color: action ? p.primary : p.onSurfaceVariant }}>
-                        <Icon name={action ? "bolt" : "web_asset"} size={16} />
-                        {action ? copy.actionBadge : copy.screenBadge}
+                      <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 10, fontWeight: 900, color: action ? p.primary : api ? p.onTertiaryContainer : p.onSurfaceVariant }}>
+                        <Icon name={action ? "bolt" : api ? "api" : "web_asset"} size={16} />
+                        {action ? copy.actionBadge : api ? copy.apiBadge : copy.screenBadge}
                         {nodeDiagnostics.length > 0 && (
                           <span aria-label={`${copy.diagnostics}: ${nodeDiagnostics.length}`} style={{ marginLeft: "auto", minWidth: 19, height: 19, padding: "0 5px", borderRadius: 10, display: "grid", placeItems: "center", background: nodeDiagnostics.some((diagnostic) => diagnostic.severity === "error") ? p.errorContainer : p.primaryContainer, color: nodeDiagnostics.some((diagnostic) => diagnostic.severity === "error") ? p.onErrorContainer : p.onPrimaryContainer, fontSize: 10, fontWeight: 900 }}>
                             {nodeDiagnostics.length}
@@ -417,7 +448,7 @@ export function ArchitectureFlowView({
             )}
           </section>
 
-          <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: 14 }}>
+          <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 14 }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 850, color: p.onSurfaceVariant, marginBottom: 8 }}>{copy.screens}</div>
               <div style={{ display: "grid", gap: 8 }}>
@@ -434,22 +465,14 @@ export function ArchitectureFlowView({
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <div style={{ fontSize: 13, fontWeight: 850, color: p.onSurfaceVariant }}>{copy.actions}</div>
-                <span style={{ marginLeft: "auto", fontSize: 12, color: p.onSurfaceVariant }}>{flow.nodes.length}</span>
+                <span style={{ marginLeft: "auto", fontSize: 12, color: p.onSurfaceVariant }}>{actionNodes.length}</span>
               </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                <input
-                  value={actionName}
-                  onChange={(event) => setActionName(event.target.value)}
-                  onKeyDown={(event) => { if (event.key === "Enter") addAction(); }}
-                  data-testid="architecture-action-name"
-                  aria-label={copy.actionName}
-                  placeholder={copy.actionName}
-                  style={{ flex: 1, minWidth: 0, height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 12px", font: "inherit" }}
-                />
+                <input value={actionName} onChange={(event) => setActionName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") addAction(); }} data-testid="architecture-action-name" aria-label={copy.actionName} placeholder={copy.actionName} style={{ flex: 1, minWidth: 0, height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 12px", font: "inherit" }} />
                 <button type="button" onClick={addAction} data-testid="architecture-add-action" className="m3-press" style={{ height: 44, border: "none", borderRadius: 22, padding: "0 14px", background: p.primary, color: p.onPrimary, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>{copy.addAction}</button>
               </div>
               <div style={{ display: "grid", gap: 8 }}>
-                {flow.nodes.map((node) => (
+                {actionNodes.map((node) => (
                   <div key={node.id} data-testid={`architecture-action-${node.id}`} style={card(p.secondaryContainer, p.onSecondaryContainer)}>
                     <div style={{ fontSize: 10, fontWeight: 900, color: p.primary }}>{copy.actionBadge}</div>
                     <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
@@ -459,7 +482,43 @@ export function ArchitectureFlowView({
                     </div>
                   </div>
                 ))}
-                {!flow.nodes.length && <div style={{ ...card(p.surfaceContainerLow, p.onSurfaceVariant), fontSize: 13 }}>{copy.none}</div>}
+                {!actionNodes.length && <div style={{ ...card(p.surfaceContainerLow, p.onSurfaceVariant), fontSize: 13 }}>{copy.none}</div>}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 850, color: p.onSurfaceVariant }}>{copy.apis}</div>
+                <span style={{ marginLeft: "auto", fontSize: 12, color: p.onSurfaceVariant }}>{apiNodes.length}</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: 8, marginBottom: 8 }}>
+                <select value={apiMethod} onChange={(event) => setApiMethod(event.target.value as ArchitectureHttpMethod)} data-testid="architecture-api-method" aria-label="HTTP method" style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 8px" }}>
+                  {(["GET", "POST", "PUT", "PATCH", "DELETE"] as ArchitectureHttpMethod[]).map((method) => <option key={method} value={method}>{method}</option>)}
+                </select>
+                <input value={apiPath} onChange={(event) => setApiPath(event.target.value)} data-testid="architecture-api-path" aria-label={copy.apiPath} placeholder={copy.apiPath} style={{ minWidth: 0, height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 12px", font: "inherit" }} />
+              </div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                <input value={apiName} onChange={(event) => setApiName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") addApi(); }} data-testid="architecture-api-name" aria-label={copy.apiName} placeholder={copy.apiName} style={{ flex: 1, minWidth: 0, height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 12px", font: "inherit" }} />
+                <button type="button" onClick={addApi} data-testid="architecture-add-api" className="m3-press" style={{ height: 44, border: "none", borderRadius: 22, padding: "0 14px", background: p.primary, color: p.onPrimary, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>{copy.addApi}</button>
+              </div>
+              <div style={{ display: "grid", gap: 8 }}>
+                {apiNodes.map((node) => (
+                  <div key={node.id} data-testid={`architecture-api-${node.id}`} style={card(p.tertiaryContainer, p.onTertiaryContainer)}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ fontSize: 10, fontWeight: 900 }}>{copy.apiBadge}</div>
+                      <select value={node.method} onChange={(event) => onUpdateApi(node.id, { method: event.target.value as ArchitectureHttpMethod })} aria-label="HTTP method" style={{ marginLeft: "auto", height: 30, borderRadius: 12, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 6px", fontWeight: 800 }}>
+                        {(["GET", "POST", "PUT", "PATCH", "DELETE"] as ArchitectureHttpMethod[]).map((method) => <option key={method} value={method}>{method}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ marginTop: 5, fontWeight: 850 }}>{node.name}</div>
+                    <div style={{ marginTop: 3, fontSize: 12, fontFamily: "monospace", overflowWrap: "anywhere" }}>{node.path}</div>
+                    <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end", gap: 6 }}>
+                      <button type="button" onClick={() => { const nextName = window.prompt(copy.apiName, node.name); if (nextName === null) return; const nextPath = window.prompt(copy.apiPath, node.path); if (nextPath !== null) onUpdateApi(node.id, { name: nextName, path: nextPath }); }} aria-label={copy.editApi} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: "inherit", cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="edit" size={18} /></button>
+                      <button type="button" onClick={() => { if (window.confirm(copy.confirmDeleteApi)) onDeleteApi(node.id); }} aria-label={copy.deleteApi} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: p.errorContainer, color: p.onErrorContainer, cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="delete" size={18} /></button>
+                    </div>
+                  </div>
+                ))}
+                {!apiNodes.length && <div style={{ ...card(p.surfaceContainerLow, p.onSurfaceVariant), fontSize: 13 }}>{copy.none}</div>}
               </div>
             </div>
           </section>
@@ -469,11 +528,11 @@ export function ArchitectureFlowView({
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
               <select value={from} onChange={(event) => setFrom(event.target.value)} data-testid="architecture-link-from" aria-label={copy.source} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px" }}>
                 <option value="">{copy.source}</option>
-                {options.map((option) => <option key={`from-${architectureEndpointKey(option.endpoint)}`} value={architectureEndpointKey(option.endpoint)}>{option.endpoint.kind === "frame" ? copy.screenBadge : copy.actionBadge} · {option.label}</option>)}
+                {options.map((option) => <option key={`from-${architectureEndpointKey(option.endpoint)}`} value={architectureEndpointKey(option.endpoint)}>{option.endpoint.kind === "frame" ? copy.screenBadge : option.endpoint.kind === "api" ? copy.apiBadge : copy.actionBadge} · {option.label}</option>)}
               </select>
               <select value={to} onChange={(event) => setTo(event.target.value)} data-testid="architecture-link-to" aria-label={copy.target} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px" }}>
                 <option value="">{copy.target}</option>
-                {options.map((option) => <option key={`to-${architectureEndpointKey(option.endpoint)}`} value={architectureEndpointKey(option.endpoint)}>{option.endpoint.kind === "frame" ? copy.screenBadge : copy.actionBadge} · {option.label}</option>)}
+                {options.map((option) => <option key={`to-${architectureEndpointKey(option.endpoint)}`} value={architectureEndpointKey(option.endpoint)}>{option.endpoint.kind === "frame" ? copy.screenBadge : option.endpoint.kind === "api" ? copy.apiBadge : copy.actionBadge} · {option.label}</option>)}
               </select>
               <input value={label} onChange={(event) => setLabel(event.target.value)} aria-label={copy.label} placeholder={copy.label} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 12px", font: "inherit" }} />
               <button type="button" onClick={addLink} data-testid="architecture-add-link" className="m3-press" style={{ height: 44, border: "none", borderRadius: 22, padding: "0 14px", background: p.primary, color: p.onPrimary, fontWeight: 800, cursor: "pointer" }}>{copy.addLink}</button>

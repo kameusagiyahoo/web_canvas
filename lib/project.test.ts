@@ -29,6 +29,18 @@ describe("project serialization", () => {
     expect(parseProjectText(serialized)).toEqual(doc);
   });
 
+  it("round-trips design-only API architecture nodes in version 1 projects", () => {
+    const withApi = {
+      ...doc,
+      architecture: {
+        version: 1 as const,
+        nodes: [{ id: "login-api", kind: "api" as const, name: "Login API", method: "POST" as const, path: "/api/login" }],
+        edges: [{ id: "edge", from: { kind: "frame" as const, id: "home" }, to: { kind: "api" as const, id: "login-api" } }],
+      },
+    };
+    expect(parseProjectText(serializeProject(withApi))).toEqual(withApi);
+  });
+
   it("opens legacy raw Doc files through the version-0 migration path", () => {
     expect(parseProjectText(JSON.stringify(doc))).toEqual(doc);
     expect(migrateProjectValue(doc)).toEqual(doc);

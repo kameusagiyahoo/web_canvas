@@ -69,17 +69,22 @@ const validFrame = (frame: unknown) =>
 
 const validArchitectureEndpoint = (value: unknown) =>
   isRecord(value) &&
-  (value.kind === "frame" || value.kind === "action") &&
+  (value.kind === "frame" || value.kind === "action" || value.kind === "api") &&
   typeof value.id === "string" &&
   value.id.length > 0;
 
-const validArchitectureNode = (value: unknown) =>
-  isRecord(value) &&
-  value.kind === "action" &&
-  typeof value.id === "string" &&
-  value.id.length > 0 &&
-  typeof value.name === "string" &&
-  (value.note === undefined || typeof value.note === "string");
+const ARCHITECTURE_HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
+
+const validArchitectureNode = (value: unknown) => {
+  if (!isRecord(value) || typeof value.id !== "string" || !value.id || typeof value.name !== "string") return false;
+  if (value.note !== undefined && typeof value.note !== "string") return false;
+  if (value.kind === "action") return true;
+  return value.kind === "api" &&
+    typeof value.method === "string" &&
+    ARCHITECTURE_HTTP_METHODS.has(value.method) &&
+    typeof value.path === "string" &&
+    value.path.length > 0;
+};
 
 const validArchitectureEdge = (value: unknown) =>
   isRecord(value) &&

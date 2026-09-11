@@ -118,7 +118,8 @@
 - [x] Render Architecture Flow as a deterministic Screen + Action graph with direct visual connection and edge selection/deletion, without persisting graph coordinates.
 - [x] Add actionable Architecture Flow diagnostics for isolated Actions, missing incoming/outgoing flow, and directed cycles; diagnostic jumps must not mutate the document.
 - [x] Add Architecture Flow diagnostics for semantic links whose Screen/Action endpoint no longer exists, with direct edge inspection/deletion and no silent cleanup.
-- [ ] Extend Architecture Flow with an `api` node only after Action nodes are useful in real projects; keep execution semantics out of the first model.
+- [x] Extend Architecture Flow with a design-only `api` node (name, HTTP method, path) while keeping execution semantics out of the model.
+- [ ] Evaluate an `agent` or `database` architecture node only after real projects demonstrate the need; do not add execution semantics by default.
 - [x] Add a local-first multi-project library with create/open/rename/duplicate/delete and autosave.
 - [x] Save the current project synchronously before switching, restore its editor frame mode, and provide an explicit Save now action alongside autosave.
 - [x] Make Project Manager file import create a separate managed project instead of destructively replacing the active project.
