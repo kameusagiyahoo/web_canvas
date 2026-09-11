@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - scripts/implement-architecture-api-node.py
+      - scripts/prepare-architecture-api-docs.py
       - .github/workflows/implement-architecture-api-node.yml
 
 permissions:
@@ -21,6 +22,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - run: python scripts/prepare-architecture-api-docs.py
       - run: python scripts/implement-architecture-api-node.py
       - run: npm ci
       - run: npm run typecheck
@@ -34,7 +36,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm scripts/implement-architecture-api-node.py .github/workflows/implement-architecture-api-node.yml
+          git rm scripts/implement-architecture-api-node.py scripts/prepare-architecture-api-docs.py .github/workflows/implement-architecture-api-node.yml
           git add app/page.tsx components/ArchitectureFlow.tsx lib/tokens.ts lib/architecture-flow.ts lib/architecture-flow.test.ts lib/project.ts lib/project.test.ts e2e/core.e2e.ts docs/ARCHITECTURE_FLOW.md docs/TODO.md
           git commit -m "Add design-only API architecture nodes"
           git push
