@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "scripts/implement-architecture-viewport.py"
+      - "scripts/fix-architecture-viewport-e2e.py"
       - ".github/workflows/implement-architecture-viewport.yml"
 
 permissions:
@@ -22,7 +23,9 @@ jobs:
           node-version: 22.12.0
           cache: npm
       - name: Apply implementation
-        run: python scripts/implement-architecture-viewport.py
+        run: |
+          python scripts/implement-architecture-viewport.py
+          python scripts/fix-architecture-viewport-e2e.py
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
@@ -34,6 +37,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add components/ArchitectureFlow.tsx lib/graph-viewport.ts lib/graph-viewport.test.ts e2e/core.e2e.ts docs/ARCHITECTURE_FLOW.md docs/TODO.md
-          git rm scripts/implement-architecture-viewport.py .github/workflows/implement-architecture-viewport.yml
+          git rm scripts/implement-architecture-viewport.py scripts/fix-architecture-viewport-e2e.py .github/workflows/implement-architecture-viewport.yml
           git commit -m "Add architecture graph viewport controls"
           git push
