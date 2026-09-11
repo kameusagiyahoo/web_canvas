@@ -120,6 +120,7 @@
 - [x] Add Architecture Flow diagnostics for semantic links whose Screen/Action endpoint no longer exists, with direct edge inspection/deletion and no silent cleanup.
 - [x] Extend Architecture Flow with a design-only `api` node (name, HTTP method, path) while keeping execution semantics out of the model.
 - [x] Extend Architecture Flow diagnostics to isolated APIs, duplicate HTTP method + path definitions, and API cycle participation without mutating project data.
+- [x] Add Architecture Flow node-name search, Screen/Action/API kind filtering, and transient node focus without changing layout or project data.
 - [ ] Evaluate an `agent` or `database` architecture node only after real projects demonstrate the need; do not add execution semantics by default.
 - [x] Add a local-first multi-project library with create/open/rename/duplicate/delete and autosave.
 - [x] Add lightweight project-name search/filtering to Project Manager without changing project storage semantics.

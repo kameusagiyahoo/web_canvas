@@ -63,6 +63,10 @@ export function ArchitectureFlowView({
     subtitle: lang === "ja" ? "Screen・Action・APIの意味上の流れを可視化します" : lang === "zh" ? "可视化 Screen、Action 与 API 的语义流程" : lang === "ko" ? "Screen, Action, API의 의미 흐름을 시각화합니다" : "Visualize the semantic flow between Screens, Actions, and APIs",
     visual: lang === "ja" ? "フロー図" : lang === "zh" ? "流程图" : lang === "ko" ? "흐름도" : "Flow graph",
     graphHint: lang === "ja" ? "位置は自動配置です。ノード位置はプロジェクトには保存しません。" : "Layout is automatic and node positions are not stored in the project.",
+    graphSearch: lang === "ja" ? "ノードを検索" : lang === "zh" ? "搜索节点" : lang === "ko" ? "노드 검색" : "Search nodes",
+    graphAllKinds: lang === "ja" ? "すべて" : lang === "zh" ? "全部" : lang === "ko" ? "전체" : "All",
+    graphNoMatches: lang === "ja" ? "一致するノードはありません" : lang === "zh" ? "没有匹配的节点" : lang === "ko" ? "일치하는 노드가 없습니다" : "No matching nodes",
+    clearGraphSearch: lang === "ja" ? "検索をクリア" : lang === "zh" ? "清除搜索" : lang === "ko" ? "검색 지우기" : "Clear search",
     connectMode: lang === "ja" ? "グラフ上で接続" : "Connect on graph",
     endConnectMode: lang === "ja" ? "接続モードを終了" : "Exit connect mode",
     pickSource: lang === "ja" ? "開始ノードを選択してください" : "Choose a source node",
@@ -108,6 +112,8 @@ export function ArchitectureFlowView({
   const [graphSource, setGraphSource] = useState<ArchitectureEndpoint | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [highlightedEndpointKey, setHighlightedEndpointKey] = useState<string | null>(null);
+  const [graphQuery, setGraphQuery] = useState("");
+  const [graphKindFilter, setGraphKindFilter] = useState<"all" | ArchitectureEndpoint["kind"]>("all");
 
   const options = useMemo(() => architectureEndpointOptions(frames, flow), [frames, flow]);
   const labels = useMemo(() => {
@@ -116,6 +122,17 @@ export function ArchitectureFlowView({
     return map;
   }, [options]);
   const layout = useMemo(() => layoutArchitectureGraph(frames, flow), [frames, flow]);
+  const normalizedGraphQuery = graphQuery.trim().toLocaleLowerCase();
+  const matchingNodeKeys = useMemo(() => {
+    const matches = new Set<string>();
+    layout.nodes.forEach((node) => {
+      const kindMatches = graphKindFilter === "all" || node.kind === graphKindFilter;
+      const queryMatches = !normalizedGraphQuery || node.label.toLocaleLowerCase().includes(normalizedGraphQuery);
+      if (kindMatches && queryMatches) matches.add(node.key);
+    });
+    return matches;
+  }, [graphKindFilter, layout.nodes, normalizedGraphQuery]);
+  const graphFilterActive = graphKindFilter !== "all" || Boolean(normalizedGraphQuery);
   const graphNodes = useMemo(() => new Map(layout.nodes.map((node) => [node.key, node])), [layout.nodes]);
   const selectedEdge = flow.edges.find((edge) => edge.id === selectedEdgeId) ?? null;
   const actionNodes = useMemo(() => flow.nodes.filter((node) => node.kind === "action"), [flow.nodes]);
@@ -177,8 +194,13 @@ export function ArchitectureFlowView({
   };
 
   const clickGraphNode = (endpoint: ArchitectureEndpoint) => {
+    const clickedKey = architectureEndpointKey(endpoint);
+    if (!connectMode) {
+      setHighlightedEndpointKey(clickedKey);
+      setSelectedEdgeId(null);
+      return;
+    }
     setHighlightedEndpointKey(null);
-    if (!connectMode) return;
     if (!graphSource) {
       setGraphSource(endpoint);
       setSelectedEdgeId(null);
@@ -219,6 +241,8 @@ export function ArchitectureFlowView({
     const key = architectureEndpointKey(endpoint);
     const hasFocusableNode = graphNodes.has(key);
     setHighlightedEndpointKey(hasFocusableNode ? key : null);
+    setGraphQuery("");
+    setGraphKindFilter("all");
     setConnectMode(false);
     setGraphSource(null);
     setSelectedEdgeId(diagnostic.edgeId ?? null);
@@ -302,6 +326,43 @@ export function ArchitectureFlowView({
               </button>
             </div>
 
+            <div style={{ padding: "10px 14px", borderBottom: `1px solid ${p.outlineVariant}`, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", background: p.surface }}>
+              <label style={{ flex: "1 1 230px", minWidth: "min(100%, 210px)", height: 40, border: `1px solid ${p.outlineVariant}`, borderRadius: 20, display: "flex", alignItems: "center", gap: 7, padding: "0 11px", color: p.onSurfaceVariant }}>
+                <Icon name="search" size={18} />
+                <input
+                  data-testid="architecture-graph-search"
+                  value={graphQuery}
+                  onChange={(event) => setGraphQuery(event.target.value)}
+                  aria-label={copy.graphSearch}
+                  placeholder={copy.graphSearch}
+                  style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", color: p.onSurface, font: "inherit" }}
+                />
+                {graphQuery && (
+                  <button type="button" onClick={() => setGraphQuery("")} aria-label={copy.clearGraphSearch} className="m3-press" style={{ width: 28, height: 28, border: "none", borderRadius: 14, background: "transparent", color: p.onSurfaceVariant, display: "grid", placeItems: "center", cursor: "pointer" }}>
+                    <Icon name="close" size={16} />
+                  </button>
+                )}
+              </label>
+              <select
+                data-testid="architecture-graph-kind-filter"
+                value={graphKindFilter}
+                onChange={(event) => setGraphKindFilter(event.target.value as "all" | ArchitectureEndpoint["kind"])}
+                aria-label={lang === "ja" ? "ノード種類" : "Node kind"}
+                style={{ height: 40, borderRadius: 20, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 12px", font: "inherit", fontWeight: 750 }}
+              >
+                <option value="all">{copy.graphAllKinds}</option>
+                <option value="frame">{copy.screenBadge}</option>
+                <option value="action">{copy.actionBadge}</option>
+                <option value="api">{copy.apiBadge}</option>
+              </select>
+              <span data-testid="architecture-graph-search-count" style={{ fontSize: 12, fontWeight: 800, color: p.onSurfaceVariant }}>
+                {matchingNodeKeys.size}/{layout.nodes.length}
+              </span>
+              {graphFilterActive && matchingNodeKeys.size === 0 && (
+                <span data-testid="architecture-graph-search-empty" style={{ width: "100%", fontSize: 12, color: p.error, fontWeight: 750 }}>{copy.graphNoMatches}</span>
+              )}
+            </div>
+
             {(connectMode || selectedEdge) && (
               <div data-testid={selectedEdge ? "architecture-graph-edge-editor" : "architecture-connect-status"} style={{ minHeight: 44, padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, borderBottom: `1px solid ${p.outlineVariant}`, background: p.surface }}>
                 {selectedEdge ? (
@@ -331,8 +392,9 @@ export function ArchitectureFlowView({
                     const d = graphPath(edge);
                     if (!d) return null;
                     const selected = edge.id === selectedEdgeId;
+                    const edgeMatches = matchingNodeKeys.has(architectureEndpointKey(edge.from)) || matchingNodeKeys.has(architectureEndpointKey(edge.to));
                     return (
-                      <g key={edge.id}>
+                      <g key={edge.id} opacity={graphFilterActive && !edgeMatches ? 0.14 : 1}>
                         <path d={d} fill="none" stroke={selected ? p.primary : p.outline} strokeWidth={selected ? 3 : 2} markerEnd="url(#architecture-arrow)" />
                         <path
                           d={d}
@@ -365,6 +427,7 @@ export function ArchitectureFlowView({
                   const api = node.endpoint.kind === "api";
                   const nodeDiagnostics = diagnosticsByKey.get(node.key) ?? [];
                   const highlighted = highlightedEndpointKey === node.key;
+                  const searchMatch = matchingNodeKeys.has(node.key);
                   const diagnosticColor = nodeDiagnostics.some((diagnostic) => diagnostic.severity === "error") ? p.error : p.primary;
                   const diagnosticBorder = highlighted || nodeDiagnostics.length > 0;
                   return (
@@ -373,7 +436,6 @@ export function ArchitectureFlowView({
                       type="button"
                       data-testid={endpointTestId(node.endpoint)}
                       aria-pressed={source || undefined}
-                      aria-disabled={!connectMode}
                       onClick={() => clickGraphNode(node.endpoint)}
                       className="m3-press"
                       style={{
@@ -391,6 +453,8 @@ export function ArchitectureFlowView({
                         textAlign: "left",
                         cursor: connectMode ? "crosshair" : "default",
                         overflow: "hidden",
+                        opacity: graphFilterActive && !searchMatch ? 0.22 : 1,
+                        transition: "opacity 120ms ease, box-shadow 120ms ease, border-color 120ms ease",
                       }}
                     >
                       <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 10, fontWeight: 900, color: action ? p.primary : api ? p.onTertiaryContainer : p.onSurfaceVariant }}>

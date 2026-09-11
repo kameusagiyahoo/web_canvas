@@ -581,3 +581,45 @@ test("architecture API diagnostics identify isolated duplicate endpoints without
   await expect(apiNode).toBeFocused();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(before);
 });
+
+
+
+test("architecture graph search and kind filters focus nodes without mutating the document", async ({ page }) => {
+  await openSeeded(page);
+  await page.getByTitle("App architecture").click();
+  const architecture = page.getByTestId("architecture-flow");
+
+  await architecture.getByTestId("architecture-action-name").fill("Validate login");
+  await architecture.getByTestId("architecture-add-action").click();
+  await architecture.getByTestId("architecture-api-method").selectOption("POST");
+  await architecture.getByTestId("architecture-api-path").fill("/api/login");
+  await architecture.getByTestId("architecture-api-name").fill("Login API");
+  await architecture.getByTestId("architecture-add-api").click();
+
+  const actionNode = architecture.locator('[data-testid^="architecture-graph-node-action-"]').filter({ hasText: "Validate login" });
+  const apiNode = architecture.locator('[data-testid^="architecture-graph-node-api-"]').filter({ hasText: "Login API" });
+  const homeNode = architecture.getByTestId("architecture-graph-node-frame-home");
+  await expect(actionNode).toHaveCount(1);
+  await expect(apiNode).toHaveCount(1);
+
+  const before = await page.evaluate(() => localStorage.getItem("m3e:doc"));
+  const search = architecture.getByTestId("architecture-graph-search");
+  await search.fill("login api");
+  await expect(architecture.getByTestId("architecture-graph-search-count")).toHaveText("1/4");
+  await expect(apiNode).toHaveCSS("opacity", "1");
+  await expect(homeNode).toHaveCSS("opacity", "0.22");
+  await apiNode.click();
+  await expect(apiNode).toBeFocused();
+
+  await search.fill("");
+  await architecture.getByTestId("architecture-graph-kind-filter").selectOption("action");
+  await expect(architecture.getByTestId("architecture-graph-search-count")).toHaveText("1/4");
+  await expect(actionNode).toHaveCSS("opacity", "1");
+  await expect(apiNode).toHaveCSS("opacity", "0.22");
+
+  await architecture.getByTestId("architecture-graph-kind-filter").selectOption("all");
+  await search.fill("does-not-exist");
+  await expect(architecture.getByTestId("architecture-graph-search-empty")).toBeVisible();
+  await expect(architecture.getByTestId("architecture-graph-search-count")).toHaveText("0/4");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(before);
+});
