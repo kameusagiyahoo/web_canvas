@@ -12,6 +12,7 @@ import {
   renameArchitectureAction,
   updateArchitectureApi,
   layoutArchitectureGraph,
+  traceArchitectureRelations,
 } from "./architecture-flow";
 
 const empty = (): ArchitectureFlow => ({ version: 1, nodes: [], edges: [] });
@@ -204,6 +205,60 @@ describe("architecture flow diagnostics", () => {
       ["api", "api"],
     ]);
   });
+
+
+describe("architecture relation tracing", () => {
+  it("separates transitive upstream and downstream paths from unrelated nodes", () => {
+    const relationFrames: Frame[] = [
+      { id: "home", name: "Home", x: 0, y: 0 },
+      { id: "details", name: "Details", x: 500, y: 0 },
+    ];
+    const flow: ArchitectureFlow = {
+      version: 1,
+      nodes: [
+        { id: "validate", kind: "action", name: "Validate" },
+        { id: "login", kind: "api", name: "Login API", method: "POST", path: "/api/login" },
+        { id: "orphan", kind: "action", name: "Unrelated" },
+      ],
+      edges: [
+        { id: "home-validate", from: { kind: "frame", id: "home" }, to: { kind: "action", id: "validate" } },
+        { id: "validate-login", from: { kind: "action", id: "validate" }, to: { kind: "api", id: "login" } },
+        { id: "login-details", from: { kind: "api", id: "login" }, to: { kind: "frame", id: "details" } },
+      ],
+    };
+
+    const trace = traceArchitectureRelations(relationFrames, flow, { kind: "action", id: "validate" });
+    expect(trace).not.toBeNull();
+    expect([...trace!.upstreamNodeKeys]).toEqual(["frame:home"]);
+    expect([...trace!.downstreamNodeKeys]).toEqual(["api:login", "frame:details"]);
+    expect([...trace!.upstreamEdgeIds]).toEqual(["home-validate"]);
+    expect([...trace!.downstreamEdgeIds]).toEqual(["validate-login", "login-details"]);
+    expect(trace!.relatedNodeKeys.has("action:orphan")).toBe(false);
+  });
+
+  it("stays finite through cycles and ignores broken semantic links", () => {
+    const flow: ArchitectureFlow = {
+      version: 1,
+      nodes: [
+        { id: "a", kind: "action", name: "A" },
+        { id: "b", kind: "action", name: "B" },
+      ],
+      edges: [
+        { id: "ab", from: { kind: "action", id: "a" }, to: { kind: "action", id: "b" } },
+        { id: "ba", from: { kind: "action", id: "b" }, to: { kind: "action", id: "a" } },
+        { id: "broken", from: { kind: "action", id: "a" }, to: { kind: "frame", id: "missing" } },
+      ],
+    };
+
+    const trace = traceArchitectureRelations([], flow, { kind: "action", id: "a" });
+    expect(trace).not.toBeNull();
+    expect(trace!.upstreamNodeKeys.has("action:b")).toBe(true);
+    expect(trace!.downstreamNodeKeys.has("action:b")).toBe(true);
+    expect(trace!.relatedEdgeIds).toEqual(new Set(["ab", "ba"]));
+    expect(trace!.relatedEdgeIds.has("broken")).toBe(false);
+    expect(traceArchitectureRelations([], flow, { kind: "frame", id: "missing" })).toBeNull();
+  });
+});
 
 
 describe("architecture graph layout", () => {

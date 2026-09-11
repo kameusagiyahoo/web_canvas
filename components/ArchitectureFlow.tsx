@@ -14,6 +14,7 @@ import {
   architectureEndpointOptions,
   diagnoseArchitectureFlow,
   layoutArchitectureGraph,
+  traceArchitectureRelations,
 } from "@/lib/architecture-flow";
 import { useLang } from "@/lib/i18n";
 import { fitGraphZoom, graphCenterScroll, stepGraphZoom } from "@/lib/graph-viewport";
@@ -72,6 +73,11 @@ export function ArchitectureFlowView({
     zoomIn: lang === "ja" ? "拡大" : lang === "zh" ? "放大" : lang === "ko" ? "확대" : "Zoom in",
     fitGraph: lang === "ja" ? "全体表示" : lang === "zh" ? "适合视图" : lang === "ko" ? "전체 보기" : "Fit to view",
     zoomLabel: lang === "ja" ? "グラフのズーム" : lang === "zh" ? "图表缩放" : lang === "ko" ? "그래프 확대/축소" : "Graph zoom",
+    relationFocus: lang === "ja" ? "関係を表示" : lang === "zh" ? "关系焦点" : lang === "ko" ? "관계 포커스" : "Relation focus",
+    relationUpstream: lang === "ja" ? "上流" : lang === "zh" ? "上游" : lang === "ko" ? "상류" : "Upstream",
+    relationDownstream: lang === "ja" ? "下流" : lang === "zh" ? "下游" : lang === "ko" ? "하류" : "Downstream",
+    relationBoth: lang === "ja" ? "上下流" : lang === "zh" ? "上下游" : lang === "ko" ? "상·하류" : "Both",
+    clearRelation: lang === "ja" ? "関係表示を解除" : lang === "zh" ? "清除关系焦点" : lang === "ko" ? "관계 포커스 해제" : "Clear relation focus",
     connectMode: lang === "ja" ? "グラフ上で接続" : "Connect on graph",
     endConnectMode: lang === "ja" ? "接続モードを終了" : "Exit connect mode",
     pickSource: lang === "ja" ? "開始ノードを選択してください" : "Choose a source node",
@@ -141,6 +147,12 @@ export function ArchitectureFlowView({
   }, [graphKindFilter, layout.nodes, normalizedGraphQuery]);
   const graphFilterActive = graphKindFilter !== "all" || Boolean(normalizedGraphQuery);
   const graphNodes = useMemo(() => new Map(layout.nodes.map((node) => [node.key, node])), [layout.nodes]);
+  const relationshipTrace = useMemo(() => {
+    if (!highlightedEndpointKey) return null;
+    const endpoint = parseEndpoint(highlightedEndpointKey);
+    return endpoint ? traceArchitectureRelations(frames, flow, endpoint) : null;
+  }, [flow, frames, highlightedEndpointKey]);
+  const relationshipLabel = relationshipTrace ? labels.get(relationshipTrace.focusKey) ?? relationshipTrace.focusKey : null;
   const selectedEdge = flow.edges.find((edge) => edge.id === selectedEdgeId) ?? null;
   const actionNodes = useMemo(() => flow.nodes.filter((node) => node.kind === "action"), [flow.nodes]);
   const apiNodes = useMemo(() => flow.nodes.filter((node) => node.kind === "api"), [flow.nodes]);
@@ -374,6 +386,7 @@ export function ArchitectureFlowView({
                   setConnectMode((current) => !current);
                   setGraphSource(null);
                   setSelectedEdgeId(null);
+                  setHighlightedEndpointKey(null);
                 }}
                 className="m3-press"
                 style={{ minHeight: 38, border: "none", borderRadius: 19, padding: "0 13px", background: connectMode ? p.primary : p.secondaryContainer, color: connectMode ? p.onPrimary : p.onSecondaryContainer, fontWeight: 800, cursor: "pointer" }}
@@ -388,13 +401,13 @@ export function ArchitectureFlowView({
                 <input
                   data-testid="architecture-graph-search"
                   value={graphQuery}
-                  onChange={(event) => setGraphQuery(event.target.value)}
+                  onChange={(event) => { setGraphQuery(event.target.value); setHighlightedEndpointKey(null); }}
                   aria-label={copy.graphSearch}
                   placeholder={copy.graphSearch}
                   style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", color: p.onSurface, font: "inherit" }}
                 />
                 {graphQuery && (
-                  <button type="button" onClick={() => setGraphQuery("")} aria-label={copy.clearGraphSearch} className="m3-press" style={{ width: 28, height: 28, border: "none", borderRadius: 14, background: "transparent", color: p.onSurfaceVariant, display: "grid", placeItems: "center", cursor: "pointer" }}>
+                  <button type="button" onClick={() => { setGraphQuery(""); setHighlightedEndpointKey(null); }} aria-label={copy.clearGraphSearch} className="m3-press" style={{ width: 28, height: 28, border: "none", borderRadius: 14, background: "transparent", color: p.onSurfaceVariant, display: "grid", placeItems: "center", cursor: "pointer" }}>
                     <Icon name="close" size={16} />
                   </button>
                 )}
@@ -402,7 +415,7 @@ export function ArchitectureFlowView({
               <select
                 data-testid="architecture-graph-kind-filter"
                 value={graphKindFilter}
-                onChange={(event) => setGraphKindFilter(event.target.value as "all" | ArchitectureEndpoint["kind"])}
+                onChange={(event) => { setGraphKindFilter(event.target.value as "all" | ArchitectureEndpoint["kind"]); setHighlightedEndpointKey(null); }}
                 aria-label={lang === "ja" ? "ノード種類" : "Node kind"}
                 style={{ height: 40, borderRadius: 20, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 12px", font: "inherit", fontWeight: 750 }}
               >
@@ -432,6 +445,16 @@ export function ArchitectureFlowView({
               )}
             </div>
 
+            {relationshipTrace && (
+              <div data-testid="architecture-graph-relation-summary" style={{ minHeight: 44, padding: "8px 14px", display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", borderBottom: `1px solid ${p.outlineVariant}`, background: p.surface }}>
+                <Icon name="account_tree" size={19} />
+                <span style={{ fontSize: 12, fontWeight: 850 }}>{copy.relationFocus}: {relationshipLabel}</span>
+                <span data-testid="architecture-relation-upstream-count" style={{ fontSize: 11, fontWeight: 800, color: p.onTertiaryContainer, background: p.tertiaryContainer, borderRadius: 12, padding: "4px 8px" }}>{copy.relationUpstream} {relationshipTrace.upstreamNodeKeys.size}</span>
+                <span data-testid="architecture-relation-downstream-count" style={{ fontSize: 11, fontWeight: 800, color: p.onPrimaryContainer, background: p.primaryContainer, borderRadius: 12, padding: "4px 8px" }}>{copy.relationDownstream} {relationshipTrace.downstreamNodeKeys.size}</span>
+                <button type="button" data-testid="architecture-clear-relation-focus" onClick={() => setHighlightedEndpointKey(null)} className="m3-press" style={{ marginLeft: "auto", minHeight: 32, border: `1px solid ${p.outlineVariant}`, borderRadius: 16, background: p.surface, color: p.onSurfaceVariant, padding: "0 10px", fontWeight: 800, cursor: "pointer" }}>{copy.clearRelation}</button>
+              </div>
+            )}
+
             {(connectMode || selectedEdge) && (
               <div data-testid={selectedEdge ? "architecture-graph-edge-editor" : "architecture-connect-status"} style={{ minHeight: 44, padding: "8px 14px", display: "flex", alignItems: "center", gap: 10, borderBottom: `1px solid ${p.outlineVariant}`, background: p.surface }}>
                 {selectedEdge ? (
@@ -457,32 +480,50 @@ export function ArchitectureFlowView({
                     <marker id="architecture-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
                       <path d="M 0 0 L 8 4 L 0 8 z" fill={p.outline} />
                     </marker>
+                    <marker id="architecture-arrow-upstream" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+                      <path d="M 0 0 L 8 4 L 0 8 z" fill={p.onTertiaryContainer} />
+                    </marker>
+                    <marker id="architecture-arrow-downstream" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+                      <path d="M 0 0 L 8 4 L 0 8 z" fill={p.primary} />
+                    </marker>
+                    <marker id="architecture-arrow-both" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+                      <path d="M 0 0 L 8 4 L 0 8 z" fill={p.onSurface} />
+                    </marker>
                   </defs>
                   {flow.edges.map((edge) => {
                     const d = graphPath(edge);
                     if (!d) return null;
                     const selected = edge.id === selectedEdgeId;
                     const edgeMatches = matchingNodeKeys.has(architectureEndpointKey(edge.from)) || matchingNodeKeys.has(architectureEndpointKey(edge.to));
+                    const relationUpstream = relationshipTrace?.upstreamEdgeIds.has(edge.id) ?? false;
+                    const relationDownstream = relationshipTrace?.downstreamEdgeIds.has(edge.id) ?? false;
+                    const relation = !relationshipTrace ? "none" : relationUpstream && relationDownstream ? "both" : relationUpstream ? "upstream" : relationDownstream ? "downstream" : "unrelated";
+                    const relationMatches = relation !== "unrelated";
+                    const edgeDimmed = (graphFilterActive && !edgeMatches) || (Boolean(relationshipTrace) && !relationMatches);
+                    const relationStroke = relation === "upstream" ? p.onTertiaryContainer : relation === "downstream" ? p.primary : relation === "both" ? p.onSurface : p.outline;
+                    const marker = relation === "upstream" ? "architecture-arrow-upstream" : relation === "downstream" ? "architecture-arrow-downstream" : relation === "both" ? "architecture-arrow-both" : "architecture-arrow";
                     return (
-                      <g key={edge.id} opacity={graphFilterActive && !edgeMatches ? 0.14 : 1}>
-                        <path d={d} fill="none" stroke={selected ? p.primary : p.outline} strokeWidth={selected ? 3 : 2} markerEnd="url(#architecture-arrow)" />
+                      <g key={edge.id} data-relation={relation} opacity={edgeDimmed ? 0.12 : 1}>
+                        <path d={d} fill="none" stroke={selected ? p.primary : relationStroke} strokeWidth={selected || relationMatches ? 3 : 2} markerEnd={`url(#${selected ? "architecture-arrow-downstream" : marker})`} />
                         <path
                           d={d}
                           fill="none"
                           stroke="transparent"
                           strokeWidth={18}
                           data-testid={`architecture-graph-link-${edge.id}`}
+                          data-relation={relation}
                           role="button"
                           tabIndex={0}
                           aria-label={`${copy.selectedLink}: ${labels.get(architectureEndpointKey(edge.from)) ?? edge.from.id} → ${labels.get(architectureEndpointKey(edge.to)) ?? edge.to.id}`}
                           style={{ cursor: "pointer" }}
-                          onClick={() => { setSelectedEdgeId(edge.id); setConnectMode(false); setGraphSource(null); }}
+                          onClick={() => { setSelectedEdgeId(edge.id); setConnectMode(false); setGraphSource(null); setHighlightedEndpointKey(null); }}
                           onKeyDown={(event) => {
                             if (event.key === "Enter" || event.key === " ") {
                               event.preventDefault();
                               setSelectedEdgeId(edge.id);
                               setConnectMode(false);
                               setGraphSource(null);
+                              setHighlightedEndpointKey(null);
                             }
                           }}
                         />
@@ -498,13 +539,21 @@ export function ArchitectureFlowView({
                   const nodeDiagnostics = diagnosticsByKey.get(node.key) ?? [];
                   const highlighted = highlightedEndpointKey === node.key;
                   const searchMatch = matchingNodeKeys.has(node.key);
+                  const relationUpstream = relationshipTrace?.upstreamNodeKeys.has(node.key) ?? false;
+                  const relationDownstream = relationshipTrace?.downstreamNodeKeys.has(node.key) ?? false;
+                  const relation = !relationshipTrace ? "none" : highlighted ? "focus" : relationUpstream && relationDownstream ? "both" : relationUpstream ? "upstream" : relationDownstream ? "downstream" : "unrelated";
+                  const relationMatches = relation !== "unrelated";
+                  const relationshipColor = relation === "upstream" ? p.onTertiaryContainer : relation === "downstream" ? p.primary : relation === "both" ? p.onSurfaceVariant : p.outlineVariant;
                   const diagnosticColor = nodeDiagnostics.some((diagnostic) => diagnostic.severity === "error") ? p.error : p.primary;
                   const diagnosticBorder = highlighted || nodeDiagnostics.length > 0;
+                  const relationshipDimmed = Boolean(relationshipTrace) && !relationMatches;
+                  const searchDimmed = graphFilterActive && !searchMatch && !highlighted;
                   return (
                     <button
                       key={node.key}
                       type="button"
                       data-testid={endpointTestId(node.endpoint)}
+                      data-relation={relation}
                       aria-pressed={source || undefined}
                       onClick={() => clickGraphNode(node.endpoint)}
                       className="m3-press"
@@ -514,7 +563,7 @@ export function ArchitectureFlowView({
                         top: node.y,
                         width: node.w,
                         height: node.h,
-                        border: `${source || highlighted ? 3 : nodeDiagnostics.length ? 2 : 1}px solid ${source ? p.primary : diagnosticBorder ? diagnosticColor : p.outlineVariant}`,
+                        border: `${source || highlighted ? 3 : relationMatches && relation !== "none" ? 2 : nodeDiagnostics.length ? 2 : 1}px solid ${source ? p.primary : diagnosticBorder ? diagnosticColor : relationMatches && relation !== "none" ? relationshipColor : p.outlineVariant}`,
                         borderRadius: 20,
                         padding: "11px 13px",
                         background: api ? p.tertiaryContainer : action ? p.secondaryContainer : p.surface,
@@ -523,13 +572,18 @@ export function ArchitectureFlowView({
                         textAlign: "left",
                         cursor: connectMode ? "crosshair" : "default",
                         overflow: "hidden",
-                        opacity: graphFilterActive && !searchMatch ? 0.22 : 1,
+                        opacity: relationshipDimmed ? 0.12 : searchDimmed ? 0.22 : 1,
                         transition: "opacity 120ms ease, box-shadow 120ms ease, border-color 120ms ease",
                       }}
                     >
                       <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 10, fontWeight: 900, color: action ? p.primary : api ? p.onTertiaryContainer : p.onSurfaceVariant }}>
                         <Icon name={action ? "bolt" : api ? "api" : "web_asset"} size={16} />
                         {action ? copy.actionBadge : api ? copy.apiBadge : copy.screenBadge}
+                        {(relation === "upstream" || relation === "downstream" || relation === "both") && (
+                          <span data-testid={`architecture-relation-badge-${node.key}`} style={{ marginLeft: 2, borderRadius: 8, padding: "2px 5px", background: relation === "upstream" ? p.tertiaryContainer : relation === "downstream" ? p.primaryContainer : p.surfaceContainerHighest, color: relation === "upstream" ? p.onTertiaryContainer : relation === "downstream" ? p.onPrimaryContainer : p.onSurfaceVariant, fontSize: 9, fontWeight: 900 }}>
+                            {relation === "upstream" ? copy.relationUpstream : relation === "downstream" ? copy.relationDownstream : copy.relationBoth}
+                          </span>
+                        )}
                         {nodeDiagnostics.length > 0 && (
                           <span aria-label={`${copy.diagnostics}: ${nodeDiagnostics.length}`} style={{ marginLeft: "auto", minWidth: 19, height: 19, padding: "0 5px", borderRadius: 10, display: "grid", placeItems: "center", background: nodeDiagnostics.some((diagnostic) => diagnostic.severity === "error") ? p.errorContainer : p.primaryContainer, color: nodeDiagnostics.some((diagnostic) => diagnostic.severity === "error") ? p.onErrorContainer : p.onPrimaryContainer, fontSize: 10, fontWeight: 900 }}>
                             {nodeDiagnostics.length}

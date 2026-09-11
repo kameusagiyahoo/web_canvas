@@ -669,3 +669,49 @@ test("architecture graph viewport controls are view-only", async ({ page }) => {
   await expect.poll(async () => Number((await zoomValue.textContent())?.replace("%", "") ?? "0")).toBeLessThanOrEqual(100);
   await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(before);
 });
+
+
+
+test("architecture relation focus traces upstream and downstream without mutating the document", async ({ page }) => {
+  await openSeeded(page);
+  await page.getByTitle("App architecture").click();
+  const architecture = page.getByTestId("architecture-flow");
+
+  await architecture.getByTestId("architecture-action-name").fill("Validate login");
+  await architecture.getByTestId("architecture-add-action").click();
+  await architecture.getByTestId("architecture-api-method").selectOption("POST");
+  await architecture.getByTestId("architecture-api-path").fill("/api/login");
+  await architecture.getByTestId("architecture-api-name").fill("Login API");
+  await architecture.getByTestId("architecture-add-api").click();
+
+  const homeNode = architecture.getByTestId("architecture-graph-node-frame-home");
+  const detailsNode = architecture.getByTestId("architecture-graph-node-frame-details");
+  const actionNode = architecture.locator('[data-testid^="architecture-graph-node-action-"]').filter({ hasText: "Validate login" });
+  const apiNode = architecture.locator('[data-testid^="architecture-graph-node-api-"]').filter({ hasText: "Login API" });
+
+  await architecture.getByTestId("architecture-connect-mode").click();
+  await homeNode.click();
+  await actionNode.click();
+  await actionNode.click();
+  await apiNode.click();
+  await architecture.getByTestId("architecture-connect-mode").click();
+  const before = await page.evaluate(() => localStorage.getItem("m3e:doc"));
+
+  await actionNode.click();
+  await expect(architecture.getByTestId("architecture-graph-relation-summary")).toBeVisible();
+  await expect(architecture.getByTestId("architecture-relation-upstream-count")).toHaveText(/1$/);
+  await expect(architecture.getByTestId("architecture-relation-downstream-count")).toHaveText(/1$/);
+  await expect(homeNode).toHaveAttribute("data-relation", "upstream");
+  await expect(actionNode).toHaveAttribute("data-relation", "focus");
+  await expect(apiNode).toHaveAttribute("data-relation", "downstream");
+  await expect(detailsNode).toHaveAttribute("data-relation", "unrelated");
+  await expect(detailsNode).toHaveCSS("opacity", "0.12");
+  await expect(architecture.locator('[data-testid^="architecture-graph-link-"][data-relation="upstream"]')).toHaveCount(1);
+  await expect(architecture.locator('[data-testid^="architecture-graph-link-"][data-relation="downstream"]')).toHaveCount(1);
+
+  await architecture.getByTestId("architecture-clear-relation-focus").click();
+  await expect(architecture.getByTestId("architecture-graph-relation-summary")).toHaveCount(0);
+  await expect(detailsNode).toHaveAttribute("data-relation", "none");
+  await expect(detailsNode).toHaveCSS("opacity", "1");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(before);
+});

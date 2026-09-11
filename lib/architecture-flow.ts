@@ -158,6 +158,83 @@ export function architectureEndpointOptions(
   ];
 }
 
+export type ArchitectureRelationTrace = {
+  focusKey: string;
+  upstreamNodeKeys: Set<string>;
+  downstreamNodeKeys: Set<string>;
+  upstreamEdgeIds: Set<string>;
+  downstreamEdgeIds: Set<string>;
+  relatedNodeKeys: Set<string>;
+  relatedEdgeIds: Set<string>;
+};
+
+/**
+ * Derive every valid semantic node/edge that can reach the focused endpoint (upstream)
+ * or can be reached from it (downstream). Broken links are deliberately ignored, and
+ * cycles are bounded by visited sets so this remains a view-only graph operation.
+ */
+export function traceArchitectureRelations(
+  frames: readonly Frame[],
+  flow: ArchitectureFlow,
+  focus: ArchitectureEndpoint,
+): ArchitectureRelationTrace | null {
+  if (!architectureEndpointExists(focus, frames, flow)) return null;
+
+  const focusKey = architectureEndpointKey(focus);
+  const known = new Set(architectureEndpointOptions(frames, flow).map((option) => architectureEndpointKey(option.endpoint)));
+  const outgoing = new Map<string, Array<{ key: string; edgeId: string }>>();
+  const incoming = new Map<string, Array<{ key: string; edgeId: string }>>();
+  known.forEach((key) => {
+    outgoing.set(key, []);
+    incoming.set(key, []);
+  });
+
+  for (const edge of flow.edges) {
+    const from = architectureEndpointKey(edge.from);
+    const to = architectureEndpointKey(edge.to);
+    if (!known.has(from) || !known.has(to)) continue;
+    outgoing.get(from)?.push({ key: to, edgeId: edge.id });
+    incoming.get(to)?.push({ key: from, edgeId: edge.id });
+  }
+
+  const downstreamNodeKeys = new Set<string>();
+  const downstreamEdgeIds = new Set<string>();
+  const visitedDownstream = new Set<string>([focusKey]);
+  const walkDownstream = (key: string) => {
+    for (const relation of outgoing.get(key) ?? []) {
+      downstreamEdgeIds.add(relation.edgeId);
+      if (relation.key !== focusKey) downstreamNodeKeys.add(relation.key);
+      if (visitedDownstream.has(relation.key)) continue;
+      visitedDownstream.add(relation.key);
+      walkDownstream(relation.key);
+    }
+  };
+  walkDownstream(focusKey);
+
+  const upstreamNodeKeys = new Set<string>();
+  const upstreamEdgeIds = new Set<string>();
+  const visitedUpstream = new Set<string>([focusKey]);
+  const walkUpstream = (key: string) => {
+    for (const relation of incoming.get(key) ?? []) {
+      upstreamEdgeIds.add(relation.edgeId);
+      if (relation.key !== focusKey) upstreamNodeKeys.add(relation.key);
+      if (visitedUpstream.has(relation.key)) continue;
+      visitedUpstream.add(relation.key);
+      walkUpstream(relation.key);
+    }
+  };
+  walkUpstream(focusKey);
+
+  return {
+    focusKey,
+    upstreamNodeKeys,
+    downstreamNodeKeys,
+    upstreamEdgeIds,
+    downstreamEdgeIds,
+    relatedNodeKeys: new Set([focusKey, ...upstreamNodeKeys, ...downstreamNodeKeys]),
+    relatedEdgeIds: new Set([...upstreamEdgeIds, ...downstreamEdgeIds]),
+  };
+}
 
 export type ArchitectureDiagnosticKind =
   | "isolated-action"
