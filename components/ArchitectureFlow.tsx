@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type {
   ArchitectureApiNode,
   ArchitectureEndpoint,
@@ -16,6 +16,7 @@ import {
   layoutArchitectureGraph,
 } from "@/lib/architecture-flow";
 import { useLang } from "@/lib/i18n";
+import { fitGraphZoom, graphCenterScroll, stepGraphZoom } from "@/lib/graph-viewport";
 import { Icon } from "./M3Node";
 
 const parseEndpoint = (value: string): ArchitectureEndpoint | null => {
@@ -67,6 +68,10 @@ export function ArchitectureFlowView({
     graphAllKinds: lang === "ja" ? "すべて" : lang === "zh" ? "全部" : lang === "ko" ? "전체" : "All",
     graphNoMatches: lang === "ja" ? "一致するノードはありません" : lang === "zh" ? "没有匹配的节点" : lang === "ko" ? "일치하는 노드가 없습니다" : "No matching nodes",
     clearGraphSearch: lang === "ja" ? "検索をクリア" : lang === "zh" ? "清除搜索" : lang === "ko" ? "검색 지우기" : "Clear search",
+    zoomOut: lang === "ja" ? "縮小" : lang === "zh" ? "缩小" : lang === "ko" ? "축소" : "Zoom out",
+    zoomIn: lang === "ja" ? "拡大" : lang === "zh" ? "放大" : lang === "ko" ? "확대" : "Zoom in",
+    fitGraph: lang === "ja" ? "全体表示" : lang === "zh" ? "适合视图" : lang === "ko" ? "전체 보기" : "Fit to view",
+    zoomLabel: lang === "ja" ? "グラフのズーム" : lang === "zh" ? "图表缩放" : lang === "ko" ? "그래프 확대/축소" : "Graph zoom",
     connectMode: lang === "ja" ? "グラフ上で接続" : "Connect on graph",
     endConnectMode: lang === "ja" ? "接続モードを終了" : "Exit connect mode",
     pickSource: lang === "ja" ? "開始ノードを選択してください" : "Choose a source node",
@@ -114,6 +119,8 @@ export function ArchitectureFlowView({
   const [highlightedEndpointKey, setHighlightedEndpointKey] = useState<string | null>(null);
   const [graphQuery, setGraphQuery] = useState("");
   const [graphKindFilter, setGraphKindFilter] = useState<"all" | ArchitectureEndpoint["kind"]>("all");
+  const [graphZoom, setGraphZoom] = useState(1);
+  const graphViewportRef = useRef<HTMLDivElement | null>(null);
 
   const options = useMemo(() => architectureEndpointOptions(frames, flow), [frames, flow]);
   const labels = useMemo(() => {
@@ -193,11 +200,58 @@ export function ArchitectureFlowView({
     setLabel("");
   };
 
+  const focusGraphNode = (endpoint: ArchitectureEndpoint, behavior: ScrollBehavior = "smooth") => {
+    const viewport = graphViewportRef.current;
+    const node = graphNodes.get(architectureEndpointKey(endpoint));
+    if (!viewport || !node) return;
+    const position = graphCenterScroll({
+      centerX: node.x + node.w / 2,
+      centerY: node.y + node.h / 2,
+      zoom: graphZoom,
+      viewportWidth: viewport.clientWidth,
+      viewportHeight: viewport.clientHeight,
+      scrollWidth: viewport.scrollWidth,
+      scrollHeight: viewport.scrollHeight,
+    });
+    viewport.scrollTo({ ...position, behavior });
+    const element = document.querySelector(`[data-testid="${endpointTestId(endpoint)}"]`) as HTMLElement | null;
+    element?.focus({ preventScroll: true });
+  };
+
+  const changeGraphZoom = (direction: -1 | 1) => {
+    const viewport = graphViewportRef.current;
+    const nextZoom = stepGraphZoom(graphZoom, direction);
+    if (nextZoom === graphZoom) return;
+    const centerGraphX = viewport ? (viewport.scrollLeft + viewport.clientWidth / 2) / graphZoom : 0;
+    const centerGraphY = viewport ? (viewport.scrollTop + viewport.clientHeight / 2) / graphZoom : 0;
+    setGraphZoom(nextZoom);
+    if (!viewport) return;
+    requestAnimationFrame(() => {
+      const current = graphViewportRef.current;
+      if (!current) return;
+      current.scrollTo({
+        left: Math.max(0, centerGraphX * nextZoom - current.clientWidth / 2),
+        top: Math.max(0, centerGraphY * nextZoom - current.clientHeight / 2),
+      });
+    });
+  };
+
+  const fitGraphToViewport = () => {
+    const viewport = graphViewportRef.current;
+    if (!viewport) return;
+    const nextZoom = fitGraphZoom(viewport.clientWidth, viewport.clientHeight, layout.width, layout.height);
+    setGraphZoom(nextZoom);
+    requestAnimationFrame(() => {
+      graphViewportRef.current?.scrollTo({ left: 0, top: 0, behavior: "smooth" });
+    });
+  };
+
   const clickGraphNode = (endpoint: ArchitectureEndpoint) => {
     const clickedKey = architectureEndpointKey(endpoint);
     if (!connectMode) {
       setHighlightedEndpointKey(clickedKey);
       setSelectedEdgeId(null);
+      requestAnimationFrame(() => focusGraphNode(endpoint));
       return;
     }
     setHighlightedEndpointKey(null);
@@ -247,9 +301,11 @@ export function ArchitectureFlowView({
     setGraphSource(null);
     setSelectedEdgeId(diagnostic.edgeId ?? null);
     requestAnimationFrame(() => {
-      const element = hasFocusableNode
-        ? document.querySelector(`[data-testid="${endpointTestId(endpoint)}"]`) as HTMLElement | null
-        : document.querySelector('[data-testid="architecture-graph-edge-editor"]') as HTMLElement | null;
+      if (hasFocusableNode) {
+        focusGraphNode(endpoint);
+        return;
+      }
+      const element = document.querySelector('[data-testid="architecture-graph-edge-editor"]') as HTMLElement | null;
       element?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
       element?.focus({ preventScroll: true });
     });
@@ -358,6 +414,19 @@ export function ArchitectureFlowView({
               <span data-testid="architecture-graph-search-count" style={{ fontSize: 12, fontWeight: 800, color: p.onSurfaceVariant }}>
                 {matchingNodeKeys.size}/{layout.nodes.length}
               </span>
+              <div role="group" aria-label={copy.zoomLabel} data-testid="architecture-graph-zoom-controls" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
+                <button type="button" data-testid="architecture-graph-zoom-out" aria-label={copy.zoomOut} onClick={() => changeGraphZoom(-1)} disabled={graphZoom <= 0.4} className="m3-press" style={{ width: 34, height: 34, border: `1px solid ${p.outlineVariant}`, borderRadius: 17, background: p.surface, color: p.onSurface, display: "grid", placeItems: "center", cursor: graphZoom <= 0.4 ? "default" : "pointer", opacity: graphZoom <= 0.4 ? 0.45 : 1 }}>
+                  <Icon name="zoom_out" size={18} />
+                </button>
+                <span data-testid="architecture-graph-zoom-value" style={{ minWidth: 46, textAlign: "center", fontSize: 12, fontWeight: 850, color: p.onSurfaceVariant }}>{Math.round(graphZoom * 100)}%</span>
+                <button type="button" data-testid="architecture-graph-zoom-in" aria-label={copy.zoomIn} onClick={() => changeGraphZoom(1)} disabled={graphZoom >= 1.6} className="m3-press" style={{ width: 34, height: 34, border: `1px solid ${p.outlineVariant}`, borderRadius: 17, background: p.surface, color: p.onSurface, display: "grid", placeItems: "center", cursor: graphZoom >= 1.6 ? "default" : "pointer", opacity: graphZoom >= 1.6 ? 0.45 : 1 }}>
+                  <Icon name="zoom_in" size={18} />
+                </button>
+                <button type="button" data-testid="architecture-graph-fit" onClick={fitGraphToViewport} className="m3-press" style={{ minHeight: 34, border: `1px solid ${p.outlineVariant}`, borderRadius: 17, background: p.surface, color: p.onSurface, padding: "0 10px", display: "flex", alignItems: "center", gap: 5, fontWeight: 800, cursor: "pointer" }}>
+                  <Icon name="fit_screen" size={17} />
+                  {copy.fitGraph}
+                </button>
+              </div>
               {graphFilterActive && matchingNodeKeys.size === 0 && (
                 <span data-testid="architecture-graph-search-empty" style={{ width: "100%", fontSize: 12, color: p.error, fontWeight: 750 }}>{copy.graphNoMatches}</span>
               )}
@@ -380,8 +449,9 @@ export function ArchitectureFlowView({
               </div>
             )}
 
-            <div style={{ overflow: "auto", overscrollBehavior: "contain", maxHeight: "min(58vh, 620px)" }}>
-              <div style={{ position: "relative", width: layout.width, height: layout.height, minWidth: "100%", minHeight: 260 }}>
+            <div ref={graphViewportRef} data-testid="architecture-graph-viewport" style={{ overflow: "auto", overscrollBehavior: "contain", maxHeight: "min(58vh, 620px)" }}>
+              <div data-testid="architecture-graph-scaled-space" style={{ position: "relative", width: Math.max(layout.width * graphZoom, 1), height: Math.max(layout.height * graphZoom, 260), minWidth: "100%" }}>
+                <div data-testid="architecture-graph-canvas" style={{ position: "absolute", left: 0, top: 0, width: layout.width, height: layout.height, transform: `scale(${graphZoom})`, transformOrigin: "top left" }}>
                 <svg width={layout.width} height={layout.height} aria-hidden style={{ position: "absolute", inset: 0, overflow: "visible" }}>
                   <defs>
                     <marker id="architecture-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
@@ -470,6 +540,7 @@ export function ArchitectureFlowView({
                     </button>
                   );
                 })}
+                </div>
               </div>
             </div>
           </section>
