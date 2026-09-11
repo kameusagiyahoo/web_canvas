@@ -1438,6 +1438,8 @@ export type ArchitectureActionNode = {
   kind: "action";
   name: string;
   note?: string;
+  /** Optional Canvas Item that starts this semantic action. Design metadata only. */
+  sourceItemId?: string;
 };
 
 export type ArchitectureHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";

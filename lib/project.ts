@@ -78,7 +78,10 @@ const ARCHITECTURE_HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELET
 const validArchitectureNode = (value: unknown) => {
   if (!isRecord(value) || typeof value.id !== "string" || !value.id || typeof value.name !== "string") return false;
   if (value.note !== undefined && typeof value.note !== "string") return false;
-  if (value.kind === "action") return true;
+  if (value.kind === "action") {
+    return value.sourceItemId === undefined ||
+      (typeof value.sourceItemId === "string" && value.sourceItemId.trim().length > 0);
+  }
   return value.kind === "api" &&
     typeof value.method === "string" &&
     ARCHITECTURE_HTTP_METHODS.has(value.method) &&

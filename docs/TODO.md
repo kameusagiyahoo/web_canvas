@@ -96,6 +96,7 @@
 - [x] Add E2E coverage for navigation-graph screen search without document mutation.
 - [x] Add E2E coverage for navigation-graph source location without document mutation.
 - [x] Add E2E coverage for navigation-graph diagnostic jumps without document mutation.
+- [x] Add E2E coverage for Architecture Action ↔ Canvas-part binding, source location, focused return, persistence, and Undo.
 - [x] Add project format/version migration strategy before the `Doc` schema changes substantially.
 - [x] Surface storage write failures/recovery guidance in the editor UX.
 - [x] Audit npm dependencies and remediate the identified high-severity Playwright browser-download certificate advisory.
@@ -124,6 +125,7 @@
 - [x] Add view-only Architecture Flow zoom, Fit to view, and centered node focus without persisting viewport state.
 - [x] Trace transitive upstream/downstream relations from a focused Architecture node and dim unrelated branches without mutating project data.
 - [x] Improve Architecture Flow editing with focused-node edit handoff, Action/API duplication, and edge-label editing through normal Undo/Redo.
+- [x] Link semantic Actions to Canvas parts with bidirectional Canvas ↔ Architecture handoff, while keeping navigation and execution semantics separate.
 - [ ] Evaluate an `agent` or `database` architecture node only after real projects demonstrate the need; do not add execution semantics by default.
 - [x] Add a local-first multi-project library with create/open/rename/duplicate/delete and autosave.
 - [x] Add lightweight project-name search/filtering to Project Manager without changing project storage semantics.

@@ -8,6 +8,7 @@ The Architecture Flow is a semantic layer for describing what the app does betwe
 - Existing UI navigation remains derived from `Item.action`, `Item.actions`, and `Frame.swipe`.
 - `Doc.architecture` stores only semantic architecture nodes/links that cannot be inferred from the visual editor.
 - Persisted semantic node kinds are `action` and design-only `api`.
+- An Action may optionally store `sourceItemId`, linking it to the Canvas part that starts that semantic process. The binding is design metadata only and does not replace `Item.action` navigation.
 - Architecture links are descriptive today; they do **not** change Preview navigation or invent hidden UI behavior.
 
 This keeps one source of truth for screens/navigation while creating a safe extension point for later `api`, `agent`, or `database` nodes.
@@ -44,7 +45,7 @@ The same derived graph exposes Action diagnostics for disconnected Actions, miss
 
 ## Editing and persistence
 
-The editor exposes **App architecture** on desktop and from the mobile Screens sheet. Action/API duplication, node edits, link-label edits, and other Action/link mutations:
+The editor exposes **App architecture** on desktop and from the mobile Screens sheet. An Action can be associated with one Canvas part, opened back in the normal Canvas Inspector, and the Inspector can jump to the same Action in Architecture Flow. Reassigning the same part moves ownership to the newly selected Action; duplicating an Action intentionally does not copy its Canvas binding. Action/API duplication, source binding, node edits, link-label edits, and other Action/link mutations:
 
 - enter normal document Undo/Redo;
 - autosave into the active local project;

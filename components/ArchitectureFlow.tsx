@@ -32,9 +32,17 @@ const parseEndpoint = (value: string): ArchitectureEndpoint | null => {
 const endpointTestId = (endpoint: ArchitectureEndpoint) =>
   `architecture-graph-node-${endpoint.kind}-${endpoint.id}`;
 
+export type ArchitectureCanvasItemOption = {
+  id: string;
+  label: string;
+  screenName?: string;
+};
+
 export function ArchitectureFlowView({
   flow,
   frames,
+  canvasItems,
+  focusEndpoint,
   palette: p,
   onClose,
   onAddAction,
@@ -44,12 +52,16 @@ export function ArchitectureFlowView({
   onUpdateApi,
   onDeleteApi,
   onDuplicateNode,
+  onBindActionSource,
+  onOpenCanvasItem,
   onConnect,
   onUpdateEdgeLabel,
   onDeleteEdge,
 }: {
   flow: ArchitectureFlow;
   frames: Frame[];
+  canvasItems: ArchitectureCanvasItemOption[];
+  focusEndpoint?: ArchitectureEndpoint | null;
   palette: Palette;
   onClose: () => void;
   onAddAction: (name: string) => void;
@@ -59,6 +71,8 @@ export function ArchitectureFlowView({
   onUpdateApi: (id: string, patch: Partial<Pick<ArchitectureApiNode, "name" | "method" | "path">>) => void;
   onDeleteApi: (id: string) => void;
   onDuplicateNode: (endpoint: ArchitectureEndpoint) => void;
+  onBindActionSource: (id: string, sourceItemId?: string) => void;
+  onOpenCanvasItem: (itemId: string) => void;
   onConnect: (from: ArchitectureEndpoint, to: ArchitectureEndpoint, label: string) => void;
   onUpdateEdgeLabel: (id: string, label: string) => void;
   onDeleteEdge: (id: string) => void;
@@ -108,6 +122,10 @@ export function ArchitectureFlowView({
     duplicateNode: lang === "ja" ? "複製" : "Duplicate",
     rename: lang === "ja" ? "Action名を変更" : "Rename Action",
     deleteAction: lang === "ja" ? "Actionを削除" : "Delete Action",
+    canvasSource: lang === "ja" ? "Canvasの部品" : "Canvas source",
+    canvasSourceNone: lang === "ja" ? "部品と未接続" : "Not linked to a part",
+    openCanvasSource: lang === "ja" ? "Canvasで開く" : "Open in Canvas",
+    missingCanvasSource: lang === "ja" ? "部品が見つかりません" : "Canvas part is missing",
     source: lang === "ja" ? "開始" : "From",
     target: lang === "ja" ? "接続先" : "To",
     label: lang === "ja" ? "ラベル（任意）" : "Label (optional)",
@@ -166,6 +184,7 @@ export function ArchitectureFlowView({
   const selectedEdge = flow.edges.find((edge) => edge.id === selectedEdgeId) ?? null;
   const actionNodes = useMemo(() => flow.nodes.filter((node) => node.kind === "action"), [flow.nodes]);
   const apiNodes = useMemo(() => flow.nodes.filter((node) => node.kind === "api"), [flow.nodes]);
+  const canvasItemsById = useMemo(() => new Map(canvasItems.map((item) => [item.id, item])), [canvasItems]);
   const diagnostics = useMemo(() => diagnoseArchitectureFlow(frames, flow), [frames, flow]);
   const diagnosticsByKey = useMemo(() => {
     const map = new Map<string, typeof diagnostics>();
@@ -243,6 +262,19 @@ export function ArchitectureFlowView({
     const element = document.querySelector(`[data-testid="${endpointTestId(endpoint)}"]`) as HTMLElement | null;
     element?.focus({ preventScroll: true });
   };
+
+  useEffect(() => {
+    if (!focusEndpoint) return;
+    const key = architectureEndpointKey(focusEndpoint);
+    if (!graphNodes.has(key)) return;
+    setGraphQuery("");
+    setGraphKindFilter("all");
+    setConnectMode(false);
+    setGraphSource(null);
+    setSelectedEdgeId(null);
+    setHighlightedEndpointKey(key);
+    requestAnimationFrame(() => focusGraphNode(focusEndpoint, "auto"));
+  }, [focusEndpoint?.kind, focusEndpoint?.id]);
 
   const changeGraphZoom = (direction: -1 | 1) => {
     const viewport = graphViewportRef.current;
@@ -705,17 +737,45 @@ export function ArchitectureFlowView({
                 <button type="button" onClick={addAction} data-testid="architecture-add-action" className="m3-press" style={{ height: 44, border: "none", borderRadius: 22, padding: "0 14px", background: p.primary, color: p.onPrimary, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>{copy.addAction}</button>
               </div>
               <div style={{ display: "grid", gap: 8 }}>
-                {actionNodes.map((node) => (
-                  <div key={node.id} data-testid={`architecture-action-${node.id}`} style={card(p.secondaryContainer, p.onSecondaryContainer)}>
-                    <div style={{ fontSize: 10, fontWeight: 900, color: p.primary }}>{copy.actionBadge}</div>
-                    <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
-                      <div style={{ flex: 1, minWidth: 0, fontWeight: 850, overflow: "hidden", textOverflow: "ellipsis" }}>{node.name}</div>
-                      <button type="button" data-testid={`architecture-action-edit-${node.id}`} onClick={() => { const next = window.prompt(copy.rename, node.name); if (next !== null) onRenameAction(node.id, next); }} aria-label={copy.rename} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: "inherit", cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="edit" size={18} /></button>
-                      <button type="button" data-testid={`architecture-action-duplicate-${node.id}`} onClick={() => onDuplicateNode({ kind: "action", id: node.id })} aria-label={copy.duplicateNode} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: "inherit", cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="content_copy" size={18} /></button>
-                      <button type="button" onClick={() => { if (window.confirm(copy.confirmDelete)) onDeleteAction(node.id); }} aria-label={copy.deleteAction} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: p.errorContainer, color: p.onErrorContainer, cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="delete" size={18} /></button>
+                {actionNodes.map((node) => {
+                  const sourceItem = node.sourceItemId ? canvasItemsById.get(node.sourceItemId) : undefined;
+                  return (
+                    <div key={node.id} data-testid={`architecture-action-${node.id}`} style={card(p.secondaryContainer, p.onSecondaryContainer)}>
+                      <div style={{ fontSize: 10, fontWeight: 900, color: p.primary }}>{copy.actionBadge}</div>
+                      <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0, fontWeight: 850, overflow: "hidden", textOverflow: "ellipsis" }}>{node.name}</div>
+                        <button type="button" data-testid={`architecture-action-edit-${node.id}`} onClick={() => { const next = window.prompt(copy.rename, node.name); if (next !== null) onRenameAction(node.id, next); }} aria-label={copy.rename} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: "inherit", cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="edit" size={18} /></button>
+                        <button type="button" data-testid={`architecture-action-duplicate-${node.id}`} onClick={() => onDuplicateNode({ kind: "action", id: node.id })} aria-label={copy.duplicateNode} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: "transparent", color: "inherit", cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="content_copy" size={18} /></button>
+                        <button type="button" onClick={() => { if (window.confirm(copy.confirmDelete)) onDeleteAction(node.id); }} aria-label={copy.deleteAction} className="m3-press" style={{ width: 36, height: 36, border: "none", borderRadius: 18, background: p.errorContainer, color: p.onErrorContainer, cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="delete" size={18} /></button>
+                      </div>
+                      <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr auto", gap: 7, alignItems: "center" }}>
+                        <select
+                          data-testid={`architecture-action-source-${node.id}`}
+                          aria-label={`${copy.canvasSource}: ${node.name}`}
+                          value={node.sourceItemId ?? ""}
+                          onChange={(event) => onBindActionSource(node.id, event.target.value || undefined)}
+                          style={{ minWidth: 0, height: 38, borderRadius: 12, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 9px", font: "inherit" }}
+                        >
+                          <option value="">{copy.canvasSourceNone}</option>
+                          {node.sourceItemId && !sourceItem && <option value={node.sourceItemId}>{copy.missingCanvasSource} · {node.sourceItemId}</option>}
+                          {canvasItems.map((item) => (
+                            <option key={item.id} value={item.id}>{item.screenName ? `${item.screenName} · ` : ""}{item.label}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          data-testid={`architecture-action-open-source-${node.id}`}
+                          onClick={() => sourceItem && onOpenCanvasItem(sourceItem.id)}
+                          disabled={!sourceItem}
+                          className="m3-press"
+                          style={{ height: 38, border: "none", borderRadius: 19, padding: "0 11px", background: sourceItem ? p.primaryContainer : p.surfaceContainerHigh, color: sourceItem ? p.onPrimaryContainer : p.outline, fontWeight: 800, cursor: sourceItem ? "pointer" : "default", opacity: sourceItem ? 1 : 0.7, whiteSpace: "nowrap" }}
+                        >
+                          {sourceItem ? copy.openCanvasSource : copy.missingCanvasSource}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {!actionNodes.length && <div style={{ ...card(p.surfaceContainerLow, p.onSurfaceVariant), fontSize: 13 }}>{copy.none}</div>}
               </div>
             </div>

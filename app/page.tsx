@@ -12,6 +12,7 @@ import { AnimatePresence, motion, useReducedMotion, useSpring } from "motion/rea
 import { buildPrompt, effectivePrompt } from "@/lib/prompt";
 import {
   Action,
+  ArchitectureActionNode,
   ArchitectureApiNode,
   ArchitectureEndpoint,
   ArchitectureFlow,
@@ -127,7 +128,7 @@ import { NavigationGraph } from "@/components/NavigationGraph";
 import { ArchitectureFlowView } from "@/components/ArchitectureFlow";
 import { ProjectManager } from "@/components/ProjectManager";
 import { createNavigationRoute, editNavigationEdge } from "@/lib/navigation-graph-edit";
-import { addArchitectureAction, addArchitectureApi, connectArchitectureNodes, deleteArchitectureAction, deleteArchitectureApi, deleteArchitectureEdge, duplicateArchitectureNode, renameArchitectureAction, updateArchitectureApi, updateArchitectureEdgeLabel } from "@/lib/architecture-flow";
+import { addArchitectureAction, addArchitectureApi, bindArchitectureActionSource, connectArchitectureNodes, deleteArchitectureAction, deleteArchitectureApi, deleteArchitectureEdge, duplicateArchitectureNode, renameArchitectureAction, updateArchitectureApi, updateArchitectureEdgeLabel } from "@/lib/architecture-flow";
 import { createLocalProject, deleteProject as deleteLocalProject, duplicateProject as duplicateLocalProject, readActiveProjectId, readProjectLibrary, renameProject as renameLocalProject, saveProjectSnapshot, upsertProject, writeActiveProjectId, writeProjectLibrary, type ProjectLibrary, type LocalProject } from "@/lib/project-library";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
@@ -302,6 +303,7 @@ export default function Page() {
   const [shareOpen, setShareOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
   const [architectureOpen, setArchitectureOpen] = useState(false);
+  const [architectureFocus, setArchitectureFocus] = useState<ArchitectureEndpoint | null>(null);
   const [projectManagerOpen, setProjectManagerOpen] = useState(false);
   const [projectLibrary, setProjectLibrary] = useState<ProjectLibrary>({ version: 1, projects: [] });
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -2077,6 +2079,54 @@ const changeFrame = (f: FrameMode) => {
     commitArchitecture(updateArchitectureEdgeLabel(architecture, id, label));
   const removeArchitectureEdge = (id: string) =>
     commitArchitecture(deleteArchitectureEdge(architecture, id));
+  const bindArchitectureActionNodeSource = (id: string, sourceItemId?: string) =>
+    commitArchitecture(bindArchitectureActionSource(architecture, id, sourceItemId));
+  const architectureActionNodes = useMemo(
+    () => architecture.nodes.filter((node): node is ArchitectureActionNode => node.kind === "action"),
+    [architecture.nodes],
+  );
+  const architectureCanvasItems = useMemo(
+    () => groups.flatMap((group) => {
+      const owningFrame = frameOfGroup(group, frames, widths);
+      return group.items.map((item) => ({
+        id: item.id,
+        label: item.label.trim() || KIND_SPEC[item.kind].label,
+        screenName: owningFrame?.name || undefined,
+      }));
+    }),
+    [groups, frames, widths, lang],
+  );
+  const openCanvasItemFromArchitecture = (itemId: string) => {
+    const group = groupsRef.current.find((candidate) => candidate.items.some((item) => item.id === itemId));
+    if (!group) return;
+    const owningFrame = frameOfGroup(group, framesRef.current, widthsRef.current);
+    setArchitectureOpen(false);
+    setArchitectureFocus(null);
+    setSelectedIds([itemId]);
+    setSelectedFrameId(null);
+    setSelectedLinkId(null);
+    setRightTab("edit");
+    if (mobileRef.current) setSheet("edit");
+    else setRightOpen(true);
+    if (owningFrame) {
+      setLayersFrameId(owningFrame.id);
+      focusFrame(owningFrame.id);
+    }
+  };
+  const bindSelectedArchitectureAction = (actionId: string | null) => {
+    if (!selected) return;
+    if (!actionId) {
+      const current = architectureActionNodes.find((action) => action.sourceItemId === selected.id);
+      if (current) commitArchitecture(bindArchitectureActionSource(architecture, current.id, undefined));
+      return;
+    }
+    commitArchitecture(bindArchitectureActionSource(architecture, actionId, selected.id));
+  };
+  const openArchitectureActionFromInspector = (actionId: string) => {
+    setArchitectureFocus({ kind: "action", id: actionId });
+    setArchitectureOpen(true);
+    if (mobileRef.current) setSheet(null);
+  };
 
   /* ---------- render ---------- */
   const dragSize = drag ? sizeOf(drag.item, widths) : { w: 0, h: 0 };
@@ -3282,8 +3332,10 @@ const changeFrame = (f: FrameMode) => {
             <ArchitectureFlowView
               flow={architecture}
               frames={frames}
+              canvasItems={architectureCanvasItems}
+              focusEndpoint={architectureFocus}
               palette={p}
-              onClose={() => setArchitectureOpen(false)}
+              onClose={() => { setArchitectureOpen(false); setArchitectureFocus(null); }}
               onAddAction={addArchitectureActionNode}
               onRenameAction={renameArchitectureActionNode}
               onDeleteAction={deleteArchitectureActionNode}
@@ -3291,6 +3343,8 @@ const changeFrame = (f: FrameMode) => {
               onUpdateApi={updateArchitectureApiNode}
               onDeleteApi={deleteArchitectureApiNode}
               onDuplicateNode={duplicateArchitectureSemanticNode}
+              onBindActionSource={bindArchitectureActionNodeSource}
+              onOpenCanvasItem={openCanvasItemFromArchitecture}
               onConnect={connectArchitecture}
               onUpdateEdgeLabel={updateArchitectureLinkLabel}
               onDeleteEdge={removeArchitectureEdge}
@@ -3449,6 +3503,9 @@ const changeFrame = (f: FrameMode) => {
                   grouped={!!selectedGroup}
                   onGroup={groupSelected}
                   onUngroup={ungroupSelected}
+                  architectureActions={architectureActionNodes}
+                  onBindArchitectureAction={bindSelectedArchitectureAction}
+                  onOpenArchitectureAction={openArchitectureActionFromInspector}
                 />
               ) : (
                 <PromptPanel

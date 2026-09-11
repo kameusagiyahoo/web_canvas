@@ -500,6 +500,52 @@ test("app architecture adds semantic Action nodes and Undo restores the previous
 
 
 
+test("architecture Actions bind to Canvas parts and round-trip through the Inspector", async ({ page }) => {
+  await openSeeded(page);
+  await page.getByTitle("App architecture").click();
+  let architecture = page.getByTestId("architecture-flow");
+  await architecture.getByTestId("architecture-action-name").fill("Open details");
+  await architecture.getByTestId("architecture-add-action").click();
+
+  await expect.poll(async () => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    const node = raw ? JSON.parse(raw).architecture?.nodes?.find((item: { kind?: string; name?: string }) => item.kind === "action" && item.name === "Open details") : null;
+    return node?.id ?? "";
+  })).not.toBe("");
+  const storedActionId = await page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    const node = raw ? JSON.parse(raw).architecture?.nodes?.find((item: { kind?: string; name?: string }) => item.kind === "action" && item.name === "Open details") : null;
+    return node?.id as string;
+  });
+
+  await architecture.getByTestId(`architecture-action-source-${storedActionId}`).selectOption("go-details");
+  await expect.poll(() => page.evaluate((id) => {
+    const raw = localStorage.getItem("m3e:doc");
+    const node = raw ? JSON.parse(raw).architecture?.nodes?.find((item: { id?: string }) => item.id === id) : null;
+    return node?.sourceItemId ?? "";
+  }, storedActionId)).toBe("go-details");
+
+  await architecture.getByTestId(`architecture-action-open-source-${storedActionId}`).click();
+  await expect(architecture).toBeHidden();
+  const inspectorAction = page.getByTestId("inspector-architecture-action");
+  await expect(inspectorAction).toHaveValue(storedActionId);
+  await expect(inspectorAction.locator(`option[value="${storedActionId}"]`)).toHaveText("Open details");
+
+  await page.getByTestId("inspector-open-architecture-action").click();
+  architecture = page.getByTestId("architecture-flow");
+  await expect(architecture).toBeVisible();
+  await expect(architecture.getByTestId(`architecture-graph-node-action-${storedActionId}`)).toBeFocused();
+
+  await architecture.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByTitle("Undo").click();
+  await expect.poll(() => page.evaluate((id) => {
+    const raw = localStorage.getItem("m3e:doc");
+    const node = raw ? JSON.parse(raw).architecture?.nodes?.find((item: { id?: string }) => item.id === id) : null;
+    return node?.sourceItemId ?? "";
+  }, storedActionId)).toBe("");
+});
+
+
 test("architecture visual graph creates semantic links and participates in undo", async ({ page }) => {
   await openSeeded(page);
   await page.getByTitle("App architecture").click();

@@ -73,11 +73,17 @@ export function duplicateArchitectureNode(
   const id = newId.trim();
   const name = newName.trim();
   if (!source || !id || !name || flow.nodes.some((node) => node.id === id)) return flow;
+  const duplicate = source.kind === "action"
+    ? (() => {
+        const { sourceItemId: _sourceItemId, ...rest } = source;
+        return { ...rest, id, name };
+      })()
+    : { ...source, id, name };
   return {
     ...flow,
-    // Duplicate only the semantic node. Connections are intentionally not copied,
-    // because duplicating topology would silently invent app behavior.
-    nodes: [...flow.nodes, { ...source, id, name }],
+    // Duplicate only semantic metadata. Connections and Canvas-source ownership are
+    // intentionally not copied because either would silently invent app behavior.
+    nodes: [...flow.nodes, duplicate],
   };
 }
 
@@ -122,6 +128,38 @@ export function deleteArchitectureAction(
         !(edge.to.kind === "action" && edge.to.id === id),
     ),
   };
+}
+
+/**
+ * Associate a visual Canvas Item with a semantic Action. One Item can start at most
+ * one Action; rebinding it clears the previous Action's source without changing any
+ * navigation or execution behavior.
+ */
+export function bindArchitectureActionSource(
+  flow: ArchitectureFlow,
+  id: string,
+  sourceItemId?: string,
+): ArchitectureFlow {
+  const nextSourceItemId = sourceItemId?.trim() || undefined;
+  if (!flow.nodes.some((node) => node.kind === "action" && node.id === id)) return flow;
+
+  let changed = false;
+  const nodes = flow.nodes.map((node) => {
+    if (node.kind !== "action") return node;
+    const nextSource =
+      node.id === id
+        ? nextSourceItemId
+        : nextSourceItemId && node.sourceItemId === nextSourceItemId
+          ? undefined
+          : node.sourceItemId;
+    if (nextSource === node.sourceItemId) return node;
+    changed = true;
+    if (nextSource) return { ...node, sourceItemId: nextSource };
+    const { sourceItemId: _removed, ...rest } = node;
+    return rest;
+  });
+
+  return changed ? { ...flow, nodes } : flow;
 }
 
 export function connectArchitectureNodes(

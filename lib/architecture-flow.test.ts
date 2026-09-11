@@ -4,6 +4,7 @@ import {
   addArchitectureAction,
   addArchitectureApi,
   architectureEndpointOptions,
+  bindArchitectureActionSource,
   connectArchitectureNodes,
   deleteArchitectureAction,
   deleteArchitectureApi,
@@ -66,7 +67,7 @@ describe("architecture flow commands", () => {
     const flow: ArchitectureFlow = {
       version: 1,
       nodes: [
-        { id: "validate", kind: "action", name: "Validate", note: "check credentials" },
+        { id: "validate", kind: "action", name: "Validate", note: "check credentials", sourceItemId: "login-button" },
         { id: "login", kind: "api", name: "Login API", method: "POST", path: "/api/login" },
       ],
       edges: [
@@ -76,6 +77,7 @@ describe("architecture flow commands", () => {
 
     const actionCopy = duplicateArchitectureNode(flow, { kind: "action", id: "validate" }, "validate-copy", "Validate copy");
     expect(actionCopy.nodes).toContainEqual({ id: "validate-copy", kind: "action", name: "Validate copy", note: "check credentials" });
+    expect(actionCopy.nodes.find((node) => node.id === "validate-copy")).not.toHaveProperty("sourceItemId");
     expect(actionCopy.edges).toEqual(flow.edges);
 
     const apiCopy = duplicateArchitectureNode(actionCopy, { kind: "api", id: "login" }, "login-copy", "Login API copy");
@@ -83,6 +85,24 @@ describe("architecture flow commands", () => {
     expect(apiCopy.edges).toEqual(flow.edges);
     expect(duplicateArchitectureNode(apiCopy, { kind: "frame", id: "home" }, "screen-copy", "Home copy")).toBe(apiCopy);
     expect(duplicateArchitectureNode(apiCopy, { kind: "action", id: "validate" }, "login-copy", "Collision")).toBe(apiCopy);
+  });
+
+  it("binds a Canvas item to one Action at a time and can clear the binding", () => {
+    const flow: ArchitectureFlow = {
+      version: 1,
+      nodes: [
+        { id: "first", kind: "action", name: "First" },
+        { id: "second", kind: "action", name: "Second" },
+      ],
+      edges: [],
+    };
+    const first = bindArchitectureActionSource(flow, "first", " button-1 ");
+    expect(first.nodes[0]).toMatchObject({ id: "first", sourceItemId: "button-1" });
+    const reassigned = bindArchitectureActionSource(first, "second", "button-1");
+    expect(reassigned.nodes[0]).not.toHaveProperty("sourceItemId");
+    expect(reassigned.nodes[1]).toMatchObject({ id: "second", sourceItemId: "button-1" });
+    const cleared = bindArchitectureActionSource(reassigned, "second", undefined);
+    expect(cleared.nodes[1]).not.toHaveProperty("sourceItemId");
   });
 
   it("updates and clears a semantic link label without changing its endpoints", () => {
