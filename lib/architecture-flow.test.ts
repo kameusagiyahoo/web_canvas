@@ -231,6 +231,35 @@ describe("architecture flow diagnostics", () => {
     expect(JSON.stringify(flow)).toBe(before);
   });
 
+  it("reports every Action sharing one existing Canvas Item without changing the flow", () => {
+    const flow: ArchitectureFlow = {
+      version: 1,
+      nodes: [
+        { id: "validate", kind: "action", name: "Validate", sourceItemId: "login-button" },
+        { id: "submit", kind: "action", name: "Submit", sourceItemId: "login-button" },
+      ],
+      edges: [],
+    };
+    const before = JSON.stringify(flow);
+    expect(diagnoseArchitectureCanvasBindings(flow, new Set(["login-button"]))).toEqual([
+      {
+        id: "duplicate-canvas-source-login-button-validate",
+        kind: "duplicate-canvas-source",
+        severity: "error",
+        endpoint: { kind: "action", id: "validate" },
+        sourceItemId: "login-button",
+      },
+      {
+        id: "duplicate-canvas-source-login-button-submit",
+        kind: "duplicate-canvas-source",
+        severity: "error",
+        endpoint: { kind: "action", id: "submit" },
+        sourceItemId: "login-button",
+      },
+    ]);
+    expect(JSON.stringify(flow)).toBe(before);
+  });
+
   it("marks every Action that participates in a directed cycle", () => {
     const flow: ArchitectureFlow = {
       version: 1,

@@ -98,6 +98,7 @@
 - [x] Add E2E coverage for navigation-graph diagnostic jumps without document mutation.
 - [x] Add E2E coverage for Architecture Action ↔ Canvas-part binding, source location, focused return, persistence, and Undo.
 - [x] Diagnose Architecture Action bindings that point to missing Canvas parts and jump directly to the repair control without mutating project data.
+- [x] Diagnose imported Architecture data that assigns one Canvas part to multiple Actions and route each conflict to explicit repair.
 - [x] Add project format/version migration strategy before the `Doc` schema changes substantially.
 - [x] Surface storage write failures/recovery guidance in the editor UX.
 - [x] Audit npm dependencies and remediate the identified high-severity Playwright browser-download certificate advisory.

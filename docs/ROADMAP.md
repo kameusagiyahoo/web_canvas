@@ -116,7 +116,7 @@ Status: **interactive Action-flow foundation implemented**.
 - Persist semantic Action nodes and semantic links as optional document architecture metadata.
 - Expose the same architecture editor from desktop and mobile.
 - Keep Action/link changes inside normal project autosave, JSON import/export and Undo/Redo.
-- Diagnose stale Action → Canvas source bindings and route the user to explicit repair instead of silently clearing them.
+- Diagnose stale or duplicate Action → Canvas source bindings and route the user to explicit repair instead of silently normalizing them.
 - Render Screen + Action nodes as a deterministic visual graph with direct graph connection and edge selection/deletion.
 - Do not make semantic architecture links drive Preview navigation.
 - Add `api` / `agent` / `database` node kinds only when a concrete workflow requires them.
