@@ -39,6 +39,7 @@ import {
 } from "@/lib/tokens";
 import { IconPicker } from "./IconPicker";
 import { Icon } from "./M3Node";
+import { ArchitectureBindingControls } from "./ArchitectureBinding";
 import { ButtonRun, CornerIcon, Field, IconBtn, Section, Segmented, SizePresets, Slider, TidyButton, TidyState, Toggle, TokenChips } from "./ui";
 import { AiWriteBtn } from "./AiPanel";
 import { popHistory } from "@/lib/ai";
@@ -633,13 +634,6 @@ export function Inspector({
   }
 
   const spec = KIND_SPEC[item.kind];
-  const boundArchitectureAction = architectureActions.find((action) => action.sourceItemId === item.id);
-  const architectureTitle = lang === "ja" ? "Architecture Action" : "Architecture Action";
-  const architectureNone = lang === "ja" ? "Actionと未接続" : "Not linked to an Action";
-  const architectureOpen = lang === "ja" ? "Architecture Flowで開く" : "Open in Architecture Flow";
-  const architectureHint = lang === "ja"
-    ? "この部品から始まる意味上の処理を関連付けます。画面遷移の設定は変更しません。"
-    : "Associate the semantic process started by this part. This does not change navigation.";
   const frameSize = frame ? frameSizeOf(frame) : { w: PHONE_W, h: PHONE_H };
   const mapWidthPreset = (v: number) =>
     v === PHONE_W ? frameSize.w : v === CONTENT_W ? contentWidth(frameSize.w) : v === HALF_W ? halfWidth(frameSize.w) : v;
@@ -750,31 +744,14 @@ export function Inspector({
       </div>
 
       {onBindArchitectureAction && (
-        <Section id="architecture-action" icon="schema" title={architectureTitle} p={p}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <select
-              data-testid="inspector-architecture-action"
-              aria-label={architectureTitle}
-              value={boundArchitectureAction?.id ?? ""}
-              onChange={(event) => onBindArchitectureAction(event.target.value || null)}
-              style={{ width: "100%", height: 42, borderRadius: 13, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit" }}
-            >
-              <option value="">{architectureNone}</option>
-              {architectureActions.map((action) => <option key={action.id} value={action.id}>{action.name}</option>)}
-            </select>
-            {boundArchitectureAction && onOpenArchitectureAction && (
-              <button
-                type="button"
-                data-testid="inspector-open-architecture-action"
-                onClick={() => onOpenArchitectureAction(boundArchitectureAction.id)}
-                className="m3-press"
-                style={{ height: 40, border: "none", borderRadius: 20, background: p.secondaryContainer, color: p.onSecondaryContainer, fontWeight: 700, cursor: "pointer" }}
-              >
-                {architectureOpen}
-              </button>
-            )}
-            <div style={{ fontSize: 11, lineHeight: 1.5, color: p.onSurfaceVariant }}>{architectureHint}</div>
-          </div>
+        <Section id="architecture-action" icon="schema" title="Architecture Action" p={p}>
+          <ArchitectureBindingControls
+            itemId={item.id}
+            actions={architectureActions}
+            palette={p}
+            onBind={onBindArchitectureAction}
+            onOpen={onOpenArchitectureAction}
+          />
         </Section>
       )}
 

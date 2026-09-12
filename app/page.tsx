@@ -3223,6 +3223,9 @@ const changeFrame = (f: FrameMode) => {
                   item={selected}
                   frames={frames}
                   palette={p}
+                  architectureActions={architectureActionNodes}
+                  onBindArchitectureAction={bindSelectedArchitectureAction}
+                  onOpenArchitectureAction={openArchitectureActionFromInspector}
                   onChange={patchSelected}
                   onDelete={() => {
                     deleteSelected();
