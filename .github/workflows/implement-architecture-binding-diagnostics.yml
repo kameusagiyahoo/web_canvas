@@ -38,6 +38,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add lib/architecture-flow.ts lib/architecture-flow.test.ts components/ArchitectureFlow.tsx e2e/core.e2e.ts docs/TODO.md docs/ARCHITECTURE_FLOW.md docs/ROADMAP.md
-          git rm scripts/implement-architecture-binding-diagnostics.py .github/workflows/implement-architecture-binding-diagnostics.yml
+          git rm -f scripts/implement-architecture-binding-diagnostics.py .github/workflows/implement-architecture-binding-diagnostics.yml
           git commit -m "Diagnose broken Architecture Canvas bindings"
           git push
