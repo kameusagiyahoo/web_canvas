@@ -20,6 +20,22 @@ jobs:
           cache: npm
       - name: Apply implementation
         run: python scripts/implement_mobile_architecture_binding.py
+      - name: Use the explicit mobile Layers selection path in E2E
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('e2e/core.e2e.ts')
+          text = path.read_text()
+          old = '''  await page.locator('[data-screen="home"]').getByText("Go details", { exact: true }).click();
+            await page.getByRole("button", { name: "Edit", exact: true }).click();'''.replace('    await', '  await')
+          new = '''  await page.getByTitle("Layers").click();
+          await page.getByRole("button", { name: "Go details", exact: true }).click();
+          await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
+          await page.getByRole("button", { name: "Edit", exact: true }).click();'''
+          if old not in text:
+              raise SystemExit('mobile E2E selection block not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
