@@ -50,6 +50,7 @@ export function ArchitectureFlowView({
   onRenameAction,
   onDeleteAction,
   onAddApi,
+  onCreateQuickFlow,
   onUpdateApi,
   onDeleteApi,
   onDuplicateNode,
@@ -69,6 +70,7 @@ export function ArchitectureFlowView({
   onRenameAction: (id: string, name: string) => void;
   onDeleteAction: (id: string) => void;
   onAddApi: (name: string, method: ArchitectureHttpMethod, path: string) => void;
+  onCreateQuickFlow: (draft: { sourceFrameId: string; targetFrameId?: string; actionName: string; apiName: string; apiMethod: ArchitectureHttpMethod; apiPath: string }) => void;
   onUpdateApi: (id: string, patch: Partial<Pick<ArchitectureApiNode, "name" | "method" | "path">>) => void;
   onDeleteApi: (id: string) => void;
   onDuplicateNode: (endpoint: ArchitectureEndpoint) => void;
@@ -111,6 +113,12 @@ export function ArchitectureFlowView({
     screens: lang === "ja" ? "画面" : lang === "zh" ? "屏幕" : lang === "ko" ? "화면" : "Screens",
     actions: "Actions",
     apis: "APIs",
+    quickFlow: lang === "ja" ? "Quick flow" : "Quick flow",
+    quickFlowHint: lang === "ja" ? "Screen → Action → API → 次のScreenをまとめて作成します。次のScreenは任意です。画面遷移は変更しません。" : "Create Screen → Action → API → next Screen in one step. The final Screen is optional and navigation is unchanged.",
+    quickSource: lang === "ja" ? "開始Screen" : "Start Screen",
+    quickTarget: lang === "ja" ? "次のScreen（任意）" : "Next Screen (optional)",
+    quickNoTarget: lang === "ja" ? "次のScreenなし" : "No next Screen",
+    quickCreate: lang === "ja" ? "フローを作成" : "Create flow",
     links: lang === "ja" ? "意味上の接続" : lang === "zh" ? "语义连接" : lang === "ko" ? "의미 연결" : "Semantic links",
     addAction: lang === "ja" ? "Actionを追加" : lang === "zh" ? "添加Action" : lang === "ko" ? "Action 추가" : "Add Action",
     actionName: lang === "ja" ? "処理名（例: ログインを検証）" : "Action name (e.g. Validate login)",
@@ -143,6 +151,12 @@ export function ArchitectureFlowView({
   const [apiName, setApiName] = useState("");
   const [apiMethod, setApiMethod] = useState<ArchitectureHttpMethod>("GET");
   const [apiPath, setApiPath] = useState("");
+  const [quickSourceFrameId, setQuickSourceFrameId] = useState(frames[0]?.id ?? "");
+  const [quickTargetFrameId, setQuickTargetFrameId] = useState("");
+  const [quickActionName, setQuickActionName] = useState("");
+  const [quickApiName, setQuickApiName] = useState("");
+  const [quickApiMethod, setQuickApiMethod] = useState<ArchitectureHttpMethod>("GET");
+  const [quickApiPath, setQuickApiPath] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [label, setLabel] = useState("");
@@ -155,6 +169,11 @@ export function ArchitectureFlowView({
   const [graphKindFilter, setGraphKindFilter] = useState<"all" | ArchitectureEndpoint["kind"]>("all");
   const [graphZoom, setGraphZoom] = useState(1);
   const graphViewportRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!frames.some((frame) => frame.id === quickSourceFrameId)) setQuickSourceFrameId(frames[0]?.id ?? "");
+    if (quickTargetFrameId && !frames.some((frame) => frame.id === quickTargetFrameId)) setQuickTargetFrameId("");
+  }, [frames, quickSourceFrameId, quickTargetFrameId]);
 
   const options = useMemo(() => architectureEndpointOptions(frames, flow), [frames, flow]);
   const labels = useMemo(() => {
@@ -240,6 +259,24 @@ export function ArchitectureFlowView({
     onAddApi(name, apiMethod, path);
     setApiName("");
     setApiPath("");
+  };
+
+  const createQuickFlow = () => {
+    const actionName = quickActionName.trim();
+    const apiName = quickApiName.trim();
+    const apiPath = quickApiPath.trim();
+    if (!quickSourceFrameId || !actionName || !apiName || !apiPath) return;
+    onCreateQuickFlow({
+      sourceFrameId: quickSourceFrameId,
+      targetFrameId: quickTargetFrameId || undefined,
+      actionName,
+      apiName,
+      apiMethod: quickApiMethod,
+      apiPath,
+    });
+    setQuickActionName("");
+    setQuickApiName("");
+    setQuickApiPath("");
   };
 
   const addLink = () => {
@@ -731,6 +768,36 @@ export function ArchitectureFlowView({
             ) : (
               <div style={{ marginTop: 10, fontSize: 12, color: p.onSurfaceVariant }}>{copy.diagnosticsOk}</div>
             )}
+          </section>
+
+          <section data-testid="architecture-quick-flow" style={{ border: `1px solid ${p.outlineVariant}`, borderRadius: 20, padding: 14, background: p.surfaceContainerLow }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <span style={{ width: 34, height: 34, borderRadius: 12, display: "grid", placeItems: "center", background: p.primaryContainer, color: p.onPrimaryContainer }}><Icon name="bolt" size={19} /></span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 900 }}>{copy.quickFlow}</div>
+                <div style={{ marginTop: 2, fontSize: 11, color: p.onSurfaceVariant }}>{copy.quickFlowHint}</div>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 8 }}>
+              <select data-testid="architecture-quick-source" aria-label={copy.quickSource} value={quickSourceFrameId} onChange={(event) => setQuickSourceFrameId(event.target.value)} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit" }}>
+                {frames.map((frame) => <option key={frame.id} value={frame.id}>{frame.name || copy.screens}</option>)}
+              </select>
+              <input data-testid="architecture-quick-action" aria-label={copy.actionName} placeholder={copy.actionName} value={quickActionName} onChange={(event) => setQuickActionName(event.target.value)} style={{ minWidth: 0, height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 12px", font: "inherit" }} />
+              <select data-testid="architecture-quick-api-method" aria-label="HTTP method" value={quickApiMethod} onChange={(event) => setQuickApiMethod(event.target.value as ArchitectureHttpMethod)} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit" }}>
+                {(["GET", "POST", "PUT", "PATCH", "DELETE"] as ArchitectureHttpMethod[]).map((method) => <option key={method} value={method}>{method}</option>)}
+              </select>
+              <input data-testid="architecture-quick-api-path" aria-label={copy.apiPath} placeholder={copy.apiPath} value={quickApiPath} onChange={(event) => setQuickApiPath(event.target.value)} style={{ minWidth: 0, height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 12px", font: "inherit" }} />
+              <input data-testid="architecture-quick-api-name" aria-label={copy.apiName} placeholder={copy.apiName} value={quickApiName} onChange={(event) => setQuickApiName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") createQuickFlow(); }} style={{ minWidth: 0, height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 12px", font: "inherit" }} />
+              <select data-testid="architecture-quick-target" aria-label={copy.quickTarget} value={quickTargetFrameId} onChange={(event) => setQuickTargetFrameId(event.target.value)} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit" }}>
+                <option value="">{copy.quickNoTarget}</option>
+                {frames.map((frame) => <option key={frame.id} value={frame.id}>{frame.name || copy.screens}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+              <button type="button" data-testid="architecture-quick-create" onClick={createQuickFlow} disabled={!frames.length || !quickActionName.trim() || !quickApiName.trim() || !quickApiPath.trim()} className="m3-press" style={{ minHeight: 42, border: "none", borderRadius: 21, padding: "0 16px", background: p.primary, color: p.onPrimary, fontWeight: 850, cursor: "pointer", opacity: !frames.length || !quickActionName.trim() || !quickApiName.trim() || !quickApiPath.trim() ? 0.5 : 1 }}>
+                {copy.quickCreate}
+              </button>
+            </div>
           </section>
 
           <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 14 }}>

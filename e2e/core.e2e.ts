@@ -660,6 +660,42 @@ await page.getByRole("button", { name: "Edit", exact: true }).click();
 });
 
 
+test("architecture Quick flow creates Screen Action API Screen as one undo step", async ({ page }) => {
+  await openSeeded(page);
+  await page.getByTitle("App architecture").click();
+  const architecture = page.getByTestId("architecture-flow");
+
+  await architecture.getByTestId("architecture-quick-source").selectOption("home");
+  await architecture.getByTestId("architecture-quick-action").fill("Load details");
+  await architecture.getByTestId("architecture-quick-api-method").selectOption("GET");
+  await architecture.getByTestId("architecture-quick-api-path").fill("/api/details");
+  await architecture.getByTestId("architecture-quick-api-name").fill("Details API");
+  await architecture.getByTestId("architecture-quick-target").selectOption("details");
+  await architecture.getByTestId("architecture-quick-create").click();
+
+  const actionNode = architecture.locator('[data-testid^="architecture-graph-node-action-"]').filter({ hasText: "Load details" });
+  const apiNode = architecture.locator('[data-testid^="architecture-graph-node-api-"]').filter({ hasText: "Details API" });
+  await expect(actionNode).toHaveCount(1);
+  await expect(apiNode).toHaveCount(1);
+  await expect(actionNode).toBeFocused();
+  await expect(architecture.locator('[data-testid^="architecture-graph-link-"]')).toHaveCount(3);
+
+  await expect.poll(() => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    const flow = raw ? JSON.parse(raw).architecture : null;
+    return { nodes: flow?.nodes?.length ?? 0, edges: flow?.edges?.length ?? 0 };
+  })).toEqual({ nodes: 2, edges: 3 });
+
+  await architecture.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByTitle("Undo").click();
+  await expect.poll(() => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    const flow = raw ? JSON.parse(raw).architecture : null;
+    return { nodes: flow?.nodes?.length ?? 0, edges: flow?.edges?.length ?? 0 };
+  })).toEqual({ nodes: 0, edges: 0 });
+});
+
+
 test("architecture visual graph creates semantic links and participates in undo", async ({ page }) => {
   await openSeeded(page);
   await page.getByTitle("App architecture").click();

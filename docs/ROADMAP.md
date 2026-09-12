@@ -117,6 +117,7 @@ Status: **interactive Action-flow foundation implemented**.
 - Expose the same architecture editor from desktop and mobile.
 - Keep Action/link changes inside normal project autosave, JSON import/export and Undo/Redo.
 - Diagnose stale or duplicate Action → Canvas source bindings and route the user to explicit repair instead of silently normalizing them.
+- Create common `Screen → Action → API → optional Screen` semantic chains from one Quick flow form and one shared document command/Undo step.
 - Render Screen + Action nodes as a deterministic visual graph with direct graph connection and edge selection/deletion.
 - Do not make semantic architecture links drive Preview navigation.
 - Add `api` / `agent` / `database` node kinds only when a concrete workflow requires them.
