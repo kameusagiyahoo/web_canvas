@@ -316,7 +316,8 @@ export type ArchitectureDiagnosticKind =
   | "duplicate-api-endpoint"
   | "cycle"
   | "missing-source-endpoint"
-  | "missing-target-endpoint";
+  | "missing-target-endpoint"
+  | "missing-canvas-source";
 
 export type ArchitectureDiagnostic = {
   id: string;
@@ -327,7 +328,32 @@ export type ArchitectureDiagnostic = {
   /** Broken link diagnostics select the preserved semantic edge so it can be inspected/deleted. */
   edgeId?: string;
   missingEndpoint?: ArchitectureEndpoint;
+  /** Stale Canvas-source bindings preserve the missing Item id for explicit repair. */
+  missingSourceItemId?: string;
 };
+
+/**
+ * Diagnose Action → Canvas Item references separately from semantic graph connectivity.
+ * Missing bindings are never normalized away here: diagnostics are view-only and let
+ * the user explicitly reassign or clear the preserved sourceItemId.
+ */
+export function diagnoseArchitectureCanvasBindings(
+  flow: ArchitectureFlow,
+  knownCanvasItemIds: ReadonlySet<string>,
+): ArchitectureDiagnostic[] {
+  const diagnostics: ArchitectureDiagnostic[] = [];
+  for (const node of flow.nodes) {
+    if (node.kind !== "action" || !node.sourceItemId || knownCanvasItemIds.has(node.sourceItemId)) continue;
+    diagnostics.push({
+      id: `missing-canvas-source-${node.id}`,
+      kind: "missing-canvas-source",
+      severity: "error",
+      endpoint: { kind: "action", id: node.id },
+      missingSourceItemId: node.sourceItemId,
+    });
+  }
+  return diagnostics;
+}
 
 /**
  * Derive architecture problems without mutating or normalizing the model.

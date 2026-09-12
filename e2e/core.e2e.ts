@@ -393,6 +393,37 @@ test("architecture diagnostics expose a broken semantic link without mutating th
 });
 
 
+test("architecture diagnostics expose a missing Canvas source without mutating the document", async ({ page }) => {
+  const brokenDoc = {
+    ...seedDoc,
+    architecture: {
+      version: 1,
+      nodes: [
+        { id: "validate", kind: "action", name: "Validate login", sourceItemId: "deleted-button" },
+      ],
+      edges: [
+        { id: "home-validate", from: { kind: "frame", id: "home" }, to: { kind: "action", id: "validate" } },
+        { id: "validate-details", from: { kind: "action", id: "validate" }, to: { kind: "frame", id: "details" } },
+      ],
+    },
+  };
+  await page.addInitScript(({ doc }) => {
+    localStorage.setItem("m3e:doc", JSON.stringify(doc));
+    localStorage.setItem("m3e:ui", JSON.stringify({ lang: "en" }));
+  }, { doc: brokenDoc });
+  await page.goto("/");
+  await expect(page.getByTitle("Undo")).toBeVisible();
+  const before = await page.evaluate(() => localStorage.getItem("m3e:doc"));
+
+  await page.getByTitle("App architecture").click();
+  const architecture = page.getByTestId("architecture-flow");
+  await expect(architecture.getByTestId("architecture-diagnostic-count")).toHaveText("1");
+  await architecture.getByRole("button", { name: "Canvas source is missing for Action: Validate login (deleted-button)" }).click();
+  await expect(architecture.getByTestId("architecture-action-source-validate")).toBeFocused();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(before);
+});
+
+
 test("local project library creates and switches independent projects", async ({ page }) => {
   await openSeeded(page);
 
