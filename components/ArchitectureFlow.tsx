@@ -12,6 +12,7 @@ import type {
 import {
   architectureEndpointKey,
   architectureEndpointOptions,
+  diagnoseArchitectureCanvasBindings,
   diagnoseArchitectureFlow,
   layoutArchitectureGraph,
   traceArchitectureRelations,
@@ -105,7 +106,7 @@ export function ArchitectureFlowView({
     saveLinkLabel: lang === "ja" ? "ラベルを保存" : "Save label",
     deleteLink: lang === "ja" ? "接続を削除" : "Delete link",
     diagnostics: lang === "ja" ? "診断" : "Diagnostics",
-    diagnosticsHint: lang === "ja" ? "Action/APIの接続漏れ・API重複・循環・削除済みノードを参照する壊れた接続を検出します。" : "Detect Action/API connectivity problems, duplicate API endpoints, cycles, and links that reference deleted endpoints.",
+    diagnosticsHint: lang === "ja" ? "Action/APIの接続漏れ・API重複・循環・削除済みノードへの接続・見つからないCanvas部品へのAction割当を検出します。" : "Detect Action/API connectivity problems, duplicate API endpoints, cycles, links to deleted endpoints, and Action bindings to missing Canvas parts.",
     diagnosticsOk: lang === "ja" ? "Architecture Flowに問題は見つかりませんでした" : "No Architecture Flow problems found",
     screens: lang === "ja" ? "画面" : lang === "zh" ? "屏幕" : lang === "ko" ? "화면" : "Screens",
     actions: "Actions",
@@ -185,7 +186,11 @@ export function ArchitectureFlowView({
   const actionNodes = useMemo(() => flow.nodes.filter((node) => node.kind === "action"), [flow.nodes]);
   const apiNodes = useMemo(() => flow.nodes.filter((node) => node.kind === "api"), [flow.nodes]);
   const canvasItemsById = useMemo(() => new Map(canvasItems.map((item) => [item.id, item])), [canvasItems]);
-  const diagnostics = useMemo(() => diagnoseArchitectureFlow(frames, flow), [frames, flow]);
+  const canvasItemIds = useMemo(() => new Set(canvasItems.map((item) => item.id)), [canvasItems]);
+  const diagnostics = useMemo(
+    () => [...diagnoseArchitectureFlow(frames, flow), ...diagnoseArchitectureCanvasBindings(flow, canvasItemIds)],
+    [canvasItemIds, frames, flow],
+  );
   const diagnosticsByKey = useMemo(() => {
     const map = new Map<string, typeof diagnostics>();
     diagnostics.forEach((diagnostic) => {
@@ -346,6 +351,7 @@ export function ArchitectureFlowView({
       if (kind === "no-outgoing-action") return `出口がないAction: ${name}`;
       if (kind === "missing-source-endpoint") return `接続元が見つからないリンク: ${missingName ?? name}`;
       if (kind === "missing-target-endpoint") return `接続先が見つからないリンク: ${missingName ?? name}`;
+      if (kind === "missing-canvas-source") return `Canvas部品が見つからないAction: ${name}${missingName ? ` (${missingName})` : ""}`;
       return `循環しているノード: ${name}`;
     }
     if (kind === "isolated-action") return `Action is not connected: ${name}`;
@@ -355,6 +361,7 @@ export function ArchitectureFlowView({
     if (kind === "no-outgoing-action") return `Action has no outgoing flow: ${name}`;
     if (kind === "missing-source-endpoint") return `Link source is missing: ${missingName ?? name}`;
     if (kind === "missing-target-endpoint") return `Link target is missing: ${missingName ?? name}`;
+    if (kind === "missing-canvas-source") return `Canvas source is missing for Action: ${name}${missingName ? ` (${missingName})` : ""}`;
     return `Node participates in a cycle: ${name}`;
   };
 
@@ -368,6 +375,14 @@ export function ArchitectureFlowView({
     setConnectMode(false);
     setGraphSource(null);
     setSelectedEdgeId(diagnostic.edgeId ?? null);
+    if (diagnostic.kind === "missing-canvas-source") {
+      requestAnimationFrame(() => {
+        const element = document.querySelector(`[data-testid="architecture-action-source-${endpoint.id}"]`) as HTMLElement | null;
+        element?.scrollIntoView({ behavior: "smooth", block: "center" });
+        element?.focus({ preventScroll: true });
+      });
+      return;
+    }
     requestAnimationFrame(() => {
       if (hasFocusableNode) {
         focusGraphNode(endpoint);
@@ -687,9 +702,9 @@ export function ArchitectureFlowView({
                 {diagnostics.map((diagnostic) => {
                   const key = architectureEndpointKey(diagnostic.endpoint);
                   const name = labels.get(key) ?? diagnostic.endpoint.id;
-                  const missingName = diagnostic.missingEndpoint
+                  const missingName = diagnostic.missingSourceItemId ?? (diagnostic.missingEndpoint
                     ? labels.get(architectureEndpointKey(diagnostic.missingEndpoint)) ?? architectureEndpointKey(diagnostic.missingEndpoint)
-                    : undefined;
+                    : undefined);
                   const message = diagnosticMessage(diagnostic.kind, name, missingName);
                   return (
                     <button
@@ -701,7 +716,7 @@ export function ArchitectureFlowView({
                       className="m3-press"
                       style={{ minHeight: 44, borderRadius: 14, border: `1px solid ${diagnostic.severity === "error" ? p.error : p.outlineVariant}`, background: diagnostic.severity === "error" ? p.errorContainer : p.surface, color: diagnostic.severity === "error" ? p.onErrorContainer : p.onSurface, padding: "8px 11px", display: "flex", alignItems: "center", gap: 9, textAlign: "left", cursor: "pointer" }}
                     >
-                      <Icon name={diagnostic.kind === "cycle" ? "sync" : diagnostic.edgeId ? "link_off" : "warning"} size={18} />
+                      <Icon name={diagnostic.kind === "cycle" ? "sync" : diagnostic.edgeId || diagnostic.kind === "missing-canvas-source" ? "link_off" : "warning"} size={18} />
                       <span style={{ fontSize: 12, fontWeight: 800 }}>{message}</span>
                       <Icon name="my_location" size={17} />
                     </button>

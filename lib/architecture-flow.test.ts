@@ -9,6 +9,7 @@ import {
   deleteArchitectureAction,
   deleteArchitectureApi,
   deleteArchitectureEdge,
+  diagnoseArchitectureCanvasBindings,
   diagnoseArchitectureFlow,
   duplicateArchitectureNode,
   renameArchitectureAction,
@@ -208,6 +209,26 @@ describe("architecture flow diagnostics", () => {
         missingEndpoint: { kind: "frame", id: "deleted-source" },
       },
     ]);
+  });
+
+  it("reports Action Canvas bindings whose Item no longer exists without changing the flow", () => {
+    const flow: ArchitectureFlow = {
+      version: 1,
+      nodes: [{ id: "validate", kind: "action", name: "Validate", sourceItemId: "login-button" }],
+      edges: [],
+    };
+    const before = JSON.stringify(flow);
+    expect(diagnoseArchitectureCanvasBindings(flow, new Set(["other-button"]))).toEqual([
+      {
+        id: "missing-canvas-source-validate",
+        kind: "missing-canvas-source",
+        severity: "error",
+        endpoint: { kind: "action", id: "validate" },
+        missingSourceItemId: "login-button",
+      },
+    ]);
+    expect(diagnoseArchitectureCanvasBindings(flow, new Set(["login-button"]))).toEqual([]);
+    expect(JSON.stringify(flow)).toBe(before);
   });
 
   it("marks every Action that participates in a directed cycle", () => {
