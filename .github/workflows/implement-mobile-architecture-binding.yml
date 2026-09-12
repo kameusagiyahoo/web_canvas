@@ -20,7 +20,7 @@ jobs:
           cache: npm
       - name: Apply implementation
         run: python scripts/implement_mobile_architecture_binding.py
-      - name: Select the mobile binding source through Layers in E2E
+      - name: Select the mobile binding source through Screens and Layers in E2E
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -28,9 +28,11 @@ jobs:
           text = path.read_text()
           old = '''  await page.locator('[data-screen="home"]').getByText("Go details", { exact: true }).click();
             await page.getByRole("button", { name: "Edit", exact: true }).click();'''.replace('    await', '  await')
-          new = '''  await expect(page.getByTitle("Screen")).toBeVisible();
+          new = '''  const mobileScreenButton = page.getByTitle("Screen");
+          await expect(mobileScreenButton).toBeVisible();
+          await mobileScreenButton.click();
+          await page.getByRole("button", { name: /Home/ }).first().click();
           await page.getByTitle("Layers").click();
-          await page.getByRole("button", { name: "Home", exact: true }).click();
           await page.getByRole("button", { name: "Go details", exact: true }).click();
           await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
           await page.getByRole("button", { name: "Edit", exact: true }).click();'''
