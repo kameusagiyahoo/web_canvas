@@ -31,9 +31,9 @@ jobs:
           new = '''  const mobileScreenButton = page.getByTitle("Screen");
           await expect(mobileScreenButton).toBeVisible();
           await mobileScreenButton.click();
-          await page.getByRole("button", { name: /Home/ }).first().click();
+          await page.locator('button[aria-pressed]').filter({ hasText: "Home" }).click();
           await page.getByTitle("Layers").click();
-          await page.getByRole("button", { name: "Go details", exact: true }).click();
+          await page.getByRole("button").filter({ hasText: "Go details" }).first().click();
           await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
           await page.getByRole("button", { name: "Edit", exact: true }).click();'''
           if old not in text:
