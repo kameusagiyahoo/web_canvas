@@ -26,13 +26,8 @@ jobs:
           from pathlib import Path
           path = Path('components/Mobile.tsx')
           text = path.read_text()
-          old = '''      <button
-                onClick={onEdit}
-                className="m3-press"'''.replace('              onClick', '        onClick').replace('              className', '        className')
-          new = '''      <button
-                onClick={onEdit}
-                aria-label={t("edit", lang)}
-                className="m3-press"'''.replace('              onClick', '        onClick').replace('              aria-label', '        aria-label').replace('              className', '        className')
+          old = 'onClick={onEdit}\n        className="m3-press"'
+          new = 'onClick={onEdit}\n        aria-label={t("edit", lang)}\n        className="m3-press"'
           if old not in text:
               raise SystemExit('MobileActionBar Edit button not found')
           path.write_text(text.replace(old, new, 1))
