@@ -41,6 +41,66 @@ export function addArchitectureApi(
   return { ...flow, nodes: [...flow.nodes, { ...api, name, path }] };
 }
 
+export type ArchitectureQuickFlowInput = {
+  sourceFrameId: string;
+  targetFrameId?: string;
+  action: Pick<ArchitectureActionNode, "id" | "name">;
+  api: Pick<ArchitectureApiNode, "id" | "name" | "method" | "path">;
+  edgeIds: {
+    sourceToAction: string;
+    actionToApi: string;
+    apiToTarget?: string;
+  };
+};
+
+/**
+ * Create a common semantic app flow in one immutable document command. The optional
+ * final Screen is descriptive architecture only; this never writes navigation fields.
+ * Validation happens up front so a bad draft cannot partially mutate the flow.
+ */
+export function createArchitectureQuickFlow(
+  flow: ArchitectureFlow,
+  frames: readonly Frame[],
+  input: ArchitectureQuickFlowInput,
+): ArchitectureFlow {
+  const sourceFrameId = input.sourceFrameId.trim();
+  const targetFrameId = input.targetFrameId?.trim() || undefined;
+  const actionId = input.action.id.trim();
+  const actionName = input.action.name.trim();
+  const apiId = input.api.id.trim();
+  const apiName = input.api.name.trim();
+  const apiPath = input.api.path.trim();
+  const edgeIds = [input.edgeIds.sourceToAction, input.edgeIds.actionToApi, ...(targetFrameId ? [input.edgeIds.apiToTarget ?? ""] : [])].map((id) => id.trim());
+
+  if (!sourceFrameId || !frames.some((frame) => frame.id === sourceFrameId)) return flow;
+  if (targetFrameId && !frames.some((frame) => frame.id === targetFrameId)) return flow;
+  if (!actionId || !actionName || !apiId || !apiName || !apiPath || actionId === apiId) return flow;
+  if (flow.nodes.some((node) => node.id === actionId || node.id === apiId)) return flow;
+  if (edgeIds.some((id) => !id) || new Set(edgeIds).size !== edgeIds.length) return flow;
+  if (edgeIds.some((id) => flow.edges.some((edge) => edge.id === id))) return flow;
+
+  let next = addArchitectureAction(flow, { id: actionId, kind: "action", name: actionName });
+  next = addArchitectureApi(next, { id: apiId, kind: "api", name: apiName, method: input.api.method, path: apiPath });
+  next = connectArchitectureNodes(
+    next,
+    { id: edgeIds[0], from: { kind: "frame", id: sourceFrameId }, to: { kind: "action", id: actionId } },
+    frames,
+  );
+  next = connectArchitectureNodes(
+    next,
+    { id: edgeIds[1], from: { kind: "action", id: actionId }, to: { kind: "api", id: apiId } },
+    frames,
+  );
+  if (targetFrameId) {
+    next = connectArchitectureNodes(
+      next,
+      { id: edgeIds[2], from: { kind: "api", id: apiId }, to: { kind: "frame", id: targetFrameId } },
+      frames,
+    );
+  }
+  return next;
+}
+
 export function updateArchitectureApi(
   flow: ArchitectureFlow,
   id: string,

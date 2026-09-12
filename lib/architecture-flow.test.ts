@@ -6,6 +6,7 @@ import {
   architectureEndpointOptions,
   bindArchitectureActionSource,
   connectArchitectureNodes,
+  createArchitectureQuickFlow,
   deleteArchitectureAction,
   deleteArchitectureApi,
   deleteArchitectureEdge,
@@ -62,6 +63,46 @@ describe("architecture flow commands", () => {
         frames,
       ),
     ).toBe(connected);
+  });
+
+  it("creates a Screen to Action to API flow as one semantic command", () => {
+    const quickFrames: Frame[] = [...frames, { id: "details", name: "Details", x: 500, y: 0 }];
+    const created = createArchitectureQuickFlow(empty(), quickFrames, {
+      sourceFrameId: "home",
+      targetFrameId: "details",
+      action: { id: "load", name: " Load details " },
+      api: { id: "details-api", name: " Details API ", method: "GET", path: " /api/details " },
+      edgeIds: { sourceToAction: "e1", actionToApi: "e2", apiToTarget: "e3" },
+    });
+
+    expect(created.nodes).toEqual([
+      { id: "load", kind: "action", name: "Load details" },
+      { id: "details-api", kind: "api", name: "Details API", method: "GET", path: "/api/details" },
+    ]);
+    expect(created.edges).toEqual([
+      { id: "e1", from: { kind: "frame", id: "home" }, to: { kind: "action", id: "load" } },
+      { id: "e2", from: { kind: "action", id: "load" }, to: { kind: "api", id: "details-api" } },
+      { id: "e3", from: { kind: "api", id: "details-api" }, to: { kind: "frame", id: "details" } },
+    ]);
+  });
+
+  it("rejects invalid quick-flow drafts before making partial changes", () => {
+    const flow = addArchitectureAction(empty(), { id: "existing", kind: "action", name: "Existing" });
+    const invalid = createArchitectureQuickFlow(flow, frames, {
+      sourceFrameId: "missing",
+      action: { id: "new-action", name: "New action" },
+      api: { id: "new-api", name: "New API", method: "POST", path: "/api/new" },
+      edgeIds: { sourceToAction: "e1", actionToApi: "e2" },
+    });
+    expect(invalid).toBe(flow);
+
+    const collision = createArchitectureQuickFlow(flow, frames, {
+      sourceFrameId: "home",
+      action: { id: "existing", name: "Collision" },
+      api: { id: "new-api", name: "New API", method: "POST", path: "/api/new" },
+      edgeIds: { sourceToAction: "e1", actionToApi: "e2" },
+    });
+    expect(collision).toBe(flow);
   });
 
   it("duplicates semantic nodes without duplicating their connections", () => {

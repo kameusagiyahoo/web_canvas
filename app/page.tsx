@@ -128,7 +128,7 @@ import { NavigationGraph } from "@/components/NavigationGraph";
 import { ArchitectureFlowView } from "@/components/ArchitectureFlow";
 import { ProjectManager } from "@/components/ProjectManager";
 import { createNavigationRoute, editNavigationEdge } from "@/lib/navigation-graph-edit";
-import { addArchitectureAction, addArchitectureApi, bindArchitectureActionSource, connectArchitectureNodes, deleteArchitectureAction, deleteArchitectureApi, deleteArchitectureEdge, duplicateArchitectureNode, renameArchitectureAction, updateArchitectureApi, updateArchitectureEdgeLabel } from "@/lib/architecture-flow";
+import { addArchitectureAction, addArchitectureApi, bindArchitectureActionSource, connectArchitectureNodes, createArchitectureQuickFlow, deleteArchitectureAction, deleteArchitectureApi, deleteArchitectureEdge, duplicateArchitectureNode, renameArchitectureAction, updateArchitectureApi, updateArchitectureEdgeLabel } from "@/lib/architecture-flow";
 import { createLocalProject, deleteProject as deleteLocalProject, duplicateProject as duplicateLocalProject, readActiveProjectId, readProjectLibrary, renameProject as renameLocalProject, saveProjectSnapshot, upsertProject, writeActiveProjectId, writeProjectLibrary, type ProjectLibrary, type LocalProject } from "@/lib/project-library";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
@@ -2062,6 +2062,24 @@ const changeFrame = (f: FrameMode) => {
     commitArchitecture(deleteArchitectureAction(architecture, id));
   const addArchitectureApiNode = (name: string, method: ArchitectureHttpMethod, path: string) =>
     commitArchitecture(addArchitectureApi(architecture, { id: uid(), kind: "api", name, method, path }));
+  const createArchitectureQuickFlowChain = (draft: { sourceFrameId: string; targetFrameId?: string; actionName: string; apiName: string; apiMethod: ArchitectureHttpMethod; apiPath: string }) => {
+    const actionId = uid();
+    const apiId = uid();
+    const next = createArchitectureQuickFlow(architecture, framesRef.current, {
+      sourceFrameId: draft.sourceFrameId,
+      targetFrameId: draft.targetFrameId,
+      action: { id: actionId, name: draft.actionName },
+      api: { id: apiId, name: draft.apiName, method: draft.apiMethod, path: draft.apiPath },
+      edgeIds: {
+        sourceToAction: uid(),
+        actionToApi: uid(),
+        apiToTarget: draft.targetFrameId ? uid() : undefined,
+      },
+    });
+    if (next === architecture) return;
+    commitArchitecture(next);
+    setArchitectureFocus({ kind: "action", id: actionId });
+  };
   const updateArchitectureApiNode = (id: string, patch: Partial<Pick<ArchitectureApiNode, "name" | "method" | "path">>) =>
     commitArchitecture(updateArchitectureApi(architecture, id, patch));
   const deleteArchitectureApiNode = (id: string) =>
@@ -3343,6 +3361,7 @@ const changeFrame = (f: FrameMode) => {
               onRenameAction={renameArchitectureActionNode}
               onDeleteAction={deleteArchitectureActionNode}
               onAddApi={addArchitectureApiNode}
+              onCreateQuickFlow={createArchitectureQuickFlowChain}
               onUpdateApi={updateArchitectureApiNode}
               onDeleteApi={deleteArchitectureApiNode}
               onDuplicateNode={duplicateArchitectureSemanticNode}

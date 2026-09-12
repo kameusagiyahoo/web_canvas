@@ -69,6 +69,7 @@ The extracted boundaries now include:
 - `lib/navigation-links.ts` — derived screen-action link geometry and link mutation
 - `lib/navigation-graph.ts` — derived navigation nodes/edges, validation diagnostics, reachability and deterministic graph layout
 - `lib/navigation-graph-edit.ts` — existing-route editing, trigger discovery, graph-created routes, and transition persistence through existing document fields
+- `lib/architecture-flow.ts` — semantic Action/API commands, diagnostics/layout, Canvas-source binding, and atomic Quick flow creation
 - `lib/run-radii.ts` — connected-run corner interpolation during drag/open-gap animation
 - `lib/layer-selection.ts` — group-to-frame ownership and Layers-panel active-frame resolution
 - `lib/measurement.ts` — measurement-item collection and width-change detection
