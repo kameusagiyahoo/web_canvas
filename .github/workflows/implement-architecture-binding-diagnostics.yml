@@ -22,7 +22,9 @@ jobs:
           node-version: 22.12.0
           cache: npm
       - name: Apply implementation
-        run: python scripts/implement-architecture-binding-diagnostics.py
+        run: |
+          sed -i 's/missing incoming\/outgoing flow/missing incoming flow, missing outgoing flow/g' scripts/implement-architecture-binding-diagnostics.py
+          python scripts/implement-architecture-binding-diagnostics.py
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
