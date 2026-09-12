@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { motion, useDragControls } from "motion/react";
-import { Action, BACK_TARGET, CONTRASTS, Contrast, FONTS, Frame, Item, KIND_SPEC, NavTab, PALETTES, Palette, SHAPES, ShapeScale, Theme, TRANSITIONS, Transition, actionSlotsOf, defaultTabsFor, iconSlotsOf, setIconSlot } from "@/lib/tokens";
+import { Action, ArchitectureActionNode, BACK_TARGET, CONTRASTS, Contrast, FONTS, Frame, Item, KIND_SPEC, NavTab, PALETTES, Palette, SHAPES, ShapeScale, Theme, TRANSITIONS, Transition, actionSlotsOf, defaultTabsFor, iconSlotsOf, setIconSlot } from "@/lib/tokens";
 import { ensureFontLoaded } from "@/lib/theme";
 import { KIND_TEXT, LANGS, Lang, t, useLang } from "@/lib/i18n";
 import { IconPicker } from "./IconPicker";
 import { Icon } from "./M3Node";
 import { VariantSwatch, variantsOf } from "./Inspector";
+import { ArchitectureBindingControls } from "./ArchitectureBinding";
 import { Field, IconBtn, Segmented, Toggle } from "./ui";
 
 /** Sheet that slides up from the bottom edge; the canvas above stays usable.
@@ -102,6 +103,9 @@ export function MobileInspector({
   onDelete,
   onDuplicate,
   onClose,
+  architectureActions = [],
+  onBindArchitectureAction,
+  onOpenArchitectureAction,
 }: {
   item: Item;
   
@@ -111,6 +115,9 @@ export function MobileInspector({
   onDelete: () => void;
   onDuplicate: () => void;
   onClose: () => void;
+  architectureActions?: ArchitectureActionNode[];
+  onBindArchitectureAction?: (actionId: string | null) => void;
+  onOpenArchitectureAction?: (actionId: string) => void;
 }) {
   const lang = useLang();
   const spec = KIND_SPEC[item.kind];
@@ -162,6 +169,20 @@ export function MobileInspector({
         <IconBtn icon="delete" p={p} danger onClick={onDelete} title={t("delete", lang)} size={44} />
         <IconBtn icon="check" p={p} on onClick={onClose} title={t("done", lang)} size={44} />
       </div>
+
+      {onBindArchitectureAction && (
+        <Row icon="schema" label="Architecture Action" p={p}>
+          <ArchitectureBindingControls
+            itemId={item.id}
+            actions={architectureActions}
+            palette={p}
+            onBind={onBindArchitectureAction}
+            onOpen={onOpenArchitectureAction}
+            selectTestId="mobile-inspector-architecture-action"
+            openTestId="mobile-inspector-open-architecture-action"
+          />
+        </Row>
+      )}
 
       {(spec.hasLabel || spec.hasSupporting) && (
         <Row icon="title" label={t("text", lang)} p={p}>
@@ -590,6 +611,7 @@ export function MobileActionBar({
     >
       <button
         onClick={onEdit}
+        aria-label={t("edit", lang)}
         className="m3-press"
         style={{
           height: 52,

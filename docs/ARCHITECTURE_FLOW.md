@@ -45,7 +45,7 @@ The same derived graph exposes Action diagnostics for disconnected Actions, miss
 
 ## Editing and persistence
 
-The editor exposes **App architecture** on desktop and from the mobile Screens sheet. An Action can be associated with one Canvas part, opened back in the normal Canvas Inspector, and the Inspector can jump to the same Action in Architecture Flow. Reassigning the same part moves ownership to the newly selected Action; duplicating an Action intentionally does not copy its Canvas binding. Action/API duplication, source binding, node edits, link-label edits, and other Action/link mutations:
+The editor exposes **App architecture** on desktop and from the mobile Screens sheet. An Action can be associated with one Canvas part from either the desktop or mobile Inspector, opened back in the normal Canvas Inspector, and either Inspector can jump to the same Action in Architecture Flow. Reassigning the same part moves ownership to the newly selected Action; duplicating an Action intentionally does not copy its Canvas binding. Action/API duplication, source binding, node edits, link-label edits, and other Action/link mutations:
 
 - enter normal document Undo/Redo;
 - autosave into the active local project;

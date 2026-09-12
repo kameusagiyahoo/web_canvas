@@ -611,6 +611,55 @@ test("architecture Actions bind to Canvas parts and round-trip through the Inspe
 });
 
 
+test("mobile Inspector binds Canvas parts to Architecture Actions and opens the focused Action", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileArchitectureDoc = {
+    ...seedDoc,
+    architecture: {
+      version: 1,
+      nodes: [{ id: "open-details", kind: "action", name: "Open details" }],
+      edges: [],
+    },
+  };
+  await page.addInitScript(({ doc }) => {
+    localStorage.setItem("m3e:doc", JSON.stringify(doc));
+    localStorage.setItem("m3e:ui", JSON.stringify({ lang: "en" }));
+  }, { doc: mobileArchitectureDoc });
+  await page.goto("/");
+  await expect(page.getByTitle("Undo")).toBeVisible();
+
+  const mobileScreenButton = page.getByTitle("Screen");
+await expect(mobileScreenButton).toBeVisible();
+await mobileScreenButton.click();
+await page.locator('button[aria-pressed]').filter({ hasText: "Home" }).click();
+await page.getByTitle("Layers").click();
+await page.getByRole("button").filter({ hasText: "Go details" }).first().click();
+await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
+await page.getByRole("button", { name: "Edit", exact: true }).click();
+  const binding = page.getByTestId("mobile-inspector-architecture-action");
+  await expect(binding).toBeVisible();
+  await binding.selectOption("open-details");
+  await expect.poll(() => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    const node = raw ? JSON.parse(raw).architecture?.nodes?.find((item: { id?: string }) => item.id === "open-details") : null;
+    return node?.sourceItemId ?? "";
+  })).toBe("go-details");
+
+  await page.getByTestId("mobile-inspector-open-architecture-action").click();
+  const architecture = page.getByTestId("architecture-flow");
+  await expect(architecture).toBeVisible();
+  await expect(architecture.getByTestId("architecture-graph-node-action-open-details")).toBeFocused();
+
+  await architecture.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByTitle("Undo").click();
+  await expect.poll(() => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    const node = raw ? JSON.parse(raw).architecture?.nodes?.find((item: { id?: string }) => item.id === "open-details") : null;
+    return node?.sourceItemId ?? "";
+  })).toBe("");
+});
+
+
 test("architecture visual graph creates semantic links and participates in undo", async ({ page }) => {
   await openSeeded(page);
   await page.getByTitle("App architecture").click();
