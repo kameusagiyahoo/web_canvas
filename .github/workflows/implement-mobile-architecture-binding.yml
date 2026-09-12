@@ -20,7 +20,7 @@ jobs:
           cache: npm
       - name: Apply implementation
         run: python scripts/implement_mobile_architecture_binding.py
-      - name: Wait for mobile mode before selecting the Canvas part in E2E
+      - name: Select the mobile binding source through Layers in E2E
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -29,7 +29,10 @@ jobs:
           old = '''  await page.locator('[data-screen="home"]').getByText("Go details", { exact: true }).click();
             await page.getByRole("button", { name: "Edit", exact: true }).click();'''.replace('    await', '  await')
           new = '''  await expect(page.getByTitle("Screen")).toBeVisible();
-          await page.locator('[data-node="go-details"]').click();
+          await page.getByTitle("Layers").click();
+          await page.getByRole("button", { name: "Home", exact: true }).click();
+          await page.getByRole("button", { name: "Go details", exact: true }).click();
+          await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
           await page.getByRole("button", { name: "Edit", exact: true }).click();'''
           if old not in text:
               raise SystemExit('mobile E2E selection block not found')
@@ -42,6 +45,8 @@ jobs:
         env:
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
       - run: npx playwright install --with-deps chromium
+      - name: Run focused mobile binding E2E first
+        run: npx playwright test e2e/core.e2e.ts --grep "mobile Inspector binds Canvas parts"
       - run: npm run test:e2e
       - name: Commit implementation and remove temporary automation
         run: |
