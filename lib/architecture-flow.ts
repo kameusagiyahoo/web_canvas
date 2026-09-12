@@ -317,7 +317,8 @@ export type ArchitectureDiagnosticKind =
   | "cycle"
   | "missing-source-endpoint"
   | "missing-target-endpoint"
-  | "missing-canvas-source";
+  | "missing-canvas-source"
+  | "duplicate-canvas-source";
 
 export type ArchitectureDiagnostic = {
   id: string;
@@ -330,6 +331,8 @@ export type ArchitectureDiagnostic = {
   missingEndpoint?: ArchitectureEndpoint;
   /** Stale Canvas-source bindings preserve the missing Item id for explicit repair. */
   missingSourceItemId?: string;
+  /** Duplicate Canvas-source diagnostics preserve the shared Item id for explicit repair. */
+  sourceItemId?: string;
 };
 
 /**
@@ -342,16 +345,38 @@ export function diagnoseArchitectureCanvasBindings(
   knownCanvasItemIds: ReadonlySet<string>,
 ): ArchitectureDiagnostic[] {
   const diagnostics: ArchitectureDiagnostic[] = [];
+  const ownersByItemId = new Map<string, ArchitectureActionNode[]>();
+
   for (const node of flow.nodes) {
-    if (node.kind !== "action" || !node.sourceItemId || knownCanvasItemIds.has(node.sourceItemId)) continue;
-    diagnostics.push({
-      id: `missing-canvas-source-${node.id}`,
-      kind: "missing-canvas-source",
-      severity: "error",
-      endpoint: { kind: "action", id: node.id },
-      missingSourceItemId: node.sourceItemId,
-    });
+    if (node.kind !== "action" || !node.sourceItemId) continue;
+    if (!knownCanvasItemIds.has(node.sourceItemId)) {
+      diagnostics.push({
+        id: `missing-canvas-source-${node.id}`,
+        kind: "missing-canvas-source",
+        severity: "error",
+        endpoint: { kind: "action", id: node.id },
+        missingSourceItemId: node.sourceItemId,
+      });
+      continue;
+    }
+    const owners = ownersByItemId.get(node.sourceItemId) ?? [];
+    owners.push(node);
+    ownersByItemId.set(node.sourceItemId, owners);
   }
+
+  for (const [sourceItemId, owners] of ownersByItemId) {
+    if (owners.length < 2) continue;
+    for (const node of owners) {
+      diagnostics.push({
+        id: `duplicate-canvas-source-${sourceItemId}-${node.id}`,
+        kind: "duplicate-canvas-source",
+        severity: "error",
+        endpoint: { kind: "action", id: node.id },
+        sourceItemId,
+      });
+    }
+  }
+
   return diagnostics;
 }
 
