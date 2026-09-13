@@ -647,7 +647,21 @@ export function ArchitectureFlowView({
               <div data-testid="architecture-graph-relation-summary" style={{ minHeight: 44, padding: "8px 14px", display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", borderBottom: `1px solid ${p.outlineVariant}`, background: p.surface }}>
                 <Icon name="account_tree" size={19} />
                 {canvasTraceItem && canvasTraceBindingState.boundActions.length === 1 && (
-                  <span data-testid="architecture-canvas-trace-context" style={{ fontSize: 11, fontWeight: 850, color: p.onSecondaryContainer, background: p.secondaryContainer, borderRadius: 12, padding: "4px 8px" }}>{copy.canvasTraceSource}: {canvasTraceItem.screenName ? `${canvasTraceItem.screenName} · ` : ""}{canvasTraceItem.label} →</span>
+                  <>
+                    <button
+                      type="button"
+                      data-testid="architecture-canvas-trace-context"
+                      onClick={() => onOpenCanvasItem(canvasTraceItem.id)}
+                      aria-label={`${copy.openCanvasSource}: ${canvasTraceItem.screenName ? `${canvasTraceItem.screenName} · ` : ""}${canvasTraceItem.label}`}
+                      title={copy.openCanvasSource}
+                      className="m3-press"
+                      style={{ border: "none", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 850, color: p.onSecondaryContainer, background: p.secondaryContainer, borderRadius: 12, padding: "4px 8px", cursor: "pointer" }}
+                    >
+                      <span>{copy.canvasTraceSource}: {canvasTraceItem.screenName ? `${canvasTraceItem.screenName} · ` : ""}{canvasTraceItem.label}</span>
+                      <Icon name="open_in_new" size={14} />
+                    </button>
+                    <span aria-hidden style={{ fontSize: 12, fontWeight: 900, color: p.onSurfaceVariant }}>→</span>
+                  </>
                 )}
                 <span style={{ fontSize: 12, fontWeight: 850 }}>{copy.relationFocus}: {relationshipLabel}</span>
                 <span data-testid="architecture-relation-upstream-count" style={{ fontSize: 11, fontWeight: 800, color: p.onTertiaryContainer, background: p.tertiaryContainer, borderRadius: 12, padding: "4px 8px" }}>{copy.relationUpstream} {relationshipTrace.upstreamNodeKeys.size}</span>

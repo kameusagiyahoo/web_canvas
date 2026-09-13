@@ -706,6 +706,12 @@ test("architecture Quick flow previews and transfers Canvas ownership as one und
       edges: flow?.edges?.length ?? 0,
     };
   })).toEqual({ createdSource: "go-details", existingSource: "", nodes: 3, edges: 3 });
+  const createdActionId = await page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    const flow = raw ? JSON.parse(raw).architecture : null;
+    return flow?.nodes?.find((node: { kind?: string; name?: string }) => node.kind === "action" && node.name === "Load details")?.id as string;
+  });
+  expect(createdActionId).toBeTruthy();
   await expect.poll(() => page.evaluate(() => {
     const raw = localStorage.getItem("m3e:doc");
     const doc = raw ? JSON.parse(raw) : null;
@@ -718,7 +724,9 @@ test("architecture Quick flow previews and transfers Canvas ownership as one und
   await expect(tracedOption).toContainText("Home · Go details → Load details");
   await canvasTrace.selectOption("go-details");
 
-  await expect(architecture.getByTestId("architecture-canvas-trace-context")).toContainText("Canvas: Home · Go details →");
+  const traceContext = architecture.getByTestId("architecture-canvas-trace-context");
+  await expect(traceContext).toContainText("Canvas: Home · Go details");
+  await expect(traceContext).toHaveAttribute("title", "Open in Canvas");
   await expect(actionNode).toHaveAttribute("data-relation", "focus");
   await expect(apiNode).toHaveAttribute("data-relation", "downstream");
   await expect(architecture.getByTestId("architecture-graph-node-frame-details")).toHaveAttribute("data-relation", "downstream");
@@ -728,6 +736,17 @@ test("architecture Quick flow previews and transfers Canvas ownership as one und
   await architecture.getByTestId("architecture-clear-relation-focus").click();
   await expect(canvasTrace).toHaveValue("");
   await expect(architecture.getByTestId("architecture-graph-relation-summary")).toHaveCount(0);
+
+  await canvasTrace.selectOption("go-details");
+  await traceContext.click();
+  await expect(architecture).toBeHidden();
+  const inspectorAction = page.getByTestId("inspector-architecture-action");
+  await expect(inspectorAction).toHaveValue(createdActionId);
+  await expect(inspectorAction.locator(`option[value="${createdActionId}"]`)).toHaveText("Load details");
+
+  await page.getByTestId("inspector-open-architecture-action").click();
+  await expect(architecture).toBeVisible();
+  await expect(architecture.getByTestId(`architecture-graph-node-action-${createdActionId}`)).toBeFocused();
 
   await architecture.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByTitle("Undo").click();
