@@ -29,249 +29,111 @@ jobs:
           def replace_once(path: str, old: str, new: str):
               file = Path(path)
               text = file.read_text()
-              if old not in text:
-                  raise SystemExit(f"Expected block not found in {path}: {old[:120]!r}")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one match in {path}, found {count}: {old[:140]!r}")
               file.write_text(text.replace(old, new, 1))
 
-          replace_once(
-              "components/ArchitectureFlow.tsx",
-              '''export type ArchitectureCanvasItemOption = {
-            id: string;
-            label: string;
-            screenName?: string;
-          };''',
-              '''export type ArchitectureCanvasItemOption = {
-            id: string;
-            label: string;
-            screenId?: string;
-            screenName?: string;
-          };''',
-          )
-
-          replace_once(
-              "components/ArchitectureFlow.tsx",
-              '''  onCreateQuickFlow: (draft: { sourceFrameId: string; targetFrameId?: string; actionName: string; apiName: string; apiMethod: ArchitectureHttpMethod; apiPath: string }) => void;''',
-              '''  onCreateQuickFlow: (draft: { sourceFrameId: string; sourceItemId?: string; targetFrameId?: string; actionName: string; apiName: string; apiMethod: ArchitectureHttpMethod; apiPath: string }) => void;''',
-          )
-
-          replace_once(
-              "components/ArchitectureFlow.tsx",
-              '''    quickFlowHint: lang === "ja" ? "Screen → Action → API → 次のScreenをまとめて作成します。次のScreenは任意です。画面遷移は変更しません。" : "Create Screen → Action → API → next Screen in one step. The final Screen is optional and navigation is unchanged.",
-            quickSource: lang === "ja" ? "開始Screen" : "Start Screen",
-            quickTarget: lang === "ja" ? "次のScreen（任意）" : "Next Screen (optional)",
-            quickNoTarget: lang === "ja" ? "次のScreenなし" : "No next Screen",
-            quickCreate: lang === "ja" ? "フローを作成" : "Create flow",''',
-              '''    quickFlowHint: lang === "ja" ? "Screen → Action → API → 次のScreenをまとめて作成します。開始Screen上のCanvas部品をActionへ任意で関連付けられます。画面遷移は変更しません。" : "Create Screen → Action → API → next Screen in one step. Optionally bind a Canvas part from the start Screen to the new Action; navigation is unchanged.",
-            quickSource: lang === "ja" ? "開始Screen" : "Start Screen",
-            quickCanvasSource: lang === "ja" ? "Canvas部品（任意）" : "Canvas part (optional)",
-            quickNoCanvasSource: lang === "ja" ? "Canvas部品と未接続" : "No Canvas part binding",
-            quickTarget: lang === "ja" ? "次のScreen（任意）" : "Next Screen (optional)",
-            quickNoTarget: lang === "ja" ? "次のScreenなし" : "No next Screen",
-            quickCreate: lang === "ja" ? "フローを作成" : "Create flow",''',
-          )
-
-          replace_once(
-              "components/ArchitectureFlow.tsx",
-              '''  const [quickSourceFrameId, setQuickSourceFrameId] = useState(frames[0]?.id ?? "");
-            const [quickTargetFrameId, setQuickTargetFrameId] = useState("");''',
-              '''  const [quickSourceFrameId, setQuickSourceFrameId] = useState(frames[0]?.id ?? "");
-            const [quickSourceItemId, setQuickSourceItemId] = useState("");
-            const [quickTargetFrameId, setQuickTargetFrameId] = useState("");''',
-          )
-
-          replace_once(
-              "components/ArchitectureFlow.tsx",
-              '''  useEffect(() => {
-            if (!frames.some((frame) => frame.id === quickSourceFrameId)) setQuickSourceFrameId(frames[0]?.id ?? "");
-            if (quickTargetFrameId && !frames.some((frame) => frame.id === quickTargetFrameId)) setQuickTargetFrameId("");
-          }, [frames, quickSourceFrameId, quickTargetFrameId]);''',
-              '''  const quickSourceItems = useMemo(
-            () => canvasItems.filter((item) => item.screenId === quickSourceFrameId),
-            [canvasItems, quickSourceFrameId],
-          );
-
-          useEffect(() => {
-            if (!frames.some((frame) => frame.id === quickSourceFrameId)) setQuickSourceFrameId(frames[0]?.id ?? "");
-            if (quickSourceItemId && !quickSourceItems.some((item) => item.id === quickSourceItemId)) setQuickSourceItemId("");
-            if (quickTargetFrameId && !frames.some((frame) => frame.id === quickTargetFrameId)) setQuickTargetFrameId("");
-          }, [frames, quickSourceFrameId, quickSourceItemId, quickSourceItems, quickTargetFrameId]);''',
-          )
-
-          replace_once(
-              "components/ArchitectureFlow.tsx",
-              '''    onCreateQuickFlow({
-              sourceFrameId: quickSourceFrameId,
-              targetFrameId: quickTargetFrameId || undefined,
-              actionName,
-              apiName,
-              apiMethod: quickApiMethod,
-              apiPath,
-            });
-            setQuickActionName("");''',
-              '''    onCreateQuickFlow({
-              sourceFrameId: quickSourceFrameId,
-              sourceItemId: quickSourceItemId || undefined,
-              targetFrameId: quickTargetFrameId || undefined,
-              actionName,
-              apiName,
-              apiMethod: quickApiMethod,
-              apiPath,
-            });
-            setQuickSourceItemId("");
-            setQuickActionName("");''',
-          )
-
-          replace_once(
-              "components/ArchitectureFlow.tsx",
-              '''              <select data-testid="architecture-quick-source" aria-label={copy.quickSource} value={quickSourceFrameId} onChange={(event) => setQuickSourceFrameId(event.target.value)} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit" }}>
-                {frames.map((frame) => <option key={frame.id} value={frame.id}>{frame.name || copy.screens}</option>)}
-              </select>
-              <input data-testid="architecture-quick-action"''',
-              '''              <select data-testid="architecture-quick-source" aria-label={copy.quickSource} value={quickSourceFrameId} onChange={(event) => setQuickSourceFrameId(event.target.value)} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit" }}>
-                {frames.map((frame) => <option key={frame.id} value={frame.id}>{frame.name || copy.screens}</option>)}
-              </select>
-              <select data-testid="architecture-quick-canvas-source" aria-label={copy.quickCanvasSource} value={quickSourceItemId} onChange={(event) => setQuickSourceItemId(event.target.value)} disabled={!quickSourceItems.length} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit", opacity: quickSourceItems.length ? 1 : 0.65 }}>
+          path = "components/ArchitectureFlow.tsx"
+          replace_once(path,
+              '  label: string;\n  screenName?: string;',
+              '  label: string;\n  screenId?: string;\n  screenName?: string;')
+          replace_once(path,
+              '  onCreateQuickFlow: (draft: { sourceFrameId: string; targetFrameId?: string; actionName: string; apiName: string; apiMethod: ArchitectureHttpMethod; apiPath: string }) => void;',
+              '  onCreateQuickFlow: (draft: { sourceFrameId: string; sourceItemId?: string; targetFrameId?: string; actionName: string; apiName: string; apiMethod: ArchitectureHttpMethod; apiPath: string }) => void;')
+          replace_once(path,
+              '    quickFlowHint: lang === "ja" ? "Screen → Action → API → 次のScreenをまとめて作成します。次のScreenは任意です。画面遷移は変更しません。" : "Create Screen → Action → API → next Screen in one step. The final Screen is optional and navigation is unchanged.",',
+              '    quickFlowHint: lang === "ja" ? "Screen → Action → API → 次のScreenをまとめて作成します。開始ScreenのCanvas部品も任意で関連付けられ、既存Actionから選び直した場合は新Actionへ移ります。画面遷移は変更しません。" : "Create Screen → Action → API → next Screen in one step. Optionally bind a Canvas part from the start Screen; choosing one already owned by another Action moves that binding to the new Action. Navigation is unchanged.",')
+          replace_once(path,
+              '    quickSource: lang === "ja" ? "開始Screen" : "Start Screen",',
+              '    quickSource: lang === "ja" ? "開始Screen" : "Start Screen",\n    quickCanvasSource: lang === "ja" ? "Canvas部品（任意）" : "Canvas part (optional)",\n    quickNoCanvasSource: lang === "ja" ? "Canvas部品と未接続" : "No Canvas part binding",')
+          replace_once(path,
+              '  const [quickSourceFrameId, setQuickSourceFrameId] = useState(frames[0]?.id ?? "");',
+              '  const [quickSourceFrameId, setQuickSourceFrameId] = useState(frames[0]?.id ?? "");\n  const [quickSourceItemId, setQuickSourceItemId] = useState("");')
+          replace_once(path,
+              '  useEffect(() => {\n    if (!frames.some((frame) => frame.id === quickSourceFrameId)) setQuickSourceFrameId(frames[0]?.id ?? "");',
+              '  const quickSourceItems = useMemo(\n    () => canvasItems.filter((item) => item.screenId === quickSourceFrameId),\n    [canvasItems, quickSourceFrameId],\n  );\n\n  useEffect(() => {\n    if (!frames.some((frame) => frame.id === quickSourceFrameId)) setQuickSourceFrameId(frames[0]?.id ?? "");\n    if (quickSourceItemId && !quickSourceItems.some((item) => item.id === quickSourceItemId)) setQuickSourceItemId("");')
+          replace_once(path,
+              '  }, [frames, quickSourceFrameId, quickTargetFrameId]);',
+              '  }, [frames, quickSourceFrameId, quickSourceItemId, quickSourceItems, quickTargetFrameId]);')
+          replace_once(path,
+              '      sourceFrameId: quickSourceFrameId,\n      targetFrameId: quickTargetFrameId || undefined,',
+              '      sourceFrameId: quickSourceFrameId,\n      sourceItemId: quickSourceItemId || undefined,\n      targetFrameId: quickTargetFrameId || undefined,')
+          replace_once(path,
+              '    setQuickActionName("");\n    setQuickApiName("");',
+              '    setQuickSourceItemId("");\n    setQuickActionName("");\n    setQuickApiName("");')
+          replace_once(path,
+              'onChange={(event) => setQuickSourceFrameId(event.target.value)}',
+              'onChange={(event) => { setQuickSourceFrameId(event.target.value); setQuickSourceItemId(""); }}')
+          quick_source_marker = '              <input data-testid="architecture-quick-action"'
+          quick_source_select = '''              <select data-testid="architecture-quick-canvas-source" aria-label={copy.quickCanvasSource} value={quickSourceItemId} onChange={(event) => setQuickSourceItemId(event.target.value)} disabled={!quickSourceItems.length} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit", opacity: quickSourceItems.length ? 1 : 0.65 }}>
                 <option value="">{copy.quickNoCanvasSource}</option>
                 {quickSourceItems.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
               </select>
-              <input data-testid="architecture-quick-action"''',
-          )
+'''
+          replace_once(path, quick_source_marker, quick_source_select + quick_source_marker)
 
-          replace_once(
-              "app/page.tsx",
-              '''  const createArchitectureQuickFlowChain = (draft: { sourceFrameId: string; targetFrameId?: string; actionName: string; apiName: string; apiMethod: ArchitectureHttpMethod; apiPath: string }) => {''',
-              '''  const createArchitectureQuickFlowChain = (draft: { sourceFrameId: string; sourceItemId?: string; targetFrameId?: string; actionName: string; apiName: string; apiMethod: ArchitectureHttpMethod; apiPath: string }) => {''',
-          )
+          path = "app/page.tsx"
+          replace_once(path,
+              '  const createArchitectureQuickFlowChain = (draft: { sourceFrameId: string; targetFrameId?: string; actionName: string; apiName: string; apiMethod: ArchitectureHttpMethod; apiPath: string }) => {',
+              '  const createArchitectureQuickFlowChain = (draft: { sourceFrameId: string; sourceItemId?: string; targetFrameId?: string; actionName: string; apiName: string; apiMethod: ArchitectureHttpMethod; apiPath: string }) => {')
+          replace_once(path,
+              '      action: { id: actionId, name: draft.actionName },',
+              '      action: { id: actionId, name: draft.actionName, sourceItemId: draft.sourceItemId },')
+          replace_once(path,
+              '        label: item.label.trim() || KIND_SPEC[item.kind].label,\n        screenName: owningFrame?.name || undefined,',
+              '        label: item.label.trim() || KIND_SPEC[item.kind].label,\n        screenId: owningFrame?.id,\n        screenName: owningFrame?.name || undefined,')
 
-          replace_once(
-              "app/page.tsx",
-              '''      action: { id: actionId, name: draft.actionName },''',
-              '''      action: { id: actionId, name: draft.actionName, sourceItemId: draft.sourceItemId },''',
-          )
+          path = "lib/architecture-flow.ts"
+          replace_once(path,
+              '  action: Pick<ArchitectureActionNode, "id" | "name">;',
+              '  action: Pick<ArchitectureActionNode, "id" | "name" | "sourceItemId">;')
+          replace_once(path,
+              '  const actionName = input.action.name.trim();\n  const apiId = input.api.id.trim();',
+              '  const actionName = input.action.name.trim();\n  const sourceItemId = input.action.sourceItemId?.trim() || undefined;\n  const apiId = input.api.id.trim();')
+          replace_once(path,
+              '  let next = addArchitectureAction(flow, { id: actionId, kind: "action", name: actionName });\n  next = addArchitectureApi(next, { id: apiId, kind: "api", name: apiName, method: input.api.method, path: apiPath });',
+              '  let next = addArchitectureAction(flow, { id: actionId, kind: "action", name: actionName });\n  if (sourceItemId) next = bindArchitectureActionSource(next, actionId, sourceItemId);\n  next = addArchitectureApi(next, { id: apiId, kind: "api", name: apiName, method: input.api.method, path: apiPath });')
 
-          replace_once(
-              "app/page.tsx",
-              '''        label: item.label.trim() || KIND_SPEC[item.kind].label,
-                screenName: owningFrame?.name || undefined,''',
-              '''        label: item.label.trim() || KIND_SPEC[item.kind].label,
-                screenId: owningFrame?.id,
-                screenName: owningFrame?.name || undefined,''',
-          )
+          path = "lib/architecture-flow.test.ts"
+          marker = '  it("rejects invalid quick-flow drafts before making partial changes", () => {'
+          unit_test = '''  it("binds a Canvas source atomically while creating a Quick flow", () => {
+    const flow = addArchitectureAction(empty(), { id: "old", kind: "action", name: "Old", sourceItemId: "go-details" });
+    const created = createArchitectureQuickFlow(flow, frames, {
+      sourceFrameId: "home",
+      action: { id: "load", name: "Load details", sourceItemId: " go-details " },
+      api: { id: "details-api", name: "Details API", method: "GET", path: "/api/details" },
+      edgeIds: { sourceToAction: "e1", actionToApi: "e2" },
+    });
 
-          replace_once(
-              "lib/architecture-flow.ts",
-              '''  action: Pick<ArchitectureActionNode, "id" | "name">;''',
-              '''  action: Pick<ArchitectureActionNode, "id" | "name" | "sourceItemId">;''',
-          )
+    expect(created.nodes.find((node) => node.id === "old")).not.toHaveProperty("sourceItemId");
+    expect(created.nodes.find((node) => node.id === "load")).toMatchObject({ sourceItemId: "go-details" });
+    expect(created.edges).toHaveLength(2);
+  });
 
-          replace_once(
-              "lib/architecture-flow.ts",
-              '''  const actionId = input.action.id.trim();
-            const actionName = input.action.name.trim();
-            const apiId = input.api.id.trim();''',
-              '''  const actionId = input.action.id.trim();
-            const actionName = input.action.name.trim();
-            const sourceItemId = input.action.sourceItemId?.trim() || undefined;
-            const apiId = input.api.id.trim();''',
-          )
+'''
+          replace_once(path, marker, unit_test + marker)
 
-          replace_once(
-              "lib/architecture-flow.ts",
-              '''  let next = addArchitectureAction(flow, { id: actionId, kind: "action", name: actionName });
-            next = addArchitectureApi(next, { id: apiId, kind: "api", name: apiName, method: input.api.method, path: apiPath });''',
-              '''  let next = addArchitectureAction(flow, { id: actionId, kind: "action", name: actionName });
-            if (sourceItemId) next = bindArchitectureActionSource(next, actionId, sourceItemId);
-            next = addArchitectureApi(next, { id: apiId, kind: "api", name: apiName, method: input.api.method, path: apiPath });''',
-          )
+          path = "e2e/core.e2e.ts"
+          replace_once(path,
+              '  await architecture.getByTestId("architecture-quick-source").selectOption("home");\n  await architecture.getByTestId("architecture-quick-action").fill("Load details");',
+              '  await architecture.getByTestId("architecture-quick-source").selectOption("home");\n  const quickCanvasSource = architecture.getByTestId("architecture-quick-canvas-source");\n  await expect(quickCanvasSource.locator(\'option[value="go-details"]\')).toHaveCount(1);\n  await expect(quickCanvasSource.locator(\'option[value="details-label"]\')).toHaveCount(0);\n  await quickCanvasSource.selectOption("go-details");\n  await architecture.getByTestId("architecture-quick-action").fill("Load details");')
+          replace_once(path,
+              '  await expect(architecture.locator(\'[data-testid^="architecture-graph-link-"]\')).toHaveCount(3);',
+              '  await expect(architecture.locator(\'[data-testid^="architecture-graph-link-"]\')).toHaveCount(3);\n  await expect.poll(() => page.evaluate(() => {\n    const raw = localStorage.getItem("m3e:doc");\n    const flow = raw ? JSON.parse(raw).architecture : null;\n    const action = flow?.nodes?.find((node: { kind?: string; name?: string }) => node.kind === "action" && node.name === "Load details");\n    return action?.sourceItemId ?? "";\n  })).toBe("go-details");\n  await expect.poll(() => page.evaluate(() => {\n    const raw = localStorage.getItem("m3e:doc");\n    const doc = raw ? JSON.parse(raw) : null;\n    return doc?.groups?.[0]?.items?.[0]?.action?.to ?? "";\n  })).toBe("details");')
+          replace_once(path,
+              '  })).toEqual({ nodes: 0, edges: 0 });\n});\n\n\ntest("architecture visual graph creates semantic links and participates in undo",',
+              '  })).toEqual({ nodes: 0, edges: 0 });\n  await expect.poll(() => page.evaluate(() => {\n    const raw = localStorage.getItem("m3e:doc");\n    const doc = raw ? JSON.parse(raw) : null;\n    return doc?.groups?.[0]?.items?.[0]?.action?.to ?? "";\n  })).toBe("details");\n});\n\n\ntest("architecture visual graph creates semantic links and participates in undo",')
 
-          replace_once(
-              "lib/architecture-flow.test.ts",
-              '''  it("rejects invalid quick-flow drafts before making partial changes", () => {''',
-              '''  it("binds a Canvas source atomically while creating a Quick flow", () => {
-            const flow = addArchitectureAction(empty(), { id: "old", kind: "action", name: "Old", sourceItemId: "go-details" });
-            const created = createArchitectureQuickFlow(flow, frames, {
-              sourceFrameId: "home",
-              action: { id: "load", name: "Load details", sourceItemId: " go-details " },
-              api: { id: "details-api", name: "Details API", method: "GET", path: "/api/details" },
-              edgeIds: { sourceToAction: "e1", actionToApi: "e2" },
-            });
+          path = "docs/TODO.md"
+          replace_once(path,
+              '- [x] Add a one-step Architecture Quick flow creator for `Screen → Action → API → optional Screen`, committed as one Undo operation without changing navigation.',
+              '- [x] Add a one-step Architecture Quick flow creator for `Screen → Action → API → optional Screen`, committed as one Undo operation without changing navigation.\n- [x] Let Architecture Quick flow optionally bind a Canvas part from the start Screen to the new Action in the same Undo operation, without changing navigation.')
 
-            expect(created.nodes.find((node) => node.id === "old")).not.toHaveProperty("sourceItemId");
-            expect(created.nodes.find((node) => node.id === "load")).toMatchObject({ sourceItemId: "go-details" });
-            expect(created.edges).toHaveLength(2);
-          });
-
-          it("rejects invalid quick-flow drafts before making partial changes", () => {''',
-          )
-
-          replace_once(
-              "e2e/core.e2e.ts",
-              '''  await architecture.getByTestId("architecture-quick-source").selectOption("home");
-            await architecture.getByTestId("architecture-quick-action").fill("Load details");''',
-              '''  await architecture.getByTestId("architecture-quick-source").selectOption("home");
-            const quickCanvasSource = architecture.getByTestId("architecture-quick-canvas-source");
-            await expect(quickCanvasSource.locator('option[value="go-details"]')).toHaveCount(1);
-            await expect(quickCanvasSource.locator('option[value="details-label"]')).toHaveCount(0);
-            await quickCanvasSource.selectOption("go-details");
-            await architecture.getByTestId("architecture-quick-action").fill("Load details");''',
-          )
-
-          replace_once(
-              "e2e/core.e2e.ts",
-              '''  await expect.poll(() => page.evaluate(() => {
-            const raw = localStorage.getItem("m3e:doc");
-            const flow = raw ? JSON.parse(raw).architecture : null;
-            return { nodes: flow?.nodes?.length ?? 0, edges: flow?.edges?.length ?? 0 };
-          })).toEqual({ nodes: 2, edges: 3 });
-
-          await architecture.getByRole("button", { name: "Close", exact: true }).click();
-          await page.getByTitle("Undo").click();
-          await expect.poll(() => page.evaluate(() => {
-            const raw = localStorage.getItem("m3e:doc");
-            const flow = raw ? JSON.parse(raw).architecture : null;
-            return { nodes: flow?.nodes?.length ?? 0, edges: flow?.edges?.length ?? 0 };
-          })).toEqual({ nodes: 0, edges: 0 });''',
-              '''  await expect.poll(() => page.evaluate(() => {
-            const raw = localStorage.getItem("m3e:doc");
-            const doc = raw ? JSON.parse(raw) : null;
-            const flow = doc?.architecture;
-            const action = flow?.nodes?.find((node: { kind?: string; name?: string }) => node.kind === "action" && node.name === "Load details");
-            return {
-              nodes: flow?.nodes?.length ?? 0,
-              edges: flow?.edges?.length ?? 0,
-              sourceItemId: action?.sourceItemId ?? "",
-              navigationTarget: doc?.groups?.[0]?.items?.[0]?.action?.to ?? "",
-            };
-          })).toEqual({ nodes: 2, edges: 3, sourceItemId: "go-details", navigationTarget: "details" });
-
-          await architecture.getByRole("button", { name: "Close", exact: true }).click();
-          await page.getByTitle("Undo").click();
-          await expect.poll(() => page.evaluate(() => {
-            const raw = localStorage.getItem("m3e:doc");
-            const doc = raw ? JSON.parse(raw) : null;
-            const flow = doc?.architecture;
-            return {
-              nodes: flow?.nodes?.length ?? 0,
-              edges: flow?.edges?.length ?? 0,
-              navigationTarget: doc?.groups?.[0]?.items?.[0]?.action?.to ?? "",
-            };
-          })).toEqual({ nodes: 0, edges: 0, navigationTarget: "details" });''',
-          )
-
-          replace_once(
-              "docs/TODO.md",
-              '''- [x] Add a one-step Architecture Quick flow creator for `Screen → Action → API → optional Screen`, committed as one Undo operation without changing navigation.
-          - [ ] Evaluate an `agent` or `database` architecture node only after real projects demonstrate the need; do not add execution semantics by default.''',
-              '''- [x] Add a one-step Architecture Quick flow creator for `Screen → Action → API → optional Screen`, committed as one Undo operation without changing navigation.
-          - [x] Let Architecture Quick flow optionally bind a Canvas part from the start Screen to the new Action in the same Undo operation, without changing navigation.
-          - [ ] Evaluate an `agent` or `database` architecture node only after real projects demonstrate the need; do not add execution semantics by default.''',
-          )
-
-          replace_once(
-              "docs/ARCHITECTURE_FLOW.md",
-              '''A **Quick flow** form can create `Screen → Action → API → optional Screen` in one shared command and one Undo step; the final Screen remains semantic architecture metadata and never changes Preview/navigation.''',
-              '''A **Quick flow** form can create `Screen → Action → API → optional Screen` in one shared command and one Undo step. It can optionally bind one existing Canvas part owned by the start Screen to the new Action; that binding uses the same exclusive ownership rule as the Inspectors, so an existing Action owner is released inside the same command. The final Screen remains semantic architecture metadata, and Quick flow never changes Preview/navigation.''',
-          )
+          path = "docs/ARCHITECTURE_FLOW.md"
+          replace_once(path,
+              'A **Quick flow** form can create `Screen → Action → API → optional Screen` in one shared command and one Undo step; the final Screen remains semantic architecture metadata and never changes Preview/navigation.',
+              'A **Quick flow** form can create `Screen → Action → API → optional Screen` in one shared command and one Undo step. It can optionally bind one existing Canvas part owned by the start Screen to the new Action; that binding uses the same exclusive ownership rule as the Inspectors, so an existing Action owner is released inside the same command. The final Screen remains semantic architecture metadata, and Quick flow never changes Preview/navigation.')
           PY
       - name: Install dependencies
         run: npm ci
