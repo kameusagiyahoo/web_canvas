@@ -1,0 +1,44 @@
+name: Fix active project reload race
+
+on:
+  push:
+    branches:
+      - work/practical-golden-journey
+    paths:
+      - .github/scripts/temp_fix_active_project_reload.py
+      - .github/workflows/temp-fix-active-project-reload.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: work/practical-golden-journey
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply active-project reload fix
+        run: python3 .github/scripts/temp_fix_active_project_reload.py
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /web_canvas
+      - run: npx playwright install --with-deps chromium
+      - name: Practical journey regression
+        run: npx playwright test e2e/practical-journey.e2e.ts
+      - name: Full E2E
+        run: npm run test:e2e
+      - name: Commit product fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/page.tsx
+          git commit -m "Preserve active project across reload [skip active-project-reload-fix]"
+          git push origin HEAD:work/practical-golden-journey
