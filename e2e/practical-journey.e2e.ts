@@ -69,8 +69,10 @@ async function dragRoute(page: Page, source: ReturnType<Page["getByTestId"]>, ta
 
 test("practical project journey survives preview, architecture, reload, export, and re-import", async ({ page }) => {
   await page.addInitScript(() => {
+    if (sessionStorage.getItem("m3e:practical-journey-seeded") === "1") return;
     localStorage.clear();
     localStorage.setItem("m3e:ui", JSON.stringify({ lang: "en" }));
+    sessionStorage.setItem("m3e:practical-journey-seeded", "1");
   });
   await page.goto("/");
   await expect(page.getByTitle("Undo")).toBeVisible();
