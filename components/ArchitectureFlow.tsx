@@ -639,7 +639,11 @@ export function ArchitectureFlowView({
                 style={{ minHeight: 42, padding: "8px 14px", display: "flex", alignItems: "center", gap: 8, borderBottom: `1px solid ${p.outlineVariant}`, background: canvasTraceBindingState.conflicted ? p.errorContainer : p.surface, color: canvasTraceBindingState.conflicted ? p.onErrorContainer : p.onSurfaceVariant, fontSize: 12, fontWeight: 800 }}
               >
                 <Icon name={canvasTraceBindingState.conflicted ? "warning" : "link_off"} size={18} />
-                <span style={{ flex: "1 1 260px" }}>{copy.canvasTraceSource}: {canvasTraceItem.screenName ? `${canvasTraceItem.screenName} · ` : ""}{canvasTraceItem.label} · {canvasTraceBindingState.conflicted ? copy.canvasTraceConflict : copy.canvasTraceUnbound}</span>
+                <span style={{ flex: "1 1 260px" }}>
+                  {copy.canvasTraceSource}: {canvasTraceItem.screenName ? `${canvasTraceItem.screenName} · ` : ""}{canvasTraceItem.label} · {canvasTraceBindingState.conflicted
+                    ? `${copy.actions}: ${canvasTraceBindingState.boundActions.map((action) => action.name).join(" / ")} · ${copy.canvasTraceConflict}`
+                    : copy.canvasTraceUnbound}
+                </span>
                 <button
                   type="button"
                   data-testid="architecture-canvas-trace-open-source"

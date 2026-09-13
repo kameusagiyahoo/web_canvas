@@ -135,6 +135,7 @@
 - [x] Trace Architecture relations from a Canvas part through its bound Action to downstream API/Screen nodes as view-only state, without guessing through binding conflicts.
 - [x] Make the traced Canvas context jump back to the real Canvas Item/Inspector and preserve the existing Inspector → Architecture round-trip without adding persisted view state.
 - [x] Let unbound or duplicate-owner Canvas trace warnings open the real Canvas Item/Inspector without silently assigning or repairing Architecture ownership.
+- [x] Show the names of all conflicting Actions directly in duplicate-owner Canvas trace warnings before repair.
 - [ ] Evaluate an `agent` or `database` architecture node only after real projects demonstrate the need; do not add execution semantics by default.
 - [x] Add a local-first multi-project library with create/open/rename/duplicate/delete and autosave.
 - [x] Add lightweight project-name search/filtering to Project Manager without changing project storage semantics.
