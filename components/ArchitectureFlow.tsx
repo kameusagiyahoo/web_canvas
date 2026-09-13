@@ -639,7 +639,19 @@ export function ArchitectureFlowView({
                 style={{ minHeight: 42, padding: "8px 14px", display: "flex", alignItems: "center", gap: 8, borderBottom: `1px solid ${p.outlineVariant}`, background: canvasTraceBindingState.conflicted ? p.errorContainer : p.surface, color: canvasTraceBindingState.conflicted ? p.onErrorContainer : p.onSurfaceVariant, fontSize: 12, fontWeight: 800 }}
               >
                 <Icon name={canvasTraceBindingState.conflicted ? "warning" : "link_off"} size={18} />
-                <span>{copy.canvasTraceSource}: {canvasTraceItem.screenName ? `${canvasTraceItem.screenName} · ` : ""}{canvasTraceItem.label} · {canvasTraceBindingState.conflicted ? copy.canvasTraceConflict : copy.canvasTraceUnbound}</span>
+                <span style={{ flex: "1 1 260px" }}>{copy.canvasTraceSource}: {canvasTraceItem.screenName ? `${canvasTraceItem.screenName} · ` : ""}{canvasTraceItem.label} · {canvasTraceBindingState.conflicted ? copy.canvasTraceConflict : copy.canvasTraceUnbound}</span>
+                <button
+                  type="button"
+                  data-testid="architecture-canvas-trace-open-source"
+                  onClick={() => onOpenCanvasItem(canvasTraceItem.id)}
+                  aria-label={`${copy.openCanvasSource}: ${canvasTraceItem.screenName ? `${canvasTraceItem.screenName} · ` : ""}${canvasTraceItem.label}`}
+                  title={copy.openCanvasSource}
+                  className="m3-press"
+                  style={{ minHeight: 30, border: `1px solid ${p.outlineVariant}`, borderRadius: 15, background: p.surface, color: p.onSurface, padding: "0 9px", display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 800, cursor: "pointer" }}
+                >
+                  <Icon name="open_in_new" size={14} />
+                  {copy.openCanvasSource}
+                </button>
               </div>
             )}
 

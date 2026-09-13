@@ -768,6 +768,67 @@ test("architecture Quick flow previews and transfers Canvas ownership as one und
 });
 
 
+test("architecture Canvas trace opens an unbound part without assigning an Action", async ({ page }) => {
+  await openSeeded(page);
+  await page.getByTitle("App architecture").click();
+  const architecture = page.getByTestId("architecture-flow");
+  await architecture.getByTestId("architecture-action-name").fill("Unrelated action");
+  await architecture.getByTestId("architecture-add-action").click();
+
+  const storedBeforeTrace = await page.evaluate(() => localStorage.getItem("m3e:doc"));
+  await architecture.getByTestId("architecture-canvas-trace-source").selectOption("details-label");
+  const status = architecture.getByTestId("architecture-canvas-trace-status");
+  await expect(status).toContainText("Canvas: Details · Details page · No Action binding");
+  const openSource = status.getByTestId("architecture-canvas-trace-open-source");
+  await expect(openSource).toHaveAttribute("title", "Open in Canvas");
+  await openSource.click();
+
+  await expect(architecture).toBeHidden();
+  const inspectorAction = page.getByTestId("inspector-architecture-action");
+  await expect(inspectorAction).toBeVisible();
+  await expect(inspectorAction).toHaveValue("");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(storedBeforeTrace);
+});
+
+
+test("architecture Canvas trace opens a conflicted part without repairing duplicate owners", async ({ page }) => {
+  const conflictDoc = {
+    ...seedDoc,
+    architecture: {
+      version: 1,
+      nodes: [
+        { id: "owner-a", kind: "action", name: "Owner A", sourceItemId: "go-details" },
+        { id: "owner-b", kind: "action", name: "Owner B", sourceItemId: "go-details" },
+      ],
+      edges: [],
+    },
+  };
+  await page.addInitScript(({ doc }) => {
+    localStorage.setItem("m3e:doc", JSON.stringify(doc));
+    localStorage.setItem("m3e:ui", JSON.stringify({ lang: "en" }));
+  }, { doc: conflictDoc });
+  await page.goto("/");
+  await expect(page.getByTitle("Undo")).toBeVisible();
+
+  const storedBeforeTrace = await page.evaluate(() => localStorage.getItem("m3e:doc"));
+  await page.getByTitle("App architecture").click();
+  const architecture = page.getByTestId("architecture-flow");
+  await architecture.getByTestId("architecture-canvas-trace-source").selectOption("go-details");
+  const status = architecture.getByTestId("architecture-canvas-trace-status");
+  await expect(status).toContainText("Assigned to multiple Actions. Resolve the binding conflict first.");
+  const openSource = status.getByTestId("architecture-canvas-trace-open-source");
+  await expect(openSource).toHaveAttribute("title", "Open in Canvas");
+  await openSource.click();
+
+  await expect(architecture).toBeHidden();
+  const inspectorAction = page.getByTestId("inspector-architecture-action");
+  await expect(inspectorAction).toBeVisible();
+  await expect(inspectorAction.locator('option[value="owner-a"]')).toHaveText("Owner A");
+  await expect(inspectorAction.locator('option[value="owner-b"]')).toHaveText("Owner B");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(storedBeforeTrace);
+});
+
+
 test("architecture visual graph creates semantic links and participates in undo", async ({ page }) => {
   await openSeeded(page);
   await page.getByTitle("App architecture").click();
