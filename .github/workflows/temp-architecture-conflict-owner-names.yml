@@ -1,0 +1,45 @@
+name: Apply Architecture conflict owner-name patch
+
+on:
+  push:
+    branches:
+      - work/architecture-conflict-owner-names
+    paths:
+      - .github/scripts/temp_architecture_conflict_owner_names_patch.py
+      - .github/workflows/temp-architecture-conflict-owner-names.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: work/architecture-conflict-owner-names
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+      - name: Apply conflict owner-name patch
+        run: python3 .github/scripts/temp_architecture_conflict_owner_names_patch.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: E2E tests
+        run: npm run test:e2e
+      - name: Commit product patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/ArchitectureFlow.tsx e2e/core.e2e.ts docs/ARCHITECTURE_FLOW.md docs/TODO.md
+          git commit -m "Name conflicting Canvas Action owners [skip architecture-conflict-owner-names]"
+          git push origin HEAD:work/architecture-conflict-owner-names
