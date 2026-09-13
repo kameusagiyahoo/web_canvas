@@ -36,6 +36,7 @@ const endpointTestId = (endpoint: ArchitectureEndpoint) =>
 export type ArchitectureCanvasItemOption = {
   id: string;
   label: string;
+  screenId?: string;
   screenName?: string;
 };
 
@@ -70,7 +71,7 @@ export function ArchitectureFlowView({
   onRenameAction: (id: string, name: string) => void;
   onDeleteAction: (id: string) => void;
   onAddApi: (name: string, method: ArchitectureHttpMethod, path: string) => void;
-  onCreateQuickFlow: (draft: { sourceFrameId: string; targetFrameId?: string; actionName: string; apiName: string; apiMethod: ArchitectureHttpMethod; apiPath: string }) => void;
+  onCreateQuickFlow: (draft: { sourceFrameId: string; sourceItemId?: string; targetFrameId?: string; actionName: string; apiName: string; apiMethod: ArchitectureHttpMethod; apiPath: string }) => void;
   onUpdateApi: (id: string, patch: Partial<Pick<ArchitectureApiNode, "name" | "method" | "path">>) => void;
   onDeleteApi: (id: string) => void;
   onDuplicateNode: (endpoint: ArchitectureEndpoint) => void;
@@ -114,8 +115,10 @@ export function ArchitectureFlowView({
     actions: "Actions",
     apis: "APIs",
     quickFlow: lang === "ja" ? "Quick flow" : "Quick flow",
-    quickFlowHint: lang === "ja" ? "Screen → Action → API → 次のScreenをまとめて作成します。次のScreenは任意です。画面遷移は変更しません。" : "Create Screen → Action → API → next Screen in one step. The final Screen is optional and navigation is unchanged.",
+    quickFlowHint: lang === "ja" ? "Screen → Action → API → 次のScreenをまとめて作成します。開始ScreenのCanvas部品も任意で関連付けられ、既存Actionから選び直した場合は新Actionへ移ります。画面遷移は変更しません。" : "Create Screen → Action → API → next Screen in one step. Optionally bind a Canvas part from the start Screen; choosing one already owned by another Action moves that binding to the new Action. Navigation is unchanged.",
     quickSource: lang === "ja" ? "開始Screen" : "Start Screen",
+    quickCanvasSource: lang === "ja" ? "Canvas部品（任意）" : "Canvas part (optional)",
+    quickNoCanvasSource: lang === "ja" ? "Canvas部品と未接続" : "No Canvas part binding",
     quickTarget: lang === "ja" ? "次のScreen（任意）" : "Next Screen (optional)",
     quickNoTarget: lang === "ja" ? "次のScreenなし" : "No next Screen",
     quickCreate: lang === "ja" ? "フローを作成" : "Create flow",
@@ -152,6 +155,7 @@ export function ArchitectureFlowView({
   const [apiMethod, setApiMethod] = useState<ArchitectureHttpMethod>("GET");
   const [apiPath, setApiPath] = useState("");
   const [quickSourceFrameId, setQuickSourceFrameId] = useState(frames[0]?.id ?? "");
+  const [quickSourceItemId, setQuickSourceItemId] = useState("");
   const [quickTargetFrameId, setQuickTargetFrameId] = useState("");
   const [quickActionName, setQuickActionName] = useState("");
   const [quickApiName, setQuickApiName] = useState("");
@@ -170,10 +174,16 @@ export function ArchitectureFlowView({
   const [graphZoom, setGraphZoom] = useState(1);
   const graphViewportRef = useRef<HTMLDivElement | null>(null);
 
+  const quickSourceItems = useMemo(
+    () => canvasItems.filter((item) => item.screenId === quickSourceFrameId),
+    [canvasItems, quickSourceFrameId],
+  );
+
   useEffect(() => {
     if (!frames.some((frame) => frame.id === quickSourceFrameId)) setQuickSourceFrameId(frames[0]?.id ?? "");
+    if (quickSourceItemId && !quickSourceItems.some((item) => item.id === quickSourceItemId)) setQuickSourceItemId("");
     if (quickTargetFrameId && !frames.some((frame) => frame.id === quickTargetFrameId)) setQuickTargetFrameId("");
-  }, [frames, quickSourceFrameId, quickTargetFrameId]);
+  }, [frames, quickSourceFrameId, quickSourceItemId, quickSourceItems, quickTargetFrameId]);
 
   const options = useMemo(() => architectureEndpointOptions(frames, flow), [frames, flow]);
   const labels = useMemo(() => {
@@ -268,12 +278,14 @@ export function ArchitectureFlowView({
     if (!quickSourceFrameId || !actionName || !apiName || !apiPath) return;
     onCreateQuickFlow({
       sourceFrameId: quickSourceFrameId,
+      sourceItemId: quickSourceItemId || undefined,
       targetFrameId: quickTargetFrameId || undefined,
       actionName,
       apiName,
       apiMethod: quickApiMethod,
       apiPath,
     });
+    setQuickSourceItemId("");
     setQuickActionName("");
     setQuickApiName("");
     setQuickApiPath("");
@@ -779,8 +791,12 @@ export function ArchitectureFlowView({
               </div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 8 }}>
-              <select data-testid="architecture-quick-source" aria-label={copy.quickSource} value={quickSourceFrameId} onChange={(event) => setQuickSourceFrameId(event.target.value)} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit" }}>
+              <select data-testid="architecture-quick-source" aria-label={copy.quickSource} value={quickSourceFrameId} onChange={(event) => { setQuickSourceFrameId(event.target.value); setQuickSourceItemId(""); }} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit" }}>
                 {frames.map((frame) => <option key={frame.id} value={frame.id}>{frame.name || copy.screens}</option>)}
+              </select>
+              <select data-testid="architecture-quick-canvas-source" aria-label={copy.quickCanvasSource} value={quickSourceItemId} onChange={(event) => setQuickSourceItemId(event.target.value)} disabled={!quickSourceItems.length} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit", opacity: quickSourceItems.length ? 1 : 0.65 }}>
+                <option value="">{copy.quickNoCanvasSource}</option>
+                {quickSourceItems.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
               </select>
               <input data-testid="architecture-quick-action" aria-label={copy.actionName} placeholder={copy.actionName} value={quickActionName} onChange={(event) => setQuickActionName(event.target.value)} style={{ minWidth: 0, height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 12px", font: "inherit" }} />
               <select data-testid="architecture-quick-api-method" aria-label="HTTP method" value={quickApiMethod} onChange={(event) => setQuickApiMethod(event.target.value as ArchitectureHttpMethod)} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit" }}>

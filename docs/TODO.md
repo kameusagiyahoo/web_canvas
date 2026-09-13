@@ -130,6 +130,7 @@
 - [x] Improve Architecture Flow editing with focused-node edit handoff, Action/API duplication, and edge-label editing through normal Undo/Redo.
 - [x] Link semantic Actions to Canvas parts with bidirectional Canvas ↔ Architecture handoff, while keeping navigation and execution semantics separate.
 - [x] Add a one-step Architecture Quick flow creator for `Screen → Action → API → optional Screen`, committed as one Undo operation without changing navigation.
+- [x] Let Architecture Quick flow optionally bind a Canvas part from the start Screen to the new Action in the same Undo operation, without changing navigation.
 - [ ] Evaluate an `agent` or `database` architecture node only after real projects demonstrate the need; do not add execution semantics by default.
 - [x] Add a local-first multi-project library with create/open/rename/duplicate/delete and autosave.
 - [x] Add lightweight project-name search/filtering to Project Manager without changing project storage semantics.

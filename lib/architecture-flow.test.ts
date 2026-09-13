@@ -86,6 +86,20 @@ describe("architecture flow commands", () => {
     ]);
   });
 
+  it("binds a Canvas source atomically while creating a Quick flow", () => {
+    const flow = addArchitectureAction(empty(), { id: "old", kind: "action", name: "Old", sourceItemId: "go-details" });
+    const created = createArchitectureQuickFlow(flow, frames, {
+      sourceFrameId: "home",
+      action: { id: "load", name: "Load details", sourceItemId: " go-details " },
+      api: { id: "details-api", name: "Details API", method: "GET", path: "/api/details" },
+      edgeIds: { sourceToAction: "e1", actionToApi: "e2" },
+    });
+
+    expect(created.nodes.find((node) => node.id === "old")).not.toHaveProperty("sourceItemId");
+    expect(created.nodes.find((node) => node.id === "load")).toMatchObject({ sourceItemId: "go-details" });
+    expect(created.edges).toHaveLength(2);
+  });
+
   it("rejects invalid quick-flow drafts before making partial changes", () => {
     const flow = addArchitectureAction(empty(), { id: "existing", kind: "action", name: "Existing" });
     const invalid = createArchitectureQuickFlow(flow, frames, {

@@ -666,6 +666,10 @@ test("architecture Quick flow creates Screen Action API Screen as one undo step"
   const architecture = page.getByTestId("architecture-flow");
 
   await architecture.getByTestId("architecture-quick-source").selectOption("home");
+  const quickCanvasSource = architecture.getByTestId("architecture-quick-canvas-source");
+  await expect(quickCanvasSource.locator('option[value="go-details"]')).toHaveCount(1);
+  await expect(quickCanvasSource.locator('option[value="details-label"]')).toHaveCount(0);
+  await quickCanvasSource.selectOption("go-details");
   await architecture.getByTestId("architecture-quick-action").fill("Load details");
   await architecture.getByTestId("architecture-quick-api-method").selectOption("GET");
   await architecture.getByTestId("architecture-quick-api-path").fill("/api/details");
@@ -679,6 +683,17 @@ test("architecture Quick flow creates Screen Action API Screen as one undo step"
   await expect(apiNode).toHaveCount(1);
   await expect(actionNode).toBeFocused();
   await expect(architecture.locator('[data-testid^="architecture-graph-link-"]')).toHaveCount(3);
+  await expect.poll(() => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    const flow = raw ? JSON.parse(raw).architecture : null;
+    const action = flow?.nodes?.find((node: { kind?: string; name?: string }) => node.kind === "action" && node.name === "Load details");
+    return action?.sourceItemId ?? "";
+  })).toBe("go-details");
+  await expect.poll(() => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    const doc = raw ? JSON.parse(raw) : null;
+    return doc?.groups?.[0]?.items?.[0]?.action?.to ?? "";
+  })).toBe("details");
 
   await expect.poll(() => page.evaluate(() => {
     const raw = localStorage.getItem("m3e:doc");
@@ -693,6 +708,11 @@ test("architecture Quick flow creates Screen Action API Screen as one undo step"
     const flow = raw ? JSON.parse(raw).architecture : null;
     return { nodes: flow?.nodes?.length ?? 0, edges: flow?.edges?.length ?? 0 };
   })).toEqual({ nodes: 0, edges: 0 });
+  await expect.poll(() => page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    const doc = raw ? JSON.parse(raw) : null;
+    return doc?.groups?.[0]?.items?.[0]?.action?.to ?? "";
+  })).toBe("details");
 });
 
 
