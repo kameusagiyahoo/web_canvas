@@ -19,6 +19,7 @@ import {
 } from "@/lib/architecture-flow";
 import { useLang } from "@/lib/i18n";
 import { fitGraphZoom, graphCenterScroll, stepGraphZoom } from "@/lib/graph-viewport";
+import { getArchitectureCanvasBindingState } from "@/lib/architecture-binding";
 import { Icon } from "./M3Node";
 
 const parseEndpoint = (value: string): ArchitectureEndpoint | null => {
@@ -119,6 +120,10 @@ export function ArchitectureFlowView({
     quickSource: lang === "ja" ? "開始Screen" : "Start Screen",
     quickCanvasSource: lang === "ja" ? "Canvas部品（任意）" : "Canvas part (optional)",
     quickNoCanvasSource: lang === "ja" ? "Canvas部品と未接続" : "No Canvas part binding",
+    quickCanvasOwner: lang === "ja" ? "現在のAction" : "Current Action",
+    quickCanvasOwners: lang === "ja" ? "現在のActions" : "Current Actions",
+    quickCanvasWillMove: lang === "ja" ? "作成すると、この部品の関連付けは新しいActionへ移ります。" : "Creating this flow moves the Canvas binding to the new Action.",
+    quickCanvasWillResolveConflict: lang === "ja" ? "この部品は複数Actionに重複割当されています。作成すると新しいActionへ一本化されます。" : "This Canvas part is assigned to multiple Actions. Creating this flow resolves ownership to the new Action.",
     quickTarget: lang === "ja" ? "次のScreen（任意）" : "Next Screen (optional)",
     quickNoTarget: lang === "ja" ? "次のScreenなし" : "No next Screen",
     quickCreate: lang === "ja" ? "フローを作成" : "Create flow",
@@ -213,6 +218,10 @@ export function ArchitectureFlowView({
   const relationshipEndpoint = relationshipTrace ? parseEndpoint(relationshipTrace.focusKey) : null;
   const selectedEdge = flow.edges.find((edge) => edge.id === selectedEdgeId) ?? null;
   const actionNodes = useMemo(() => flow.nodes.filter((node) => node.kind === "action"), [flow.nodes]);
+  const quickSourceBindingState = useMemo(
+    () => getArchitectureCanvasBindingState(actionNodes, quickSourceItemId),
+    [actionNodes, quickSourceItemId],
+  );
   const apiNodes = useMemo(() => flow.nodes.filter((node) => node.kind === "api"), [flow.nodes]);
   const canvasItemsById = useMemo(() => new Map(canvasItems.map((item) => [item.id, item])), [canvasItems]);
   const canvasItemIds = useMemo(() => new Set(canvasItems.map((item) => item.id)), [canvasItems]);
@@ -796,8 +805,36 @@ export function ArchitectureFlowView({
               </select>
               <select data-testid="architecture-quick-canvas-source" aria-label={copy.quickCanvasSource} value={quickSourceItemId} onChange={(event) => setQuickSourceItemId(event.target.value)} disabled={!quickSourceItems.length} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit", opacity: quickSourceItems.length ? 1 : 0.65 }}>
                 <option value="">{copy.quickNoCanvasSource}</option>
-                {quickSourceItems.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                {quickSourceItems.map((item) => {
+                  const binding = getArchitectureCanvasBindingState(actionNodes, item.id);
+                  const ownerSuffix = binding.boundActions.length === 1
+                    ? ` · ${binding.boundActions[0].name}`
+                    : binding.boundActions.length > 1
+                      ? ` · ${binding.boundActions.length} Actions`
+                      : "";
+                  return <option key={item.id} value={item.id}>{item.label}{ownerSuffix}</option>;
+                })}
               </select>
+              {quickSourceBindingState.boundActions.length > 0 && (
+                <div
+                  data-testid="architecture-quick-canvas-binding-preview"
+                  role="status"
+                  style={{
+                    gridColumn: "1 / -1",
+                    borderRadius: 14,
+                    border: `1px solid ${quickSourceBindingState.conflicted ? p.error : p.outlineVariant}`,
+                    background: quickSourceBindingState.conflicted ? p.errorContainer : p.secondaryContainer,
+                    color: quickSourceBindingState.conflicted ? p.onErrorContainer : p.onSecondaryContainer,
+                    padding: "9px 11px",
+                    fontSize: 12,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  <strong>{quickSourceBindingState.conflicted ? copy.quickCanvasOwners : copy.quickCanvasOwner}:</strong>{" "}
+                  {quickSourceBindingState.boundActions.map((action) => action.name).join(", ")}.{" "}
+                  {quickSourceBindingState.conflicted ? copy.quickCanvasWillResolveConflict : copy.quickCanvasWillMove}
+                </div>
+              )}
               <input data-testid="architecture-quick-action" aria-label={copy.actionName} placeholder={copy.actionName} value={quickActionName} onChange={(event) => setQuickActionName(event.target.value)} style={{ minWidth: 0, height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 12px", font: "inherit" }} />
               <select data-testid="architecture-quick-api-method" aria-label="HTTP method" value={quickApiMethod} onChange={(event) => setQuickApiMethod(event.target.value as ArchitectureHttpMethod)} style={{ height: 44, borderRadius: 14, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px", font: "inherit" }}>
                 {(["GET", "POST", "PUT", "PATCH", "DELETE"] as ArchitectureHttpMethod[]).map((method) => <option key={method} value={method}>{method}</option>)}
