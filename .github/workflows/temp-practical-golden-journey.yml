@@ -1,0 +1,36 @@
+name: Validate practical golden journey
+
+on:
+  push:
+    branches:
+      - work/practical-golden-journey
+    paths:
+      - e2e/practical-journey.e2e.ts
+      - docs/RELEASE_READINESS.md
+      - .github/workflows/temp-practical-golden-journey.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: work/practical-golden-journey
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /web_canvas
+      - run: npx playwright install --with-deps chromium
+      - name: Practical journey
+        run: npx playwright test e2e/practical-journey.e2e.ts
+      - name: Full E2E
+        run: npm run test:e2e
