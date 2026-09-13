@@ -45,6 +45,10 @@ async function readBrowserState(page: Page) {
   });
 }
 
+async function expectActiveProject(page: Page, projectId: string) {
+  await expect.poll(async () => (await readBrowserState(page)).activeId).toBe(projectId);
+}
+
 async function openProjects(page: Page) {
   await page.getByTitle("Project").click();
   await page.getByTitle("Projects").click();
@@ -86,6 +90,7 @@ test("practical project journey survives preview, architecture, reload, export, 
   const freshDoc = freshState.doc as StoredDoc;
   expect(originalProjectId).toBeTruthy();
   expect(freshDoc.frames).toHaveLength(1);
+  await expectActiveProject(page, originalProjectId);
   const home = freshDoc.frames![0];
   const favorite = freshDoc.groups?.flatMap((group) => group.items ?? []).find((item) => item.label === "Favorite");
   expect(favorite?.id).toBeTruthy();
@@ -94,6 +99,7 @@ test("practical project journey survives preview, architecture, reload, export, 
   // Create a second screen using the normal editor command.
   await page.getByTitle("Add screen").click();
   await expect.poll(async () => ((await readBrowserState(page)).doc as StoredDoc)?.frames?.length ?? 0).toBe(2);
+  await expectActiveProject(page, originalProjectId);
   const twoScreenDoc = (await readBrowserState(page)).doc as StoredDoc;
   const second = twoScreenDoc.frames!.find((frame) => frame.id !== home.id)!;
   expect(second?.id).toBeTruthy();
@@ -112,6 +118,7 @@ test("practical project journey survives preview, architecture, reload, export, 
     const doc = (await readBrowserState(page)).doc as StoredDoc;
     return itemById(doc, favoriteId)?.action?.to ?? "";
   }).toBe(second.id);
+  await expectActiveProject(page, originalProjectId);
 
   await page.getByRole("button", { name: `Preview from this screen: ${home.name || "Home"}` }).click();
   const preview = page.getByTestId("preview");
@@ -120,6 +127,7 @@ test("practical project journey survives preview, architecture, reload, export, 
   await expect(preview.getByText(second.name || "Screen 2", { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(preview).toBeHidden();
+  await expectActiveProject(page, originalProjectId);
 
   // Describe the same user-visible flow semantically without changing its navigation route.
   await page.getByTitle("App architecture").click();
@@ -138,6 +146,7 @@ test("practical project journey survives preview, architecture, reload, export, 
   await expect(architecture.locator('[data-testid^="architecture-graph-node-api-"]').filter({ hasText: "Second screen API" })).toHaveCount(1);
   await expect(architecture.locator('[data-testid^="architecture-graph-link-"]')).toHaveCount(3);
   await architecture.getByRole("button", { name: "Close", exact: true }).click();
+  await expectActiveProject(page, originalProjectId);
 
   // Name and explicitly save the managed project, then verify browser reload restores the same working design.
   manager = await openProjects(page);
@@ -148,8 +157,11 @@ test("practical project journey survives preview, architecture, reload, export, 
   await renameInput.press("Enter");
   await expect(activeCard.getByText("Practical journey", { exact: true })).toBeVisible();
   await activeCard.getByTestId("project-save-current").click();
+  await expectActiveProject(page, originalProjectId);
 
   const beforeReload = await readBrowserState(page);
+  expect(beforeReload.activeId).toBe(originalProjectId);
+  expect(beforeReload.library?.projects?.some((project: { id: string }) => project.id === originalProjectId)).toBe(true);
   const beforeReloadDoc = beforeReload.doc as StoredDoc;
   const expectedSignature = practicalSignature(beforeReloadDoc, favoriteId, home.id, second.id);
   expect(expectedSignature).toEqual({
