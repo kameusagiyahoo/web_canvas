@@ -44,7 +44,7 @@ export function addArchitectureApi(
 export type ArchitectureQuickFlowInput = {
   sourceFrameId: string;
   targetFrameId?: string;
-  action: Pick<ArchitectureActionNode, "id" | "name">;
+  action: Pick<ArchitectureActionNode, "id" | "name" | "sourceItemId">;
   api: Pick<ArchitectureApiNode, "id" | "name" | "method" | "path">;
   edgeIds: {
     sourceToAction: string;
@@ -67,6 +67,7 @@ export function createArchitectureQuickFlow(
   const targetFrameId = input.targetFrameId?.trim() || undefined;
   const actionId = input.action.id.trim();
   const actionName = input.action.name.trim();
+  const sourceItemId = input.action.sourceItemId?.trim() || undefined;
   const apiId = input.api.id.trim();
   const apiName = input.api.name.trim();
   const apiPath = input.api.path.trim();
@@ -80,6 +81,7 @@ export function createArchitectureQuickFlow(
   if (edgeIds.some((id) => flow.edges.some((edge) => edge.id === id))) return flow;
 
   let next = addArchitectureAction(flow, { id: actionId, kind: "action", name: actionName });
+  if (sourceItemId) next = bindArchitectureActionSource(next, actionId, sourceItemId);
   next = addArchitectureApi(next, { id: apiId, kind: "api", name: apiName, method: input.api.method, path: apiPath });
   next = connectArchitectureNodes(
     next,

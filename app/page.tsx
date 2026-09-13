@@ -2062,13 +2062,13 @@ const changeFrame = (f: FrameMode) => {
     commitArchitecture(deleteArchitectureAction(architecture, id));
   const addArchitectureApiNode = (name: string, method: ArchitectureHttpMethod, path: string) =>
     commitArchitecture(addArchitectureApi(architecture, { id: uid(), kind: "api", name, method, path }));
-  const createArchitectureQuickFlowChain = (draft: { sourceFrameId: string; targetFrameId?: string; actionName: string; apiName: string; apiMethod: ArchitectureHttpMethod; apiPath: string }) => {
+  const createArchitectureQuickFlowChain = (draft: { sourceFrameId: string; sourceItemId?: string; targetFrameId?: string; actionName: string; apiName: string; apiMethod: ArchitectureHttpMethod; apiPath: string }) => {
     const actionId = uid();
     const apiId = uid();
     const next = createArchitectureQuickFlow(architecture, framesRef.current, {
       sourceFrameId: draft.sourceFrameId,
       targetFrameId: draft.targetFrameId,
-      action: { id: actionId, name: draft.actionName },
+      action: { id: actionId, name: draft.actionName, sourceItemId: draft.sourceItemId },
       api: { id: apiId, name: draft.apiName, method: draft.apiMethod, path: draft.apiPath },
       edgeIds: {
         sourceToAction: uid(),
@@ -2109,6 +2109,7 @@ const changeFrame = (f: FrameMode) => {
       return group.items.map((item) => ({
         id: item.id,
         label: item.label.trim() || KIND_SPEC[item.kind].label,
+        screenId: owningFrame?.id,
         screenName: owningFrame?.name || undefined,
       }));
     }),
