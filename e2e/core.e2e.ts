@@ -815,6 +815,7 @@ test("architecture Canvas trace opens a conflicted part without repairing duplic
   const architecture = page.getByTestId("architecture-flow");
   await architecture.getByTestId("architecture-canvas-trace-source").selectOption("go-details");
   const status = architecture.getByTestId("architecture-canvas-trace-status");
+  await expect(status).toContainText("Actions: Owner A / Owner B");
   await expect(status).toContainText("Assigned to multiple Actions. Resolve the binding conflict first.");
   const openSource = status.getByTestId("architecture-canvas-trace-open-source");
   await expect(openSource).toHaveAttribute("title", "Open in Canvas");
