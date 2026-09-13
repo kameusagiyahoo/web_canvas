@@ -660,16 +660,27 @@ await page.getByRole("button", { name: "Edit", exact: true }).click();
 });
 
 
-test("architecture Quick flow creates Screen Action API Screen as one undo step", async ({ page }) => {
+test("architecture Quick flow previews and transfers Canvas ownership as one undo step", async ({ page }) => {
   await openSeeded(page);
   await page.getByTitle("App architecture").click();
   const architecture = page.getByTestId("architecture-flow");
 
+  await architecture.getByTestId("architecture-action-name").fill("Existing owner");
+  await architecture.getByTestId("architecture-add-action").click();
+  await architecture.getByRole("combobox", { name: "Canvas source: Existing owner" }).selectOption("go-details");
+
   await architecture.getByTestId("architecture-quick-source").selectOption("home");
   const quickCanvasSource = architecture.getByTestId("architecture-quick-canvas-source");
-  await expect(quickCanvasSource.locator('option[value="go-details"]')).toHaveCount(1);
+  const goDetailsOption = quickCanvasSource.locator('option[value="go-details"]');
+  await expect(goDetailsOption).toHaveCount(1);
+  await expect(goDetailsOption).toContainText("Existing owner");
   await expect(quickCanvasSource.locator('option[value="details-label"]')).toHaveCount(0);
   await quickCanvasSource.selectOption("go-details");
+
+  const bindingPreview = architecture.getByTestId("architecture-quick-canvas-binding-preview");
+  await expect(bindingPreview).toContainText("Current Action: Existing owner");
+  await expect(bindingPreview).toContainText("moves the Canvas binding to the new Action");
+
   await architecture.getByTestId("architecture-quick-action").fill("Load details");
   await architecture.getByTestId("architecture-quick-api-method").selectOption("GET");
   await architecture.getByTestId("architecture-quick-api-path").fill("/api/details");
@@ -686,28 +697,33 @@ test("architecture Quick flow creates Screen Action API Screen as one undo step"
   await expect.poll(() => page.evaluate(() => {
     const raw = localStorage.getItem("m3e:doc");
     const flow = raw ? JSON.parse(raw).architecture : null;
-    const action = flow?.nodes?.find((node: { kind?: string; name?: string }) => node.kind === "action" && node.name === "Load details");
-    return action?.sourceItemId ?? "";
-  })).toBe("go-details");
+    const created = flow?.nodes?.find((node: { kind?: string; name?: string }) => node.kind === "action" && node.name === "Load details");
+    const existing = flow?.nodes?.find((node: { kind?: string; name?: string }) => node.kind === "action" && node.name === "Existing owner");
+    return {
+      createdSource: created?.sourceItemId ?? "",
+      existingSource: existing?.sourceItemId ?? "",
+      nodes: flow?.nodes?.length ?? 0,
+      edges: flow?.edges?.length ?? 0,
+    };
+  })).toEqual({ createdSource: "go-details", existingSource: "", nodes: 3, edges: 3 });
   await expect.poll(() => page.evaluate(() => {
     const raw = localStorage.getItem("m3e:doc");
     const doc = raw ? JSON.parse(raw) : null;
     return doc?.groups?.[0]?.items?.[0]?.action?.to ?? "";
   })).toBe("details");
 
-  await expect.poll(() => page.evaluate(() => {
-    const raw = localStorage.getItem("m3e:doc");
-    const flow = raw ? JSON.parse(raw).architecture : null;
-    return { nodes: flow?.nodes?.length ?? 0, edges: flow?.edges?.length ?? 0 };
-  })).toEqual({ nodes: 2, edges: 3 });
-
   await architecture.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByTitle("Undo").click();
   await expect.poll(() => page.evaluate(() => {
     const raw = localStorage.getItem("m3e:doc");
     const flow = raw ? JSON.parse(raw).architecture : null;
-    return { nodes: flow?.nodes?.length ?? 0, edges: flow?.edges?.length ?? 0 };
-  })).toEqual({ nodes: 0, edges: 0 });
+    const existing = flow?.nodes?.find((node: { kind?: string; name?: string }) => node.kind === "action" && node.name === "Existing owner");
+    return {
+      existingSource: existing?.sourceItemId ?? "",
+      nodes: flow?.nodes?.length ?? 0,
+      edges: flow?.edges?.length ?? 0,
+    };
+  })).toEqual({ existingSource: "go-details", nodes: 1, edges: 0 });
   await expect.poll(() => page.evaluate(() => {
     const raw = localStorage.getItem("m3e:doc");
     const doc = raw ? JSON.parse(raw) : null;
