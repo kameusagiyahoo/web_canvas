@@ -101,6 +101,11 @@ export function ArchitectureFlowView({
     relationDownstream: lang === "ja" ? "下流" : lang === "zh" ? "下游" : lang === "ko" ? "하류" : "Downstream",
     relationBoth: lang === "ja" ? "上下流" : lang === "zh" ? "上下游" : lang === "ko" ? "상·하류" : "Both",
     clearRelation: lang === "ja" ? "関係表示を解除" : lang === "zh" ? "清除关系焦点" : lang === "ko" ? "관계 포커스 해제" : "Clear relation focus",
+    canvasTrace: lang === "ja" ? "Canvas部品から追跡" : "Trace from Canvas part",
+    canvasTraceNone: lang === "ja" ? "Canvas部品を選択" : "Choose Canvas part",
+    canvasTraceUnbound: lang === "ja" ? "Action未接続" : "No Action binding",
+    canvasTraceConflict: lang === "ja" ? "複数Actionに割当されています。先にbinding競合を解消してください。" : "Assigned to multiple Actions. Resolve the binding conflict first.",
+    canvasTraceSource: lang === "ja" ? "Canvas" : "Canvas",
     connectMode: lang === "ja" ? "グラフ上で接続" : "Connect on graph",
     endConnectMode: lang === "ja" ? "接続モードを終了" : "Exit connect mode",
     pickSource: lang === "ja" ? "開始ノードを選択してください" : "Choose a source node",
@@ -174,6 +179,7 @@ export function ArchitectureFlowView({
   const [graphSource, setGraphSource] = useState<ArchitectureEndpoint | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [highlightedEndpointKey, setHighlightedEndpointKey] = useState<string | null>(null);
+  const [canvasTraceItemId, setCanvasTraceItemId] = useState("");
   const [graphQuery, setGraphQuery] = useState("");
   const [graphKindFilter, setGraphKindFilter] = useState<"all" | ArchitectureEndpoint["kind"]>("all");
   const [graphZoom, setGraphZoom] = useState(1);
@@ -188,7 +194,8 @@ export function ArchitectureFlowView({
     if (!frames.some((frame) => frame.id === quickSourceFrameId)) setQuickSourceFrameId(frames[0]?.id ?? "");
     if (quickSourceItemId && !quickSourceItems.some((item) => item.id === quickSourceItemId)) setQuickSourceItemId("");
     if (quickTargetFrameId && !frames.some((frame) => frame.id === quickTargetFrameId)) setQuickTargetFrameId("");
-  }, [frames, quickSourceFrameId, quickSourceItemId, quickSourceItems, quickTargetFrameId]);
+    if (canvasTraceItemId && !canvasItems.some((item) => item.id === canvasTraceItemId)) setCanvasTraceItemId("");
+  }, [canvasItems, canvasTraceItemId, frames, quickSourceFrameId, quickSourceItemId, quickSourceItems, quickTargetFrameId]);
 
   const options = useMemo(() => architectureEndpointOptions(frames, flow), [frames, flow]);
   const labels = useMemo(() => {
@@ -218,6 +225,11 @@ export function ArchitectureFlowView({
   const relationshipEndpoint = relationshipTrace ? parseEndpoint(relationshipTrace.focusKey) : null;
   const selectedEdge = flow.edges.find((edge) => edge.id === selectedEdgeId) ?? null;
   const actionNodes = useMemo(() => flow.nodes.filter((node) => node.kind === "action"), [flow.nodes]);
+  const canvasTraceItem = canvasTraceItemId ? canvasItems.find((item) => item.id === canvasTraceItemId) : undefined;
+  const canvasTraceBindingState = useMemo(
+    () => getArchitectureCanvasBindingState(actionNodes, canvasTraceItemId),
+    [actionNodes, canvasTraceItemId],
+  );
   const quickSourceBindingState = useMemo(
     () => getArchitectureCanvasBindingState(actionNodes, quickSourceItemId),
     [actionNodes, quickSourceItemId],
@@ -335,6 +347,7 @@ export function ArchitectureFlowView({
     setConnectMode(false);
     setGraphSource(null);
     setSelectedEdgeId(null);
+    setCanvasTraceItemId("");
     setHighlightedEndpointKey(key);
     requestAnimationFrame(() => focusGraphNode(focusEndpoint, "auto"));
   }, [focusEndpoint?.kind, focusEndpoint?.id]);
@@ -370,6 +383,7 @@ export function ArchitectureFlowView({
   const clickGraphNode = (endpoint: ArchitectureEndpoint) => {
     const clickedKey = architectureEndpointKey(endpoint);
     if (!connectMode) {
+      setCanvasTraceItemId("");
       setHighlightedEndpointKey(clickedKey);
       setSelectedEdgeId(null);
       requestAnimationFrame(() => focusGraphNode(endpoint));
@@ -388,6 +402,27 @@ export function ArchitectureFlowView({
     );
     if (sourceKey !== targetKey && !duplicate) onConnect(graphSource, endpoint, "");
     setGraphSource(null);
+  };
+
+  const traceCanvasItem = (itemId: string) => {
+    setCanvasTraceItemId(itemId);
+    setGraphQuery("");
+    setGraphKindFilter("all");
+    setConnectMode(false);
+    setGraphSource(null);
+    setSelectedEdgeId(null);
+    if (!itemId) {
+      setHighlightedEndpointKey(null);
+      return;
+    }
+    const binding = getArchitectureCanvasBindingState(actionNodes, itemId);
+    if (binding.boundActions.length !== 1) {
+      setHighlightedEndpointKey(null);
+      return;
+    }
+    const endpoint: ArchitectureEndpoint = { kind: "action", id: binding.boundActions[0].id };
+    setHighlightedEndpointKey(architectureEndpointKey(endpoint));
+    requestAnimationFrame(() => focusGraphNode(endpoint));
   };
 
   const focusDetailEditor = (endpoint: ArchitectureEndpoint) => {
@@ -429,6 +464,7 @@ export function ArchitectureFlowView({
     const endpoint = diagnostic.endpoint;
     const key = architectureEndpointKey(endpoint);
     const hasFocusableNode = graphNodes.has(key);
+    setCanvasTraceItemId("");
     setHighlightedEndpointKey(hasFocusableNode ? key : null);
     setGraphQuery("");
     setGraphKindFilter("all");
@@ -517,6 +553,7 @@ export function ArchitectureFlowView({
                   setConnectMode((current) => !current);
                   setGraphSource(null);
                   setSelectedEdgeId(null);
+                  setCanvasTraceItemId("");
                   setHighlightedEndpointKey(null);
                 }}
                 className="m3-press"
@@ -532,13 +569,13 @@ export function ArchitectureFlowView({
                 <input
                   data-testid="architecture-graph-search"
                   value={graphQuery}
-                  onChange={(event) => { setGraphQuery(event.target.value); setHighlightedEndpointKey(null); }}
+                  onChange={(event) => { setGraphQuery(event.target.value); setCanvasTraceItemId(""); setHighlightedEndpointKey(null); }}
                   aria-label={copy.graphSearch}
                   placeholder={copy.graphSearch}
                   style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", color: p.onSurface, font: "inherit" }}
                 />
                 {graphQuery && (
-                  <button type="button" onClick={() => { setGraphQuery(""); setHighlightedEndpointKey(null); }} aria-label={copy.clearGraphSearch} className="m3-press" style={{ width: 28, height: 28, border: "none", borderRadius: 14, background: "transparent", color: p.onSurfaceVariant, display: "grid", placeItems: "center", cursor: "pointer" }}>
+                  <button type="button" onClick={() => { setGraphQuery(""); setCanvasTraceItemId(""); setHighlightedEndpointKey(null); }} aria-label={copy.clearGraphSearch} className="m3-press" style={{ width: 28, height: 28, border: "none", borderRadius: 14, background: "transparent", color: p.onSurfaceVariant, display: "grid", placeItems: "center", cursor: "pointer" }}>
                     <Icon name="close" size={16} />
                   </button>
                 )}
@@ -546,7 +583,7 @@ export function ArchitectureFlowView({
               <select
                 data-testid="architecture-graph-kind-filter"
                 value={graphKindFilter}
-                onChange={(event) => { setGraphKindFilter(event.target.value as "all" | ArchitectureEndpoint["kind"]); setHighlightedEndpointKey(null); }}
+                onChange={(event) => { setGraphKindFilter(event.target.value as "all" | ArchitectureEndpoint["kind"]); setCanvasTraceItemId(""); setHighlightedEndpointKey(null); }}
                 aria-label={lang === "ja" ? "ノード種類" : "Node kind"}
                 style={{ height: 40, borderRadius: 20, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 12px", font: "inherit", fontWeight: 750 }}
               >
@@ -554,6 +591,25 @@ export function ArchitectureFlowView({
                 <option value="frame">{copy.screenBadge}</option>
                 <option value="action">{copy.actionBadge}</option>
                 <option value="api">{copy.apiBadge}</option>
+              </select>
+              <select
+                data-testid="architecture-canvas-trace-source"
+                value={canvasTraceItemId}
+                onChange={(event) => traceCanvasItem(event.target.value)}
+                aria-label={copy.canvasTrace}
+                disabled={!canvasItems.length}
+                style={{ height: 40, maxWidth: "min(100%, 280px)", borderRadius: 20, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 12px", font: "inherit", fontWeight: 750, opacity: canvasItems.length ? 1 : 0.55 }}
+              >
+                <option value="">{copy.canvasTrace}</option>
+                {canvasItems.map((item) => {
+                  const binding = getArchitectureCanvasBindingState(actionNodes, item.id);
+                  const ownerSuffix = binding.boundActions.length === 1
+                    ? ` → ${binding.boundActions[0].name}`
+                    : binding.boundActions.length > 1
+                      ? ` · ${binding.boundActions.length} Actions`
+                      : ` · ${copy.canvasTraceUnbound}`;
+                  return <option key={item.id} value={item.id}>{item.screenName ? `${item.screenName} · ` : ""}{item.label}{ownerSuffix}</option>;
+                })}
               </select>
               <span data-testid="architecture-graph-search-count" style={{ fontSize: 12, fontWeight: 800, color: p.onSurfaceVariant }}>
                 {matchingNodeKeys.size}/{layout.nodes.length}
@@ -576,9 +632,23 @@ export function ArchitectureFlowView({
               )}
             </div>
 
+            {canvasTraceItem && canvasTraceBindingState.boundActions.length !== 1 && (
+              <div
+                data-testid="architecture-canvas-trace-status"
+                role="status"
+                style={{ minHeight: 42, padding: "8px 14px", display: "flex", alignItems: "center", gap: 8, borderBottom: `1px solid ${p.outlineVariant}`, background: canvasTraceBindingState.conflicted ? p.errorContainer : p.surface, color: canvasTraceBindingState.conflicted ? p.onErrorContainer : p.onSurfaceVariant, fontSize: 12, fontWeight: 800 }}
+              >
+                <Icon name={canvasTraceBindingState.conflicted ? "warning" : "link_off"} size={18} />
+                <span>{copy.canvasTraceSource}: {canvasTraceItem.screenName ? `${canvasTraceItem.screenName} · ` : ""}{canvasTraceItem.label} · {canvasTraceBindingState.conflicted ? copy.canvasTraceConflict : copy.canvasTraceUnbound}</span>
+              </div>
+            )}
+
             {relationshipTrace && (
               <div data-testid="architecture-graph-relation-summary" style={{ minHeight: 44, padding: "8px 14px", display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", borderBottom: `1px solid ${p.outlineVariant}`, background: p.surface }}>
                 <Icon name="account_tree" size={19} />
+                {canvasTraceItem && canvasTraceBindingState.boundActions.length === 1 && (
+                  <span data-testid="architecture-canvas-trace-context" style={{ fontSize: 11, fontWeight: 850, color: p.onSecondaryContainer, background: p.secondaryContainer, borderRadius: 12, padding: "4px 8px" }}>{copy.canvasTraceSource}: {canvasTraceItem.screenName ? `${canvasTraceItem.screenName} · ` : ""}{canvasTraceItem.label} →</span>
+                )}
                 <span style={{ fontSize: 12, fontWeight: 850 }}>{copy.relationFocus}: {relationshipLabel}</span>
                 <span data-testid="architecture-relation-upstream-count" style={{ fontSize: 11, fontWeight: 800, color: p.onTertiaryContainer, background: p.tertiaryContainer, borderRadius: 12, padding: "4px 8px" }}>{copy.relationUpstream} {relationshipTrace.upstreamNodeKeys.size}</span>
                 <span data-testid="architecture-relation-downstream-count" style={{ fontSize: 11, fontWeight: 800, color: p.onPrimaryContainer, background: p.primaryContainer, borderRadius: 12, padding: "4px 8px" }}>{copy.relationDownstream} {relationshipTrace.downstreamNodeKeys.size}</span>
@@ -588,7 +658,7 @@ export function ArchitectureFlowView({
                     <button type="button" data-testid="architecture-duplicate-focused-node" onClick={() => onDuplicateNode(relationshipEndpoint)} className="m3-press" style={{ minHeight: 32, border: `1px solid ${p.outlineVariant}`, borderRadius: 16, background: p.secondaryContainer, color: p.onSecondaryContainer, padding: "0 10px", fontWeight: 800, cursor: "pointer" }}>{copy.duplicateNode}</button>
                   </>
                 )}
-                <button type="button" data-testid="architecture-clear-relation-focus" onClick={() => setHighlightedEndpointKey(null)} className="m3-press" style={{ marginLeft: "auto", minHeight: 32, border: `1px solid ${p.outlineVariant}`, borderRadius: 16, background: p.surface, color: p.onSurfaceVariant, padding: "0 10px", fontWeight: 800, cursor: "pointer" }}>{copy.clearRelation}</button>
+                <button type="button" data-testid="architecture-clear-relation-focus" onClick={() => { setCanvasTraceItemId(""); setHighlightedEndpointKey(null); }} className="m3-press" style={{ marginLeft: "auto", minHeight: 32, border: `1px solid ${p.outlineVariant}`, borderRadius: 16, background: p.surface, color: p.onSurfaceVariant, padding: "0 10px", fontWeight: 800, cursor: "pointer" }}>{copy.clearRelation}</button>
               </div>
             )}
 
@@ -663,13 +733,14 @@ export function ArchitectureFlowView({
                           tabIndex={0}
                           aria-label={`${copy.selectedLink}: ${labels.get(architectureEndpointKey(edge.from)) ?? edge.from.id} → ${labels.get(architectureEndpointKey(edge.to)) ?? edge.to.id}`}
                           style={{ cursor: "pointer" }}
-                          onClick={() => { setSelectedEdgeId(edge.id); setConnectMode(false); setGraphSource(null); setHighlightedEndpointKey(null); }}
+                          onClick={() => { setSelectedEdgeId(edge.id); setConnectMode(false); setGraphSource(null); setCanvasTraceItemId(""); setHighlightedEndpointKey(null); }}
                           onKeyDown={(event) => {
                             if (event.key === "Enter" || event.key === " ") {
                               event.preventDefault();
                               setSelectedEdgeId(edge.id);
                               setConnectMode(false);
                               setGraphSource(null);
+                              setCanvasTraceItemId("");
                               setHighlightedEndpointKey(null);
                             }
                           }}

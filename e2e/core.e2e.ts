@@ -712,6 +712,23 @@ test("architecture Quick flow previews and transfers Canvas ownership as one und
     return doc?.groups?.[0]?.items?.[0]?.action?.to ?? "";
   })).toBe("details");
 
+  const storedBeforeTrace = await page.evaluate(() => localStorage.getItem("m3e:doc"));
+  const canvasTrace = architecture.getByTestId("architecture-canvas-trace-source");
+  const tracedOption = canvasTrace.locator('option[value="go-details"]');
+  await expect(tracedOption).toContainText("Home · Go details → Load details");
+  await canvasTrace.selectOption("go-details");
+
+  await expect(architecture.getByTestId("architecture-canvas-trace-context")).toContainText("Canvas: Home · Go details →");
+  await expect(actionNode).toHaveAttribute("data-relation", "focus");
+  await expect(apiNode).toHaveAttribute("data-relation", "downstream");
+  await expect(architecture.getByTestId("architecture-graph-node-frame-details")).toHaveAttribute("data-relation", "downstream");
+  await expect(architecture.getByTestId("architecture-graph-node-frame-home")).toHaveAttribute("data-relation", "upstream");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("m3e:doc"))).toBe(storedBeforeTrace);
+
+  await architecture.getByTestId("architecture-clear-relation-focus").click();
+  await expect(canvasTrace).toHaveValue("");
+  await expect(architecture.getByTestId("architecture-graph-relation-summary")).toHaveCount(0);
+
   await architecture.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByTitle("Undo").click();
   await expect.poll(() => page.evaluate(() => {
