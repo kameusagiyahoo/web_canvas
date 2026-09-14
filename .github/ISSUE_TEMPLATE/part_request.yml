@@ -1,20 +1,20 @@
-name: Part request
-description: Ask for a Material 3 component that the parts panel does not have yet
+name: Part追加要望
+description: PartsパネルにまだないMaterial 3コンポーネントの追加要望
 labels: ["part request"]
 body:
   - type: input
     id: name
     attributes:
-      label: Component
-      description: The Material name, with a link to its page on m3.material.io if you have it.
+      label: コンポーネント
+      description: Material上の名称と、分かればm3.material.ioの参照URLを書いてください。
       placeholder: Date picker — https://m3.material.io/components/date-pickers
     validations:
       required: true
   - type: textarea
     id: why
     attributes:
-      label: What you would use it for
-      description: The kind of screen where you miss it. This helps decide which variants matter.
+      label: 何に使いますか
+      description: どのような画面で必要かを書いてください。必要なvariantを判断する材料にします。
     validations:
       required: true
   - type: checkboxes
@@ -22,4 +22,4 @@ body:
     attributes:
       label: Material 3 Expressive
       options:
-        - label: This part is new or changed in Material 3 Expressive
+        - label: Material 3 Expressiveで新規追加または変更されたPartである

@@ -1,17 +1,17 @@
-<!-- Thanks for the pull request. Short is fine; the checklist matters more than prose. -->
+<!-- Pull Requestありがとうございます。説明は短くても構いません。チェック結果を明確にしてください。 -->
 
-## What and why
+## 変更内容と理由
 
-<!-- What changed, and the problem it solves. Link the issue if there is one: Fixes #123 -->
+<!-- 何を変更し、どの問題を解決するかを書いてください。Issueがあれば Fixes #123 のように関連付けます。 -->
 
-## How I checked it
+## 確認内容
 
-- [ ] `npm run typecheck` passes
-- [ ] `npm test` passes
-- [ ] `npm run build` passes
-- [ ] New or changed UI strings and prompt text exist in Japanese, English, Chinese and Korean
-- [ ] Tried it in the editor (and on a phone, if the change touches the phone editor)
+- [ ] `npm run typecheck` が成功する
+- [ ] `npm test` が成功する
+- [ ] `npm run build` が成功する
+- [ ] UI文字列やPrompt文を変更した場合、日本語・英語・中国語・韓国語を確認した
+- [ ] Editorで実際に操作した（スマホEditorに関係する場合はスマホ幅でも確認した）
 
-## Screenshots
+## スクリーンショット
 
-<!-- For anything visual: before / after, or a short recording. -->
+<!-- 見た目が変わる場合はbefore / after、または短い録画を添付してください。 -->

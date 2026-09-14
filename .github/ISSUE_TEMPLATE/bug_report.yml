@@ -1,51 +1,51 @@
-name: Bug report
-description: Something in the editor, the preview or the prompt does not work as expected
+name: バグ報告
+description: Editor、Preview、Promptなどが期待どおり動かない場合
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the report. Reproduction steps and a screenshot make most bugs quick to fix.
+        報告ありがとうございます。再現手順とスクリーンショットがあると原因を特定しやすくなります。
   - type: textarea
     id: what
     attributes:
-      label: What happened
-      description: What you did, what you expected, and what happened instead.
-      placeholder: I connected two buttons, grouped them with Ctrl+G, and the corners became fully round.
+      label: 発生したこと
+      description: 行った操作、期待した結果、実際の結果を書いてください。
+      placeholder: 2つのボタンを連結してグループ化したところ、内側の角まで完全な丸になった。
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Steps to reproduce
+      label: 再現手順
       placeholder: |
-        1. Add two buttons and bring them together
-        2. Select both and press Ctrl+G
-        3. Look at the inner corners
+        1. ボタンを2つ追加して近づける
+        2. 両方を選択してグループ化する
+        3. 内側の角を確認する
     validations:
       required: true
   - type: input
     id: browser
     attributes:
-      label: Browser and OS
-      placeholder: Chrome 140 on Windows 11 / Safari on iPhone 16
+      label: BrowserとOS
+      placeholder: Chrome 140 / Windows 11、Safari / iPhone など
     validations:
       required: true
   - type: dropdown
     id: where
     attributes:
-      label: Where
+      label: 発生場所
       options:
-        - Editor (desktop)
-        - Editor (phone)
+        - Editor（PC）
+        - Editor（スマホ）
         - Preview
-        - Generated prompt
-        - PNG export
-        - Other
+        - 生成Prompt
+        - PNG書き出し
+        - その他
     validations:
       required: true
   - type: textarea
     id: extra
     attributes:
-      label: Screenshot or screen recording
-      description: Drag an image or video here. If the bug is in the prompt, paste the relevant lines.
+      label: スクリーンショットまたは画面録画
+      description: 画像や動画を添付してください。Promptの問題なら該当部分を貼り付けてください。
