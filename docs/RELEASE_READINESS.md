@@ -27,6 +27,15 @@ The current target is **personal-use beta**:
 
 This test is intentionally cross-feature. Its purpose is to catch failures at feature boundaries that isolated tests do not expose.
 
+## Recovery gate
+
+`e2e/recovery.e2e.ts` protects the two failure paths most likely to lose confidence in a local-first editor:
+
+- a malformed managed-project import must not replace the active document, active Project ID, or Project Library; the Projects screen remains available and shows the import error so the author can immediately try another file;
+- a local-storage quota failure must surface a persistent warning with a Project JSON backup action, and that export must contain the latest in-memory design even though browser persistence is still on the older snapshot.
+
+The recovery tests intentionally compare persisted state before and after failure so error handling cannot silently mutate or partially replace the working project.
+
 ## Promotion criteria
 
 ### Personal-use beta — current target
@@ -34,6 +43,7 @@ This test is intentionally cross-feature. Its purpose is to catch failures at fe
 Required:
 
 - practical golden-path E2E passes;
+- recovery E2E passes for malformed import and local-storage quota failure;
 - main typecheck, unit tests, production build, and Playwright E2E pass;
 - GitHub Pages deployment succeeds;
 - no silent mutation when inspecting diagnostics or Architecture trace state;
@@ -43,7 +53,6 @@ Required:
 
 Before treating the editor as a dependable daily tool, add practical gates for:
 
-- storage failure / malformed import recovery;
 - mobile end-to-end authoring rather than isolated mobile controls;
 - larger multi-screen projects and repeated save/reload cycles;
 - destructive-action recovery and clearer user-facing error states.

@@ -510,6 +510,7 @@ test("project manager imports a file as a separate managed project", async ({ pa
   const chooserPromise = page.waitForEvent("filechooser");
   await manager.getByTestId("project-import").click();
   const chooser = await chooserPromise;
+  await expect(manager).toBeVisible();
   await chooser.setFiles({
     name: "imported-library.json",
     mimeType: "application/json",
@@ -521,6 +522,7 @@ test("project manager imports a file as a separate managed project", async ({ pa
   });
 
   await expect(page.getByRole("alertdialog", { name: "Open this project?" })).toHaveCount(0);
+  await expect(manager).toBeHidden();
   await expect(page.locator('[data-frame="imported-library"]')).toHaveCount(1);
   await expect.poll(async () =>
     page.evaluate(() => {
