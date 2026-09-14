@@ -4,7 +4,10 @@ const QUICK_START_KEY = "m3e:quick-start:v1";
 
 test("first run explains the authoring loop once and the guide remains reopenable on desktop and mobile", async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.clear();
+    if (sessionStorage.getItem("m3e:onboarding-seeded") !== "1") {
+      localStorage.clear();
+      sessionStorage.setItem("m3e:onboarding-seeded", "1");
+    }
     Object.defineProperty(navigator, "language", { configurable: true, get: () => "en-US" });
   });
   await page.goto("/");
