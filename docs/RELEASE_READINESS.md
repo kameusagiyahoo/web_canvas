@@ -8,7 +8,7 @@ The current level is **personal daily-use candidate**:
 
 - appropriate for the author to use on day-to-day prototype projects on one device while continuing development;
 - local-first project storage, JSON export/import, Preview, Navigation, Architecture Flow, and Undo/Redo are available;
-- practical desktop/mobile authoring, repeated larger-project persistence, recovery failures, and destructive-action recovery are protected by browser E2E gates;
+- practical desktop/mobile authoring, repeated larger-project persistence, recovery failures, destructive-action recovery, and first-run onboarding are protected by browser E2E gates;
 - CI protects unit/build behavior and browser-level editor behavior;
 - it is not yet positioned as a zero-guidance tool for unrelated users or as a system for irreplaceable production data.
 
@@ -81,6 +81,19 @@ The persistence gate deliberately uses exact document equality between the worki
 
 This gate keeps the recovery policy explicit: Canvas/Screen edits use normal Undo/Redo history, while managed-Project deletion is outside document history and therefore requires confirmation plus a last-Project safety guard.
 
+## First-run onboarding gate
+
+`e2e/onboarding.e2e.ts` protects the editor's first-run discoverability without adding a second product model:
+
+1. a browser with no existing web_canvas storage automatically receives a five-step Quick Start;
+2. the guide explains the real authoring loop: create Screens, add parts, connect Screens, Preview, and save/manage Projects;
+3. completing or closing the guide stores only the lightweight `m3e:quick-start:v1` preference, outside the Project/Doc payload;
+4. normal reload does not interrupt returning work with the first-run guide again;
+5. the guide remains manually reopenable from a visible `?` control on both desktop and mobile;
+6. the instructions adapt to the current device UI and the current editor language.
+
+Existing users are not opted into the automatic dialog: existing document, Project Library, or editor-UI storage suppresses first-run auto-open while keeping the manual help entry available.
+
 ## Promotion criteria
 
 ### Personal-use beta — achieved foundation
@@ -99,13 +112,13 @@ Required:
 
 ### Personal daily-use candidate — current
 
-The practical gates now cover the main single-device authoring and recovery risks expected during regular personal use. The next release-readiness work is therefore aimed at **general-user beta**, not at adding backend infrastructure.
+The practical gates now cover the main single-device authoring and recovery risks expected during regular personal use. First-run guidance is also available, so the remaining release-readiness work is aimed at validating the experience for people who did not build the editor.
 
 ### General-user beta — later
 
 Before handing the app to unrelated users without explanation, validate:
 
-- first-run onboarding and discoverability;
+- first-run onboarding and discoverability — implemented; validate with external users rather than only browser automation;
 - accessibility and keyboard/mobile interaction across the complete workflow;
 - representative external-user usability sessions;
 - documented recovery/backup guidance.
