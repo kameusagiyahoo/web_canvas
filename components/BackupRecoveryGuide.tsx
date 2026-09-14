@@ -92,6 +92,7 @@ export function BackupRecoveryGuide({ palette: p }: { palette: Palette }) {
     >
       <button
         type="button"
+        aria-label={copy.title}
         aria-expanded={open}
         aria-controls={regionId}
         onClick={() => setOpen((value) => !value)}
