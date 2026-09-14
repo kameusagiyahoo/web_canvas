@@ -78,8 +78,8 @@ async function openSeeded(page: Page) {
 }
 
 async function openProjects(page: Page) {
-  await page.getByTitle("Project").click();
-  await page.getByTitle("Projects").click();
+  await page.getByRole("button", { name: "Project", exact: true }).click();
+  await page.getByRole("button", { name: "Projects", exact: true }).click();
   const manager = page.getByTestId("project-manager");
   await expect(manager).toBeVisible();
   return manager;
