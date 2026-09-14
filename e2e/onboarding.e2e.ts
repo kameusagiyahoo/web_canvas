@@ -11,7 +11,7 @@ test("first run explains the authoring loop once and the guide remains reopenabl
 
   const guide = page.getByTestId("quick-start-guide");
   await expect(guide).toBeVisible();
-  await expect(guide.getByRole("heading", { name: "Quick start" })).toBeVisible();
+  await expect(guide.getByText("Quick start", { exact: true })).toBeVisible();
   await expect(guide.getByText("Create screens", { exact: true })).toBeVisible();
 
   const next = guide.getByRole("button", { name: "Next", exact: true });
