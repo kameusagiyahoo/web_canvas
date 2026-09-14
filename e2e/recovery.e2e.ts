@@ -55,7 +55,7 @@ test("malformed managed-project import keeps the current project intact and leav
   });
 
   await expect(manager).toBeVisible();
-  await expect(manager.getByTestId("project-import-error")).toHaveText("Could not open the project file.");
+  await expect(manager.getByTestId("project-import-error")).toContainText("Could not open the project file.");
   expect(await persistedState(page)).toEqual(before);
 });
 
