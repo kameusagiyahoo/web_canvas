@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { FrameMode, Palette } from "@/lib/tokens";
 import { IconBtn, Segmented, TidyButton, TidyState } from "./ui";
@@ -7,6 +8,7 @@ import { ShareButton } from "./ShareMenu";
 import { Icon } from "./M3Node";
 import { Popover } from "./Menus";
 import { t, useLang } from "@/lib/i18n";
+import { QUICK_START_KEY, QuickStartGuide, quickStartTitle } from "./QuickStartGuide";
 
 export type Mode = "select" | "hand";
 
@@ -139,53 +141,87 @@ export function Toolbar({
   const lang = useLang();
   const graphTitle = lang === "ja" ? "画面フロー" : lang === "zh" ? "画面流程" : lang === "ko" ? "화면 흐름" : "Screen flow";
   const architectureTitle = lang === "ja" ? "アプリアーキテクチャ" : lang === "zh" ? "应用架构" : lang === "ko" ? "앱 아키텍처" : "App architecture";
+  const guideTitle = quickStartTitle(lang);
+  const [guideOpen, setGuideOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const storage = window.localStorage;
+      const alreadyUsed =
+        storage.getItem(QUICK_START_KEY) !== null ||
+        storage.getItem("m3e:doc") !== null ||
+        storage.getItem("m3e:projects:v1") !== null ||
+        storage.getItem("m3e:ui") !== null;
+      if (!alreadyUsed) setGuideOpen(true);
+    } catch {
+      // The editor can still run in hardened/private contexts; onboarding is optional there.
+    }
+  }, []);
+
+  const dismissGuide = useCallback(() => {
+    try {
+      window.localStorage.setItem(QUICK_START_KEY, "done");
+    } catch {
+      // A failed preference write must never block the editor.
+    }
+    setGuideOpen(false);
+  }, []);
+
   if (mobile) {
     const S = 42;
     return (
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: 10,
-          display: "flex",
-          justifyContent: "center",
-          pointerEvents: "none",
-          zIndex: 40,
-          padding: "0 8px",
-        }}
-      >
-        <Pill p={p}>
-          <IconBtn icon="undo" p={p} onClick={onUndo} disabled={!canUndo} title={t("undo", lang)} size={S} />
-          <IconBtn icon="redo" p={p} onClick={onRedo} disabled={!canRedo} title={t("redo", lang)} size={S} />
-          <IconBtn icon="translate" p={p} onClick={onLangSheet} title={t("language", lang)} size={S} />
-          <IconBtn icon="palette" p={p} onClick={onSettings} title={t("settings", lang)} size={S} />
-          <GitHubLink p={p} size={S} />
-          <button
-            onClick={onPrompt}
-            title={t("copyPrompt", lang)}
-            className="m3-press"
-            style={{
-              height: S,
-              padding: "0 14px 0 10px",
-              borderRadius: S / 2,
-              border: "none",
-              background: p.primary,
-              color: p.onPrimary,
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              whiteSpace: "nowrap",
-            }}
-          >
-            <Icon name="auto_awesome" size={22} />
-            {t("prompt", lang)}
-          </button>
-        </Pill>
-      </div>
+      <>
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 10,
+            display: "flex",
+            justifyContent: "center",
+            pointerEvents: "none",
+            zIndex: 40,
+            padding: "0 8px",
+          }}
+        >
+          <Pill p={p}>
+            <IconBtn icon="undo" p={p} onClick={onUndo} disabled={!canUndo} title={t("undo", lang)} size={S} />
+            <IconBtn icon="redo" p={p} onClick={onRedo} disabled={!canRedo} title={t("redo", lang)} size={S} />
+            <IconBtn icon="translate" p={p} onClick={onLangSheet} title={t("language", lang)} size={S} />
+            <IconBtn icon="palette" p={p} onClick={onSettings} title={t("settings", lang)} size={S} />
+            <GitHubLink p={p} size={S} />
+            <button
+              onClick={onPrompt}
+              title={t("copyPrompt", lang)}
+              className="m3-press"
+              style={{
+                height: S,
+                padding: "0 14px 0 10px",
+                borderRadius: S / 2,
+                border: "none",
+                background: p.primary,
+                color: p.onPrimary,
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Icon name="auto_awesome" size={22} />
+              {t("prompt", lang)}
+            </button>
+          </Pill>
+        </div>
+        <div style={{ position: "absolute", right: 10, top: 70, zIndex: 40, pointerEvents: "auto" }}>
+          <Pill p={p}>
+            <IconBtn icon="help_outline" p={p} onClick={() => setGuideOpen(true)} title={guideTitle} size={38} />
+          </Pill>
+        </div>
+        <QuickStartGuide open={guideOpen} mobile palette={p} onDismiss={dismissGuide} />
+      </>
     );
   }
   return (
@@ -450,8 +486,10 @@ export function Toolbar({
               )}
             </Popover>
           )}
+          <IconBtn icon="help_outline" p={p} onClick={() => setGuideOpen(true)} title={guideTitle} size={40} />
         </Pill>
       </div>
+      <QuickStartGuide open={guideOpen} mobile={false} palette={p} onDismiss={dismissGuide} />
     </>
   );
 }
