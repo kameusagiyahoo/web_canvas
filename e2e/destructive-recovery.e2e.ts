@@ -5,7 +5,7 @@ type StoredDoc = {
   groups?: Array<{ id: string; items?: Array<{ id: string; label?: string; action?: { to?: string; transition?: string } }> }>;
 };
 
-const destructiveSeed: StoredDoc & Record<string, unknown> = {
+const destructiveSeed = {
   title: "Destructive recovery",
   paletteKey: "purple",
   frame: "phone",
