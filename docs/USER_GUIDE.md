@@ -72,6 +72,10 @@ Partを選択し、Editから文字・アイコン・スタイル・Action等を
 
 下部のLayersから、現在のScreenのPart順序を確認・変更できます。
 
+### Preview
+
+上部の ▶ Preview ボタンから現在の設計をすぐ確認できます。Screen一覧から特定のScreenを選んでPreviewを開始することもできます。
+
 ### Theme
 
 上部のpaletteボタンから、light/dark、contrast、palette、shape、typography、motionを変更できます。
