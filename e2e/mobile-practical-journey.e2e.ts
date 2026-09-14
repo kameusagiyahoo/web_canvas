@@ -92,7 +92,7 @@ test("mobile authoring journey creates, edits, previews, saves, and reloads one 
   await openScreens(page);
   await page.getByRole("button", { name: home.name || "Home", exact: true }).click();
   await page.getByTitle("Layers").click();
-  await page.getByTitle("Show parts").first().click();
+  await page.getByTitle("Show the parts inside").first().click();
   await page.getByRole("button").filter({ hasText: "Favorite" }).first().click();
   await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
   await page.getByRole("button", { name: "Edit", exact: true }).click();
