@@ -19,6 +19,7 @@ export function ProjectManager({
   onSaveCurrent,
   onExport,
   onImport,
+  importError,
 }: {
   projects: LocalProject[];
   activeProjectId: string | null;
@@ -32,6 +33,7 @@ export function ProjectManager({
   onSaveCurrent: () => void;
   onExport: (doc: Doc) => void;
   onImport: () => void;
+  importError: string | null;
 }) {
   const lang = useLang();
   const copy = {
@@ -81,6 +83,13 @@ export function ProjectManager({
           {query && <button type="button" onClick={() => setQuery("")} aria-label={lang === "ja" ? "検索をクリア" : "Clear search"} className="m3-press" style={{ width: 30, height: 30, border: "none", borderRadius: 15, background: "transparent", color: p.onSurfaceVariant, cursor: "pointer", display: "grid", placeItems: "center" }}><Icon name="close" size={17} /></button>}
         </label>
       </div>
+
+      {importError && (
+        <div role="alert" data-testid="project-import-error" style={{ margin: "12px 14px 0", padding: "11px 13px", borderRadius: 16, background: p.errorContainer, color: p.onErrorContainer, display: "flex", alignItems: "center", gap: 9, fontSize: 13, fontWeight: 700 }}>
+          <Icon name="error" size={20} />
+          <span>{importError}</span>
+        </div>
+      )}
 
       <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 14 }}>
         {!sorted.length ? (

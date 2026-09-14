@@ -203,8 +203,9 @@ test("practical project journey survives preview, architecture, reload, export, 
 
   const countBeforeImport = (await readBrowserState(page)).library?.projects?.length ?? 0;
   await manager.getByTestId("project-import").click();
-  await expect(manager).toBeHidden();
+  await expect(manager).toBeVisible();
   await page.locator('input[type="file"]').setInputFiles(downloadPath!);
+  await expect(manager).toBeHidden();
   await expect.poll(async () => (await readBrowserState(page)).library?.projects?.length ?? 0).toBe(countBeforeImport + 1);
   await expect.poll(async () => (await readBrowserState(page)).activeId).not.toBe(originalProjectId);
 

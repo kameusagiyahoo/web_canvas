@@ -305,6 +305,7 @@ export default function Page() {
   const [architectureOpen, setArchitectureOpen] = useState(false);
   const [architectureFocus, setArchitectureFocus] = useState<ArchitectureEndpoint | null>(null);
   const [projectManagerOpen, setProjectManagerOpen] = useState(false);
+  const [projectImportError, setProjectImportError] = useState<string | null>(null);
   const [projectLibrary, setProjectLibrary] = useState<ProjectLibrary>({ version: 1, projects: [] });
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const projectLibraryRef = useRef<ProjectLibrary>({ version: 1, projects: [] });
@@ -3379,7 +3380,8 @@ const changeFrame = (f: FrameMode) => {
               projects={projectLibrary.projects}
               activeProjectId={activeProjectId}
               palette={p}
-              onClose={() => setProjectManagerOpen(false)}
+              importError={projectImportError}
+              onClose={() => { setProjectManagerOpen(false); setProjectImportError(null); }}
               onCreate={createManagedProject}
               onOpen={(project) => activateLocalProject(project)}
               onRename={renameManagedProject}
@@ -3388,8 +3390,8 @@ const changeFrame = (f: FrameMode) => {
               onSaveCurrent={() => saveCurrentManagedProject()}
               onExport={(projectDoc) => saveProject(projectDoc)}
               onImport={() => {
+                setProjectImportError(null);
                 projectImportModeRef.current = "new-project";
-                setProjectManagerOpen(false);
                 projectFileRef.current?.click();
               }}
             />
@@ -3560,10 +3562,17 @@ const changeFrame = (f: FrameMode) => {
             if (!file) return;
             void readProject(file).then((next) => {
               if (!next) {
-                showToast(t("invalidProject", lang), 3000, "error");
+                const message = t("invalidProject", lang);
+                if (mode === "new-project") {
+                  setProjectImportError(message);
+                  setProjectManagerOpen(true);
+                } else {
+                  showToast(message, 3000, "error");
+                }
                 return;
               }
               if (mode === "new-project") {
+                setProjectImportError(null);
                 importManagedProject(next, file.name);
                 return;
               }
