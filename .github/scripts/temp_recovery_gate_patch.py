@@ -47,3 +47,22 @@ replace_once(
     '''      <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 14 }}>\n''',
     '''      {importError && (\n        <div role="alert" data-testid="project-import-error" style={{ margin: "12px 14px 0", padding: "11px 13px", borderRadius: 16, background: p.errorContainer, color: p.onErrorContainer, display: "flex", alignItems: "center", gap: 9, fontSize: 13, fontWeight: 700 }}>\n          <Icon name="error" size={20} />\n          <span>{importError}</span>\n        </div>\n      )}\n\n      <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 14 }}>\n''',
 )
+
+practical = Path("e2e/practical-journey.e2e.ts")
+replace_once(
+    practical,
+    '''  await manager.getByTestId("project-import").click();\n  await expect(manager).toBeHidden();\n  await page.locator('input[type="file"]').setInputFiles(downloadPath!);\n''',
+    '''  await manager.getByTestId("project-import").click();\n  await expect(manager).toBeVisible();\n  await page.locator('input[type="file"]').setInputFiles(downloadPath!);\n  await expect(manager).toBeHidden();\n''',
+)
+
+core = Path("e2e/core.e2e.ts")
+replace_once(
+    core,
+    '''  const chooser = await chooserPromise;\n  await chooser.setFiles({\n    name: "imported-library.json",\n''',
+    '''  const chooser = await chooserPromise;\n  await expect(manager).toBeVisible();\n  await chooser.setFiles({\n    name: "imported-library.json",\n''',
+)
+replace_once(
+    core,
+    '''  await expect(page.getByRole("alertdialog", { name: "Open this project?" })).toHaveCount(0);\n  await expect(page.locator('[data-frame="imported-library"]')).toHaveCount(1);\n''',
+    '''  await expect(page.getByRole("alertdialog", { name: "Open this project?" })).toHaveCount(0);\n  await expect(manager).toBeHidden();\n  await expect(page.locator('[data-frame="imported-library"]')).toHaveCount(1);\n''',
+)
