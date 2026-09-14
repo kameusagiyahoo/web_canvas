@@ -1,9 +1,9 @@
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+# このProjectのNext.jsについて
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+このProjectで使用しているNext.jsは、学習データ中の古いNext.jsとAPI・規約・ファイル構成が異なる可能性があります。コードを書く前に、必要に応じてこのファイルから解決できる `node_modules/next/dist/docs/` の該当ガイドを確認し、非推奨通知にも従ってください。
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+このブロックは `next dev` により生成・再追加されます。挙動を確認する場合は `node_modules/next/dist/server/lib/generate-agent-files.js` を参照してください。差分から削除しても再生成されるため、必要な更新と一緒にコミットして作業ツリーを清潔に保ちます。
 
 <!-- END:nextjs-agent-rules -->

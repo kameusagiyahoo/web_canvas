@@ -1,113 +1,83 @@
-# Usability session record
+# ユーザビリティセッション記録テンプレート
 
-Copy this file for each real external-user session. Keep observations factual and separate from later interpretation.
+> 1回のセッションは1つの観察にすぎません。計画したセッションを集計する前に、`RELEASE_READINESS.md` を「検証済み」へ変更しないでください。
 
-## Session metadata
+## 基本情報
 
-- Date:
-- Deployed commit SHA:
-- Surface: desktop / mobile
-- Device / viewport:
-- Browser:
-- Clean first-run state: yes / no
-- Participant profile (non-identifying):
-- Moderator:
+- 実施日:
+- deploy commit SHA:
+- 端末:
+- OS:
+- browser:
+- desktop / mobile:
+- 参加者の経験:
+- 既存state: あり / なし
+- モデレーター:
 
-## Task results
+## Task結果
 
-| Task | Outcome | First attempt / path | Friction or confusion | Hint given |
-| --- | --- | --- | --- | --- |
-| 1. First orientation |  |  |  |  |
-| 2. Create a second screen |  |  |  |  |
-| 3. Add a control |  |  |  |  |
-| 4. Connect the screens |  |  |  |  |
-| 5. Test in Preview |  |  |  |  |
-| 6. Save/manage the Project |  |  |  |  |
-| 7. Back up and identify restore path |  |  |  |  |
+| # | Task | 結果 | 時間 | Hint | 観察 |
+|---|---|---|---|---|---|
+| 1 | 初回orientation | | | | |
+| 2 | 2枚目のScreen作成 | | | | |
+| 3 | control追加 | | | | |
+| 4 | Screen接続 | | | | |
+| 5 | Preview確認 | | | | |
+| 6 | Project保存・再発見 | | | | |
+| 7 | JSON backup / restore理解 | | | | |
 
-Allowed outcomes: **Success**, **Success with hint**, **Partial**, **Fail**.
+結果は Success / Success with hint / Partial / Fail を使用します。
 
-## Significant observations
+## 発見性
 
-### Discoverability
+- 最初に見た場所:
+- 見つけにくかったcontrol:
+- 誤解したicon/label:
 
-- What was found immediately?
-- What important control was missed?
-- Did the participant use or reopen Quick Start?
+## 用語・mental model
 
-### Terminology and mental model
+- Screen:
+- Part:
+- Action / Navigation:
+- Preview:
+- Project:
+- Backup / Open file:
 
-- Meaning assigned to Screen:
-- Meaning assigned to Parts:
-- Meaning assigned to Action / Navigation:
-- Meaning assigned to Preview:
-- Meaning assigned to Project:
-- Meaning assigned to Project JSON backup:
+## Mobile / interaction
 
-### Persistence and recovery
+- タップしにくい場所:
+- Sheetの開閉:
+- drag操作:
+- viewport上の問題:
 
-- Did the participant understand that Projects are stored in this browser/device?
-- Did they understand autosave vs **Save now**?
-- Did they find **Backup & recovery**?
-- Did they correctly identify **Export file** as portable backup?
-- Did they correctly identify **Open file** as the non-destructive restore path?
-- Any data-loss misconception:
+## Accessibility
 
-### Mobile/interaction observations
+- keyboard / screen reader上の問題:
+- focus問題:
+- accessible name問題:
 
-- Touch target or sheet issues:
-- Back/close behavior issues:
-- Scrolling or visibility issues:
-- Keyboard issues, if applicable:
+## 問題一覧
 
-### Accessibility observations
+| 重大度 | 内容 | 再現 | 対応方針 |
+|---|---|---|---|
+| | | | |
 
-- Labels or controls that were unclear:
-- Focus/reading-order issue observed:
-- Contrast/text-size issue observed:
-- Assistive technology used, if any:
+重大度: Blocker / High / Medium / Low
 
-## Participant comments
+## 良かった点
 
-Preserve short verbatim comments only when they materially explain behavior. Avoid recording identifying information.
+-
 
-- 
-- 
-- 
+## モデレーター介入
 
-## Moderator interventions
+-
 
-List every hint or intervention and the reason it was needed.
+## Follow-up
 
-- 
-
-## Session-level findings
-
-### Blocking issues
-
-- 
-
-### High-friction issues
-
-- 
-
-### Minor issues
-
-- 
-
-### Positive evidence
-
-Record only observed behavior that supports the current design; do not treat a single participant as proof of general usability.
-
-- 
-
-## Follow-up decisions
-
-- Product issue to fix:
-- Documentation/onboarding issue to fix:
-- Needs another session before deciding:
-- No change:
+-
 
 ## Evidence status
 
-This session is one observation only. Do not change `docs/RELEASE_READINESS.md` to claim external-user validation until results from the planned set of sessions have been synthesized.
+- [ ] この記録は実セッションに基づく
+- [ ] 問題をIssue/TODOへ反映した
+- [ ] 必要な再試験を実施した

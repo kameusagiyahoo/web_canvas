@@ -1,167 +1,44 @@
 # TODO
 
-## Priority S — Mobile editing
+## 優先度A — 一般利用前に確認すること
 
-- [x] Add a mobile Screens entry and bottom sheet.
-- [x] List all document `Frame` objects on mobile.
-- [x] Select/focus a frame from mobile.
-- [x] Add a frame from mobile.
-- [x] Rename, duplicate and safely delete frames from mobile.
-- [x] Add parts to the active frame from mobile.
-- [x] Add mobile part size preset editing.
-- [x] Add mobile part screen-to-screen action editing and transition selection.
-- [x] Keep desktop and mobile on the same `Doc`, `Frame`, `Group`, and `Item` data model.
-- [x] Add per-slot actions for tabs, navigation bars and app-bar icons on mobile.
-- [x] Improve mobile preview/navigation workflow with per-screen preview entry and active-screen start.
-- [x] Add practical mobile layer/reordering controls.
-- [x] Add mobile access to the local project library from the Screens sheet.
+- [ ] 非開発者3〜5人で操作手順なしのユーザビリティセッションを実施
+- [ ] iPhone Safari + VoiceOverを実施
+- [ ] Desktop keyboard-onlyを実施
+- [ ] Blocker / High findingsを修正・再試験
+- [ ] onboardingの文言を実利用結果から調整
+- [ ] backup/recoveryの理解度を実利用結果から確認
 
-## Priority S — Maintainability
+## 優先度B — スマホ／PC機能差
 
-- [x] Establish `app/page.tsx` as the UI/controller boundary and keep reusable domain logic outside it.
-- [x] Extract frame/screen document commands into testable helpers.
-- [x] Extract frame preset resizing, dependent screen shifts and part re-layout into the shared frame command boundary.
-- [x] Extract initial/next frame creation and new-frame camera centering into testable helpers.
-- [x] Extract layer/reordering document commands into testable helpers.
-- [x] Extract item delete/duplicate document commands into testable helpers.
-- [x] Extract item patch/resize-alignment document commands into testable helpers.
-- [x] Extract group/ungroup and nudge document commands into testable helpers.
-- [x] Extract canvas item-rectangle and marquee-selection geometry into testable helpers.
-- [x] Extract frame/group drag coordinate updates into testable helpers.
-- [x] Extract canvas coordinate transforms, visible-world bounds, fit/focus, pan, wheel and pinch calculations into testable helpers.
-- [x] Extract free-drop viewport rejection, target-frame selection and finalized group placement into testable helpers.
-- [x] Extract mobile picker placement, occupied-row avoidance and no-frame centering into shared part-placement helpers.
-- [x] Extract part-drag detach/snap mutations and magnetic snap/alignment-guide geometry into testable helpers.
-- [x] Extract derived navigation-link geometry and action mutation into shared helpers.
-- [x] Extract derived navigation-graph nodes, routes, diagnostics and deterministic layout.
-- [x] Extract navigation-graph route edits/creation into shared commands that write existing item/slot/swipe fields.
-- [x] Extract connected-run corner interpolation used during drag/open-gap animation.
-- [x] Extract Layers-panel frame ownership/selection logic and measurement bookkeeping.
-- [x] Extract tidy state/toggle behavior into a testable session helper.
-- [x] Extract AI response application into document commands that preserve note history.
-- [x] Extract PNG export readiness/encoding and isolate export-only rendering in `FrameExportLayer`.
-- [x] Extract runtime legacy document migration from the page component.
-- [x] Extract deterministic editor seed construction and document-language translation.
-- [x] Extract reusable bounded undo/redo stack helpers with unit tests.
-- [x] Extract local multi-project storage and project-library operations into `lib/project-library.ts`.
-- [x] Wire the existing `app/page.tsx` frame/layer callers to the extracted command helpers incrementally.
-- [x] Wire `app/page.tsx` frame creation and new-frame centering to shared frame/viewport helpers.
-- [x] Wire `app/page.tsx` frame preset changes to the shared resize command while keeping history/animation/platform state in the UI layer.
-- [x] Wire `app/page.tsx` item delete/duplicate callers to the extracted command helpers.
-- [x] Wire `app/page.tsx` item patch/resize-alignment callers to the extracted document helper.
-- [x] Wire `app/page.tsx` group/ungroup and item/frame nudge callers to the extracted command helpers.
-- [x] Wire `app/page.tsx` marquee selection to the extracted canvas-selection helpers.
-- [x] Wire `app/page.tsx` frame/group drag updates to the extracted canvas-drag helpers.
-- [x] Wire `app/page.tsx` coordinate transforms, fit/focus and pan/zoom gestures to the extracted canvas-viewport helpers.
-- [x] Wire `app/page.tsx` free-drop finalization to the extracted drop-placement helper.
-- [x] Wire mobile `addPart()` to shared part-placement rules instead of mobile-only positioning logic.
-- [x] Wire `app/page.tsx` part drag detach/snap and guide calculations to the extracted helpers.
-- [x] Wire `app/page.tsx` history refs to the extracted history helpers without changing undo semantics.
-- [x] Separate project JSON serialization/parsing from browser download/file APIs.
-- [x] Extract preview start resolution and camera calculations into testable helpers.
-- [x] Extract document/UI/draft/AI-settings localStorage access into tested storage helpers.
-- [x] Centralize safe browser storage access and quota/unavailable failure classification.
-- [x] Keep undo/redo behavior consistent for desktop, mobile, and navigation-graph commands.
-- [x] Avoid parallel mobile-only or graph-only business logic when an existing shared operation can be reused.
+- [ ] スマホでもPrompt本文・実装ターゲットをPC同等に編集できるようにする
+- [ ] スマホからAI設定／AI補助機能へ無理なく到達できる導線を検討
+- [ ] スマホで大規模Navigation/Architectureを扱う際の検索・focus操作を評価
+- [ ] タッチによる細かい配置調整の改善を、実利用で必要性確認後に実装
 
-## Priority A — Reliability / security hygiene
+## 優先度C — 現Architectureの拡張条件
 
-- [x] Add focused tests for extracted frame/screen and layer operations.
-- [x] Add focused tests for frame preset resize no-op and dependent screen/group shifting.
-- [x] Add focused tests for initial/next frame placement and frame-centering camera behavior.
-- [x] Add focused tests for extracted item delete/duplicate operations.
-- [x] Add focused tests for extracted item patch/resize-alignment operations.
-- [x] Add focused tests for extracted group/ungroup and nudge operations.
-- [x] Add focused tests for extracted canvas selection geometry.
-- [x] Add focused tests for extracted canvas frame/group drag coordinates.
-- [x] Add focused tests for extracted canvas viewport coordinate, fit and gesture calculations.
-- [x] Add focused tests for free-drop viewport, target-frame and finalized placement behavior.
-- [x] Add focused tests for mobile picked-part frame adaptation, collision avoidance and no-frame centering.
-- [x] Add focused tests for extracted part drag and snap/alignment-guide behavior.
-- [x] Add focused tests for navigation links, run radii, layer selection and measurement helpers.
-- [x] Add focused tests for navigation graph derivation, reachability, diagnostics and layout.
-- [x] Add focused tests for navigation graph item/slot/swipe route mutation.
-- [x] Add focused tests for navigation graph trigger discovery, route creation, new-button creation and transition selection.
-- [x] Add focused tests for tidy-session, AI document commands, frame export, runtime migration, language translation and editor seeds.
-- [x] Add focused tests for the extracted history stack operations.
-- [x] Add focused tests for project serialization/parsing and preview session helpers.
-- [x] Add focused tests for local project creation, snapshot, rename, duplicate, delete and ordering.
-- [x] Add focused tests for editor storage parsing, draft recovery and failure classification.
-- [x] Add E2E coverage for core project flows: edit, save/export, import, multi-screen management and preview.
-- [x] Add E2E coverage for local project-library creation and actual independent project switching.
-- [x] Add E2E coverage proving Project Manager file import creates a separate managed project without replacing the current project.
-- [x] Add E2E coverage for desktop/mobile navigation-graph entry, frame selection and graph-to-Preview behavior.
-- [x] Add E2E coverage proving graph route edits persist through the normal document path and Undo restores them.
-- [x] Add E2E coverage for graph drag-to-connect creation, transition selection, Undo and Redo.
-- [x] Add E2E coverage for navigation-graph screen search without document mutation.
-- [x] Add E2E coverage for navigation-graph source location without document mutation.
-- [x] Add E2E coverage for navigation-graph diagnostic jumps without document mutation.
-- [x] Add E2E coverage for Architecture Action ↔ Canvas-part binding, source location, focused return, persistence, and Undo.
-- [x] Expose the same Architecture Action ↔ Canvas-part binding and focused return workflow in the Mobile Inspector.
-- [x] Diagnose Architecture Action bindings that point to missing Canvas parts and jump directly to the repair control without mutating project data.
-- [x] Diagnose imported Architecture data that assigns one Canvas part to multiple Actions and route each conflict to explicit repair.
-- [x] Add project format/version migration strategy before the `Doc` schema changes substantially.
-- [x] Surface storage write failures/recovery guidance in the editor UX.
-- [x] Audit npm dependencies and remediate the identified high-severity Playwright browser-download certificate advisory.
+- [ ] Agent nodeは具体的Projectで必要になるまで追加しない
+- [ ] Database nodeは具体的Projectで必要になるまで追加しない
+- [ ] pinned/manual graph layoutは実Projectの規模で必要になるまで追加しない
+- [ ] NavigationとArchitectureのsource of truthを統合しない
 
-## Priority A — Project metadata
+## 優先度D — セキュリティ／Cloud
 
-- [x] Update `package.json` repository metadata from the original repository to `kameusagiyahoo/web_canvas`.
-- [x] Update homepage metadata to `https://kameusagiyahoo.github.io/web_canvas/`.
-- [x] Keep `LICENSE`, `NOTICE`, and required attribution intact.
+- [ ] 公開・不特定利用でAI APIキーを扱う前にbrowser-stored key方針を再検討
+- [ ] managed/public AI callが必要になった場合のみCloudflare Worker等へ移す
+- [ ] cross-device/account同期が必要になった場合のみcloud syncを追加
+- [ ] concreteな要件なしにbackend/auth/DBを追加しない
 
-## Priority B — Security / cloud
+## 維持する不変条件
 
-- [ ] Revisit browser-stored AI API keys before the app is used by untrusted/public users.
-- [ ] If managed/public AI calls are needed, move provider calls behind a Cloudflare Worker and use server-side secrets.
-- [ ] Do not add a backend, authentication, or DB before a concrete use case requires it.
-
-## Priority B — Product direction
-
-- [x] Add an App Architecture Flow foundation with persisted semantic Action nodes/links while keeping Screen nodes derived from `Frame`. See `docs/ARCHITECTURE_FLOW.md`.
-- [x] Render Architecture Flow as a deterministic Screen + Action graph with direct visual connection and edge selection/deletion, without persisting graph coordinates.
-- [x] Add actionable Architecture Flow diagnostics for isolated Actions, missing incoming/outgoing flow, and directed cycles; diagnostic jumps must not mutate the document.
-- [x] Add Architecture Flow diagnostics for semantic links whose Screen/Action endpoint no longer exists, with direct edge inspection/deletion and no silent cleanup.
-- [x] Extend Architecture Flow with a design-only `api` node (name, HTTP method, path) while keeping execution semantics out of the model.
-- [x] Extend Architecture Flow diagnostics to isolated APIs, duplicate HTTP method + path definitions, and API cycle participation without mutating project data.
-- [x] Add Architecture Flow node-name search, Screen/Action/API kind filtering, and transient node focus without changing layout or project data.
-- [x] Add view-only Architecture Flow zoom, Fit to view, and centered node focus without persisting viewport state.
-- [x] Trace transitive upstream/downstream relations from a focused Architecture node and dim unrelated branches without mutating project data.
-- [x] Improve Architecture Flow editing with focused-node edit handoff, Action/API duplication, and edge-label editing through normal Undo/Redo.
-- [x] Link semantic Actions to Canvas parts with bidirectional Canvas ↔ Architecture handoff, while keeping navigation and execution semantics separate.
-- [x] Add a one-step Architecture Quick flow creator for `Screen → Action → API → optional Screen`, committed as one Undo operation without changing navigation.
-- [x] Let Architecture Quick flow optionally bind a Canvas part from the start Screen to the new Action in the same Undo operation, without changing navigation.
-- [x] Preview existing Action ownership before Quick flow rebinds a Canvas part, including legacy duplicate ownership, without mutating the document.
-- [x] Trace Architecture relations from a Canvas part through its bound Action to downstream API/Screen nodes as view-only state, without guessing through binding conflicts.
-- [x] Make the traced Canvas context jump back to the real Canvas Item/Inspector and preserve the existing Inspector → Architecture round-trip without adding persisted view state.
-- [x] Let unbound or duplicate-owner Canvas trace warnings open the real Canvas Item/Inspector without silently assigning or repairing Architecture ownership.
-- [x] Show the names of all conflicting Actions directly in duplicate-owner Canvas trace warnings before repair.
-- [ ] Evaluate an `agent` or `database` architecture node only after real projects demonstrate the need; do not add execution semantics by default.
-- [x] Add a local-first multi-project library with create/open/rename/duplicate/delete and autosave.
-- [x] Add lightweight project-name search/filtering to Project Manager without changing project storage semantics.
-- [x] Save the current project synchronously before switching, restore its editor frame mode, and provide an explicit Save now action alongside autosave.
-- [x] Make Project Manager file import create a separate managed project instead of destructively replacing the active project.
-- [x] Preserve versioned JSON file import/export alongside the local project library; toolbar Open project intentionally retains replace-with-confirmation behavior.
-- [x] Migrate an existing single locally stored document into the project library automatically.
-- [x] Evaluate a visual navigation graph after basic mobile screen management works; use a derived graph rather than a second source of truth. See `docs/NAVIGATION_GRAPH.md`.
-- [x] Implement a derived navigation overview without a second persisted graph model.
-- [x] Add navigation diagnostics for missing targets, unreachable/no-incoming screens, and parallel routes.
-- [x] Add desktop and mobile graph entry points plus per-screen Preview entry.
-- [x] Allow existing item/slot/swipe routes to be retargeted or removed from the graph through shared document commands and normal Undo/Redo.
-- [x] Add drag-to-connect creation with an explicit trigger chooser instead of inventing hidden graph-only navigation semantics.
-- [x] Support unused existing item/slot triggers, unused swipe directions, and explicit new-button creation as graph route sources.
-- [x] Add transition selection for graph-created item/slot/button routes and transition editing for existing item/slot routes.
-- [x] Add lightweight screen-name search/highlighting for larger navigation graphs without changing the graph model or layout.
-- [x] Add route-editor source location so a selected graph edge can jump back to its source screen/item without changing document data.
-- [x] Make existing graph diagnostics directly actionable by focusing the affected screen/route without mutating document data.
-- [ ] Evaluate pinned/manual graph layout only after real documents make deterministic layout plus search insufficient.
-- [ ] Consider cloud save/sync only after there is a concrete cross-device/account requirement; keep the local library as the offline/local-first layer.
-
-## Already available — do not duplicate
-
-- Local multi-project library (`m3e:projects:v1`) with one active project.
-- JSON project export via `saveProject()`.
-- JSON project import via `readProject()`.
-- Existing `Frame` model for screens.
-- Existing undo/redo snapshots include frames and groups.
-- Navigation source of truth is already `Frame` + `Item.action` / `Item.actions` + `Frame.swipe`.
+- Screen = Frame
+- Navigation = `Item.action` / `Item.actions` / `Frame.swipe` から導出
+- Architecture bindingはNavigationの代替ではない
+- broken refは保持してdiagnostics表示
+- duplicate binding conflictは推測修復しない
+- Action複製時にCanvas binding/linkを暗黙複製しない
+- Quick Flowは1 Undo step
+- view-only stateは永続化しない
+- GitHub Pagesで主要機能を維持
+- LICENSE / NOTICE / attributionを維持

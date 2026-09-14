@@ -1,52 +1,30 @@
-# Local project library
+# Project Library
 
-Web Canvas now supports multiple projects on the same device without requiring a backend or account.
+## 目的
 
-## Behavior
+1つのブラウザ内で複数の独立したweb_canvas Projectを扱うためのローカルProject管理層です。
 
-- The current project is still autosaved locally.
-- A project library stores independent `Doc` snapshots in browser `localStorage`.
-- The active project ID is stored separately so reopening the app restores the same project.
-- Existing single-document users are migrated into the project library automatically.
-- Switching projects clears Undo/Redo history so history never crosses project boundaries.
-- Project operations include create, open, rename, duplicate, delete, and JSON export.
-- Existing JSON import/export remains available alongside the project library.
+## できること
 
-## Storage model
+- 新規作成
+- 開く／切り替える
+- 名前変更
+- 複製
+- 削除
+- Save now
+- JSON Export
+- JSON Import
 
-```text
-m3e:doc
-  └─ current editor document (compatibility/recovery)
+## 保存
 
-m3e:projects:v1
-  ├─ project A { metadata + Doc }
-  ├─ project B { metadata + Doc }
-  └─ ...
+Project Libraryはブラウザのlocal storageへ保存します。Project切替時は現在の編集内容を先にsnapshotし、直前の変更を落とさないようにします。
 
-m3e:project:active
-  └─ active project id
-```
+旧来の単一 `m3e:doc` が存在する場合はProject Libraryへ移行します。
 
-The project library is local to the current browser/device. It does not sync across devices.
+## JSON Import
 
-## UI
+Project ManagerのOpen fileは、現在のProjectを直接置き換えず、新しい管理Projectとして読み込む経路です。意図的に現在のProjectを置換する操作は別経路として確認を要求します。
 
-Desktop:
+## 境界
 
-`Project` menu → `Projects`
-
-Mobile:
-
-`Screens` sheet → `Projects`
-
-The manager is full-screen and shows the current project, last update time, screen count, and project actions.
-
-## Architecture
-
-`lib/project-library.ts` owns the pure project-library operations and persistence format. `components/ProjectManager.tsx` owns the project-list UI. `app/page.tsx` coordinates switching the active document and keeps the active project snapshot synchronized with normal document autosave.
-
-This keeps project-library semantics separate from canvas editing and keeps the existing versioned JSON project-file format intact.
-
-## Scope
-
-This is intentionally local-first. Cloud/account sync should only be added once there is a concrete cross-device requirement. The local library remains useful even if cloud sync is introduced later because it provides fast local switching and an offline fallback.
+現時点でaccount、backend、cloud syncはありません。別端末への移動はJSON export/importで行います。

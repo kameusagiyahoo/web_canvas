@@ -1,170 +1,75 @@
-# Roadmap
+# ロードマップ
 
-## Phase 1 — Stabilize the independent project
+## Phase 1 — 独立Projectの安定化
 
-Status: complete for the current static/local architecture.
+**状態: 完了**
 
-- Keep GitHub Pages deployment working from this repository.
-- Preserve the original MIT license and NOTICE requirements.
-- Keep JSON project import/export compatible with the existing `Doc` model.
-- Use an explicit project format/version and migration path.
-- Keep browser persistence recoverable through project JSON export.
-- Maintain typecheck, Vitest, static build and Playwright E2E coverage.
-- Avoid unnecessary backend infrastructure.
+GitHub Pages、JSON互換、Project format/version、recoverable persistence、CIを維持し、不要なbackendを追加しない基盤を確立しました。
 
-### Local project management
+## Phase 2 — スマホEditor拡張
 
-Status: complete for the current single-device/local-first scope.
+**状態: core flow完了**
 
-- Keep multiple independent projects in the browser instead of one global working document.
-- Create, open, rename, duplicate and delete projects from a shared desktop/mobile Project Manager.
-- Autosave edits into the active project and expose an explicit Save now action.
-- Snapshot the current project synchronously before switching so a rapid edit→switch cannot miss the latest editor state.
-- Restore project-specific editor frame mode when a project becomes active.
-- Migrate the pre-library single `m3e:doc` into the project library automatically.
-- Import a project file from Project Manager as a new managed project without replacing the active project.
-- Retain the toolbar's replace-with-confirmation JSON open path for intentional current-project replacement.
-- Keep JSON export as a portable backup/recovery mechanism.
-- Keep this layer local; cloud/account sync remains a separate future requirement.
+- 複数Screen管理
+- Part追加・編集
+- Layers
+- Undo / Redo
+- Navigation設定
+- Preview
+- Navigation Graph
+- Project Manager
 
-## Phase 2 — Mobile editor expansion
+PC専用機能を残さず、同じDoc commandをスマホUIから利用できる方向で継続改善します。
 
-Status: core mobile editing flow complete.
+## Phase 3 — 機能に基づくArchitecture整理
 
-### Phase 2A: screen management
+**状態: 主要境界を抽出済み**
 
-Goal: make multi-screen editing usable on a phone without introducing a second document model.
+`app/page.tsx` はUI/controller coordinatorとし、新しいdomain logicはshared helperへ置きます。Frame、Item、History、Persistence、Navigation、Canvas geometry等の主要処理は分離済みです。
 
-- Add a mobile `Screens` bottom sheet.
-- List existing `Frame` objects.
-- Select/focus a screen from the list.
-- Add a new screen.
-- Rename a screen.
-- Duplicate a screen.
-- Delete a screen safely, including links and parts owned by that screen.
-- Make the active screen visually clear.
+## Phase 4 — Visual Navigation Overview
 
-### Phase 2B: mobile composition
+**状態: 現モデルでは完了**
 
-- Focus the canvas on the active screen.
-- Add parts to the active screen from mobile UI.
-- Reuse the same part/item model as desktop.
-- Reuse common edit operations instead of creating mobile-only state logic.
-- Reuse shared Layers and Undo/Redo semantics.
-
-### Phase 2C: navigation and preview
-
-- Configure actions between screens on mobile.
-- Support per-slot actions for navigation components.
-- Enter Preview from the active/selected screen.
-- Keep Preview navigation on the same `Frame`/action model as desktop.
-- Open the same derived visual navigation overview from the mobile Screens sheet.
-- Open the same local Project Manager from the mobile Screens sheet.
-
-## Phase 3 — Architecture cleanup driven by features
-
-Status: the major reusable boundaries are extracted. `app/page.tsx` is now treated as the UI/controller coordinator rather than the home for new domain logic.
-
-Completed boundary areas include:
-
-- frame/screen creation, deletion, duplication and resizing
-- item/group/layer editing commands
-- document/history operations
-- safe browser persistence, local multi-project operations and project-file migrations
-- preview and PNG-export calculations
-- canvas selection/drag/snap/placement/viewport geometry
-- navigation-link and navigation-graph derivation
-- navigation-graph route editing and creation commands
-- tidy session behavior
-- document language/seed construction
-- layer ownership and measurement bookkeeping
-- AI result application
-
-Continue the same incremental rule for future features: do not rewrite `app/page.tsx` wholesale and do not add a second mobile-only or graph-only domain model.
-
-## Phase 4 — Visual architecture overview
-
-Status: **interactive navigation graph complete for the current document model**. See `docs/NAVIGATION_GRAPH.md`.
-
-Implemented:
-
-- derive nodes from `Frame` objects;
-- derive item, per-slot and swipe routes from `Item.action`, `Item.actions`, and `Frame.swipe`;
-- treat `BACK_TARGET` as stack behavior rather than a destination screen;
-- use a deterministic layout without a third-party graph dependency;
-- show missing targets, unreachable/no-incoming screens and parallel-route diagnostics;
-- select/focus an existing screen from a node;
-- enter Preview directly from a graph node;
-- expose the graph from the desktop toolbar and mobile Screens sheet;
-- keep desktop/mobile on the same derived graph adapter;
-- never persist a second graph source of truth;
-- edit existing route destination, transition and removal through shared document commands;
-- drag from one screen to another to create a new route;
-- choose the concrete source interaction after the drag: unused item, unused slot, unused swipe direction, or a new Button;
-- choose a transition for item/slot/button routes;
-- reuse shared part-placement for graph-created Buttons;
-- keep graph mutations inside normal document Undo/Redo;
-- cover graph creation, transition selection, Undo and Redo in browser E2E tests.
-
-Potential follow-up graph work is usability-driven rather than architectural. Search/filter, source-element highlighting, or pinned/manual layout should only be added when real project size makes the current deterministic overview insufficient.
+Frame/Action/SwipeからNavigation Graphを導出し、route編集・作成・diagnostics・Undo/Redoを共通モデルで実装しました。
 
 ## Phase 5 — App Architecture Flow
 
-Status: **interactive Action-flow foundation implemented**.
+**状態: 基盤実装済み**
 
-- Keep Screen nodes derived from the existing `Frame` model rather than storing duplicate screens.
-- Persist semantic Action nodes and semantic links as optional document architecture metadata.
-- Expose the same architecture editor from desktop and mobile.
-- Keep Action/link changes inside normal project autosave, JSON import/export and Undo/Redo.
-- Diagnose stale or duplicate Action → Canvas source bindings and route the user to explicit repair instead of silently normalizing them.
-- Create common `Screen → Action → API → optional Screen` semantic chains from one Quick flow form and one shared document command/Undo step.
-- Render Screen + Action nodes as a deterministic visual graph with direct graph connection and edge selection/deletion.
-- Do not make semantic architecture links drive Preview navigation.
-- Add `api` / `agent` / `database` node kinds only when a concrete workflow requires them.
+ScreenはFrameから導出し、Action/API/linkを意味的な設計情報として扱います。Canvas binding、Quick Flow、diagnostics、graph編集を実装済みです。
 
-See `docs/ARCHITECTURE_FLOW.md`.
+## Phase 6 — 一般ユーザー向け準備
 
-## Phase 6 — General-user readiness
+**状態: 進行中**
 
-Status: **in progress**.
+実装済み:
 
-Implemented:
+- Quick Start
+- modal focus管理
+- desktop keyboard / mobile accessible controls E2E
+- backup & recovery guidance
+- usability validation protocol
+- accessibility validation protocol
+- 日本語操作手順書と日本語ドキュメント整備
 
-- show a five-step Quick Start automatically only for a genuinely unused browser profile;
-- explain the real workflow rather than a parallel tutorial model: Screens → Parts → Action/Navigation → Preview → Project save;
-- keep onboarding completion outside Project/Doc data;
-- keep the guide manually reopenable from desktop and mobile;
-- localize the guide for the editor's supported languages;
-- protect the behavior with browser E2E coverage;
-- add shared modal focus management for Quick Start and Project Manager;
-- trap Tab/Shift+Tab inside modal surfaces, close them with Escape, and restore Quick Start focus to its opener;
-- add semantic dialog headings/descriptions and protect critical desktop keyboard + mobile accessible-control behavior with browser E2E coverage;
-- expose a localized Backup & recovery section inside the shared desktop/mobile Project Manager;
-- explain the local-only storage boundary, routine JSON export, non-destructive Project Manager import, autosave-failure export, and irreversible Project deletion;
-- keep the same recovery policy in `docs/BACKUP_RECOVERY.md` and protect the in-product guidance as view-only browser behavior;
-- define an external-user protocol in `docs/USABILITY_VALIDATION.md` covering the zero-guidance authoring, Preview, Project, and backup loop;
-- provide `docs/USABILITY_SESSION_TEMPLATE.md` so real observations and moderator hints are recorded consistently;
-- define a manual assistive-technology protocol in `docs/ACCESSIBILITY_VALIDATION.md`, with iPhone Safari + VoiceOver and desktop keyboard-only as the minimum matrix.
+次:
 
-Next validation work:
+- 実ユーザー3〜5人でユーザビリティ検証
+- iPhone Safari + VoiceOver実試験
+- desktop keyboard-only実試験
+- Blocker/High修正と再試験
+- スマホとPCの機能差縮小
 
-- run the external-user protocol with 3–5 people who did not build the editor and synthesize recurring findings;
-- run the minimum assistive-technology matrix on a deployed commit;
-- fix and retest Blocker/High findings before promoting the release level;
-- validate onboarding and backup/recovery wording from observed user behavior rather than developer assumptions.
+## Phase 7 — 任意のsecure/cloud拡張
 
-The protocols themselves are not evidence of General-user beta readiness; actual session results are required.
+具体的な要求が出た場合のみ検討します。
 
-## Phase 7 — Optional secure/cloud expansion
-
-Only when a concrete use case requires it:
-
-- Cloudflare Worker for server-side AI/API handling and secret storage
-- cloud project persistence/sync layered on top of the local project library
+- Cloudflare Worker
+- server-side AI secret管理
+- cloud Project sync
 - authentication
-- multi-user projects/collaboration
+- collaboration
 - database/API layer
 
-The current AI provider keys still live in browser storage. Moving managed AI calls behind a secure server-side boundary is the next architecture change that requires external service configuration and secret handling.
-
-GitHub Pages remains the default deployment model until one of these requirements is intentionally adopted.
+GitHub Pages + local-firstを標準とします。
