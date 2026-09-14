@@ -1,4 +1,5 @@
 import { KIND_TEXT, Lang, SWIPE_TEXT, TRANSITION_TEXT, getLang } from "./i18n";
+import { adaptPromptForPlatform, basePromptPlatform } from "./platform-prompt";
 import {
   Platform,
   Action,
@@ -1268,6 +1269,7 @@ export function buildPrompt(doc: Doc, widths: Record<string, number>, onlyFrameI
   const pal = paletteOf(doc.paletteKey, doc.customPalette, th);
   const phone = doc.frame === "phone";
   const platform: Platform = doc.platform ?? defaultPlatformOf(doc.frames, doc.frame);
+  const promptPlatform = basePromptPlatform(platform);
   const allFrames = phone ? doc.frames : [];
   const only = onlyFrameId ? allFrames.find((f) => f.id === onlyFrameId) : undefined;
   const frames = only ? [only] : allFrames;
@@ -1297,18 +1299,18 @@ export function buildPrompt(doc: Doc, widths: Record<string, number>, onlyFrameI
       if (it.kind === "box" && it.checked) sheet = true;
     }
   const styleNotes = kindsUsed
-    .map((k) => (k === "box" && sheet ? STYLE_NOTES[lang].boxSheet : (platform === "web" && STYLE_NOTES_WEB[lang][k]) || STYLE_NOTES[lang][k]))
+    .map((k) => (k === "box" && sheet ? STYLE_NOTES[lang].boxSheet : (promptPlatform === "web" && STYLE_NOTES_WEB[lang][k]) || STYLE_NOTES[lang][k]))
     .filter((s): s is string => !!s);
 
   const title = only ? ph.titleOnly(q(only.name || ph.screen)) : doc.title.trim() || ph.titleAll(frames.length);
   lines.push(ph.intro(title, doc.brief.trim()));
-  lines.push(ph.target(viewport, platform, th.dark, th.bothModes));
-  lines.push(ph.platform(platform));
+  lines.push(ph.target(viewport, promptPlatform, th.dark, th.bothModes));
+  lines.push(ph.platform(promptPlatform));
   lines.push(ph.sketch);
 
   lines.push("");
   lines.push(ph.hColor);
-  if (doc.dynamicColor) lines.push(ph.dynamic(platform));
+  if (doc.dynamicColor) lines.push(ph.dynamic(promptPlatform));
   lines.push(ph.colorIntro(pal.label, !!doc.dynamicColor, th));
   if (th.bothModes) {
     const light = paletteOf(doc.paletteKey, doc.customPalette, { ...th, dark: false });
@@ -1364,8 +1366,8 @@ export function buildPrompt(doc: Doc, widths: Record<string, number>, onlyFrameI
 
   lines.push("");
   lines.push(ph.hGeneral);
-  for (const s of GENERAL[lang]) lines.push(`- ${typeof s === "function" ? s(platform) : s}`);
-  return lines.join("\n");
+  for (const s of GENERAL[lang]) lines.push(`- ${typeof s === "function" ? s(promptPlatform) : s}`);
+  return adaptPromptForPlatform(lines.join("\n"), platform, lang);
 }
 
 /** the prompt to hand out: the author's edited text when there is one, otherwise the generated one */

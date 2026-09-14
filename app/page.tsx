@@ -296,7 +296,7 @@ export default function Page() {
   const [title, setTitle] = useState("");
   const [brief, setBrief] = useState("");
   const [promptEdit, setPromptEdit] = useState<string | undefined>(undefined);
-  /** the author's explicit target; null follows the screens (web once a desktop screen exists) */
+  /** the author's explicit implementation target; null resolves to platform-neutral */
   const [platform, setPlatform] = useState<Platform | null>(null);
   /** a project file waiting for the author to confirm replacing the canvas */
   const [pendingImport, setPendingImport] = useState<Doc | null>(null);
@@ -1744,7 +1744,7 @@ const changeFrame = (f: FrameMode) => {
       preset,
     );
     if (!laid) return;
-    /* a target the author never picked follows the screens */
+    /* keep an implicit neutral target implicit when screen geometry changes */
     if (platform === defaultPlatformOf(frames, frameRef.current)) setPlatform(null);
     snapshot();
     tidyRef.current = null;
