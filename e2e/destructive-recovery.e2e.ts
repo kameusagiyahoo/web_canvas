@@ -106,7 +106,7 @@ test("item and screen deletion recover through normal Undo history", async ({ pa
   // but the same Undo history must restore the complete pre-delete document in one step.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByTitle("Screen").click();
-  const deleteButtons = page.getByRole("button", { name: "Delete", exact: true });
+  const deleteButtons = page.getByRole("button", { name: "Delete (Delete)", exact: true });
   await expect(deleteButtons).toHaveCount(2);
   await deleteButtons.nth(1).click();
 
