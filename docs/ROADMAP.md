@@ -141,12 +141,19 @@ Implemented:
 - add semantic dialog headings/descriptions and protect critical desktop keyboard + mobile accessible-control behavior with browser E2E coverage;
 - expose a localized Backup & recovery section inside the shared desktop/mobile Project Manager;
 - explain the local-only storage boundary, routine JSON export, non-destructive Project Manager import, autosave-failure export, and irreversible Project deletion;
-- keep the same recovery policy in `docs/BACKUP_RECOVERY.md` and protect the in-product guidance as view-only browser behavior.
+- keep the same recovery policy in `docs/BACKUP_RECOVERY.md` and protect the in-product guidance as view-only browser behavior;
+- define an external-user protocol in `docs/USABILITY_VALIDATION.md` covering the zero-guidance authoring, Preview, Project, and backup loop;
+- provide `docs/USABILITY_SESSION_TEMPLATE.md` so real observations and moderator hints are recorded consistently;
+- define a manual assistive-technology protocol in `docs/ACCESSIBILITY_VALIDATION.md`, with iPhone Safari + VoiceOver and desktop keyboard-only as the minimum matrix.
 
 Next validation work:
 
-- screen-reader and other assistive-technology validation beyond browser semantics;
-- representative usability sessions with people who did not build the editor, including validation of onboarding and backup/recovery wording.
+- run the external-user protocol with 3–5 people who did not build the editor and synthesize recurring findings;
+- run the minimum assistive-technology matrix on a deployed commit;
+- fix and retest Blocker/High findings before promoting the release level;
+- validate onboarding and backup/recovery wording from observed user behavior rather than developer assumptions.
+
+The protocols themselves are not evidence of General-user beta readiness; actual session results are required.
 
 ## Phase 7 — Optional secure/cloud expansion
 
