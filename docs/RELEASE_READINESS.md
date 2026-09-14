@@ -36,6 +36,22 @@ This test is intentionally cross-feature. Its purpose is to catch failures at fe
 
 The recovery tests intentionally compare persisted state before and after failure so error handling cannot silently mutate or partially replace the working project.
 
+## Mobile golden-path gate
+
+`e2e/mobile-practical-journey.e2e.ts` verifies a complete authoring loop at a 390 × 844 phone viewport using the mobile UI rather than desktop-only controls:
+
+1. create and activate a managed Project from the mobile Screen sheet;
+2. add a Canvas part from the mobile Parts sheet;
+3. add a second Screen and return to Home;
+4. expand the grouped button run in Layers and select `Favorite`;
+5. use the mobile Inspector to route `Favorite` to the second Screen with a Fade transition;
+6. execute that route in Preview;
+7. explicitly save the managed Project;
+8. reload at phone size and verify the active Project, Screens, and Navigation route survive;
+9. execute the same Preview route again after reload.
+
+The mobile controls used in this journey expose stable accessible names for part choices, Screen choices, and Add Screen, so visible labels such as `Button`, `Home`, and `Add screen` can also be targeted consistently by assistive technology and browser automation.
+
 ## Promotion criteria
 
 ### Personal-use beta — current target
@@ -44,6 +60,7 @@ Required:
 
 - practical golden-path E2E passes;
 - recovery E2E passes for malformed import and local-storage quota failure;
+- mobile golden-path E2E passes through authoring, Preview, save, and reload;
 - main typecheck, unit tests, production build, and Playwright E2E pass;
 - GitHub Pages deployment succeeds;
 - no silent mutation when inspecting diagnostics or Architecture trace state;
@@ -53,7 +70,6 @@ Required:
 
 Before treating the editor as a dependable daily tool, add practical gates for:
 
-- mobile end-to-end authoring rather than isolated mobile controls;
 - larger multi-screen projects and repeated save/reload cycles;
 - destructive-action recovery and clearer user-facing error states.
 

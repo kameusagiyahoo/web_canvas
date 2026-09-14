@@ -32,7 +32,7 @@ export function MobileParts({
   }, [q, lang]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div data-testid="mobile-parts" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, color: p.onSurface }}>
         <Icon name="add_box" size={24} />
         <span style={{ fontSize: 18, fontWeight: 700 }}>{t("parts", lang)}</span>
@@ -84,6 +84,7 @@ export function MobileParts({
             <button
               key={kind}
               type="button"
+              aria-label={labelOf(kind)}
               className="m3-press"
               onClick={() => onAdd(kind)}
               style={{

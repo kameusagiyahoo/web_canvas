@@ -108,6 +108,7 @@ export function MobileScreens({
               <div style={{ minHeight: 54, display: "flex", alignItems: "center", gap: 4, padding: "0 8px 0 12px" }}>
                 <button
                   type="button"
+                  aria-label={frame.name || `${t("screen", lang)} ${index + 1}`}
                   aria-pressed={on}
                   onClick={() => onSelect(frame.id)}
                   className="m3-press"
@@ -336,6 +337,7 @@ export function MobileScreens({
       <button
         type="button"
         onClick={onAdd}
+        aria-label={t("addFrame", lang)}
         className="m3-press"
         style={{
           marginTop: 8,
