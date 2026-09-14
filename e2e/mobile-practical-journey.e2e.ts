@@ -73,14 +73,16 @@ test("mobile authoring journey creates, edits, previews, saves, and reloads one 
   // Place a new Canvas part through the mobile add sheet.
   const beforePartCount = allItems(freshDoc).length;
   await page.getByTitle("Add button").click();
-  await page.getByRole("button", { name: "Button", exact: true }).click();
+  const mobileParts = page.getByTestId("mobile-parts");
+  await expect(mobileParts).toBeVisible();
+  await mobileParts.getByRole("button", { name: "Button", exact: true }).click();
   await expect.poll(async () => allItems((await readState(page)).doc as StoredDoc).length).toBe(beforePartCount + 1);
   const closeSheet = page.getByRole("button", { name: "Close (Esc)", exact: true });
   if (await closeSheet.count()) await closeSheet.first().click();
 
   // Add a second screen using the mobile Screen sheet.
   await openScreens(page);
-  await page.getByRole("button", { name: "Screen", exact: true }).click();
+  await page.getByRole("button", { name: "Add screen", exact: true }).click();
   await expect.poll(async () => ((await readState(page)).doc as StoredDoc).frames?.length ?? 0).toBe(2);
   const twoScreenDoc = (await readState(page)).doc as StoredDoc;
   const second = twoScreenDoc.frames!.find((frame) => frame.id !== home.id)!;
