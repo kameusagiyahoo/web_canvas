@@ -1,0 +1,37 @@
+name: Validate mobile golden path
+
+on:
+  push:
+    branches:
+      - work/mobile-golden-path
+    paths:
+      - e2e/mobile-practical-journey.e2e.ts
+      - .github/workflows/temp-mobile-golden-path.yml
+      - .github/scripts/temp_mobile_golden_path_patch.py
+      - components/**
+      - app/**
+      - docs/RELEASE_READINESS.md
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: work/mobile-golden-path
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /web_canvas
+      - run: npx playwright install --with-deps chromium
+      - name: Mobile golden path
+        run: npx playwright test e2e/mobile-practical-journey.e2e.ts
