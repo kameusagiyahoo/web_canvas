@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Doc, Palette } from "@/lib/tokens";
+import { useModalFocus } from "@/lib/modal-focus";
 import { Icon } from "./M3Node";
 import { useLang } from "@/lib/i18n";
 import { sortProjectsByUpdated, type LocalProject } from "@/lib/project-library";
@@ -62,16 +63,25 @@ export function ProjectManager({
   }, [query, sorted]);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useModalFocus({
+    open: true,
+    containerRef: dialogRef,
+    initialFocusRef: closeRef,
+    onEscape: onClose,
+  });
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={copy.title} data-testid="project-manager" style={{ position: "fixed", inset: 0, zIndex: 140, background: p.surface, color: p.onSurface, display: "flex", flexDirection: "column" }}>
+    <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="project-manager-title" aria-describedby="project-manager-subtitle" data-testid="project-manager" style={{ position: "fixed", inset: 0, zIndex: 140, background: p.surface, color: p.onSurface, display: "flex", flexDirection: "column" }}>
       <header style={{ padding: "max(14px, env(safe-area-inset-top)) 16px 12px", borderBottom: `1px solid ${p.outlineVariant}`, display: "flex", alignItems: "center", gap: 12 }}>
         <span style={{ width: 44, height: 44, borderRadius: 15, display: "grid", placeItems: "center", background: p.secondaryContainer, color: p.onSecondaryContainer }}><Icon name="folder" size={26} /></span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 20, fontWeight: 800 }}>{copy.title}</div>
-          <div style={{ marginTop: 2, fontSize: 12, color: p.onSurfaceVariant }}>{copy.subtitle}</div>
+          <h1 id="project-manager-title" style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>{copy.title}</h1>
+          <div id="project-manager-subtitle" style={{ marginTop: 2, fontSize: 12, color: p.onSurfaceVariant }}>{copy.subtitle}</div>
         </div>
-        <button type="button" onClick={onClose} aria-label={copy.close} className="m3-press" style={{ width: 44, height: 44, border: "none", borderRadius: 22, background: "transparent", color: p.onSurfaceVariant, display: "grid", placeItems: "center", cursor: "pointer" }}><Icon name="close" size={24} /></button>
+        <button ref={closeRef} type="button" onClick={onClose} aria-label={copy.close} className="m3-press" style={{ width: 44, height: 44, border: "none", borderRadius: 22, background: "transparent", color: p.onSurfaceVariant, display: "grid", placeItems: "center", cursor: "pointer" }}><Icon name="close" size={24} /></button>
       </header>
 
       <div style={{ padding: 14, display: "flex", gap: 8, flexWrap: "wrap", borderBottom: `1px solid ${p.outlineVariant}` }}>
@@ -108,7 +118,7 @@ export function ProjectManager({
                       {renamingId === project.id ? (
                         <form onSubmit={(event) => { event.preventDefault(); onRename(project.id, renameValue); setRenamingId(null); }} style={{ display: "flex", gap: 6 }}>
                           <input autoFocus value={renameValue} onChange={(event) => setRenameValue(event.target.value)} aria-label={copy.rename} style={{ flex: 1, minWidth: 0, height: 36, borderRadius: 10, border: `1px solid ${p.outlineVariant}`, background: p.surface, color: p.onSurface, padding: "0 10px" }} />
-                          <button type="submit" className="m3-press" style={{ width: 36, border: "none", borderRadius: 18, background: p.primary, color: p.onPrimary, cursor: "pointer" }}><Icon name="check" size={18} /></button>
+                          <button type="submit" aria-label={copy.rename} className="m3-press" style={{ width: 36, border: "none", borderRadius: 18, background: p.primary, color: p.onPrimary, cursor: "pointer" }}><Icon name="check" size={18} /></button>
                         </form>
                       ) : (
                         <>
