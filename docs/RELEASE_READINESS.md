@@ -4,10 +4,11 @@ web_canvas is now evaluated as a product flow, not only as a collection of isola
 
 ## Current level
 
-The current target is **personal-use beta**:
+The current level is **personal daily-use candidate**:
 
-- appropriate for the author to use on real prototype projects while continuing development;
+- appropriate for the author to use on day-to-day prototype projects on one device while continuing development;
 - local-first project storage, JSON export/import, Preview, Navigation, Architecture Flow, and Undo/Redo are available;
+- practical desktop/mobile authoring, repeated larger-project persistence, recovery failures, and destructive-action recovery are protected by browser E2E gates;
 - CI protects unit/build behavior and browser-level editor behavior;
 - it is not yet positioned as a zero-guidance tool for unrelated users or as a system for irreplaceable production data.
 
@@ -67,9 +68,22 @@ The mobile controls used in this journey expose stable accessible names for part
 
 The persistence gate deliberately uses exact document equality between the working `m3e:doc` and the active Project Library snapshot after each explicit save. This catches stale snapshots, partial writes, accidental project duplication, or cross-project state leakage that frame-count-only checks would miss.
 
+## Destructive-action recovery gate
+
+`e2e/destructive-recovery.e2e.ts` protects destructive actions according to whether they are recoverable document edits or irreversible library operations:
+
+1. delete a routed Canvas Item and verify normal Undo restores the exact pre-delete document, including its Navigation action;
+2. delete a Screen from the mobile Screen sheet and verify its owned content and inbound Navigation are removed together;
+3. Undo that Screen deletion and verify the exact pre-delete document returns in one step;
+4. attempt to delete an active managed Project, cancel the confirmation dialog, and verify the document, active Project ID, and Project Library remain byte-for-byte equivalent at the parsed-data level;
+5. confirm the same Project deletion and verify the editor activates the surviving Project and restores its saved document;
+6. verify the final remaining Project cannot be deleted.
+
+This gate keeps the recovery policy explicit: Canvas/Screen edits use normal Undo/Redo history, while managed-Project deletion is outside document history and therefore requires confirmation plus a last-Project safety guard.
+
 ## Promotion criteria
 
-### Personal-use beta — current target
+### Personal-use beta — achieved foundation
 
 Required:
 
@@ -77,16 +91,15 @@ Required:
 - recovery E2E passes for malformed import and local-storage quota failure;
 - mobile golden-path E2E passes through authoring, Preview, save, and reload;
 - persistence stress E2E passes through repeated 10/12/14-Screen save and reload cycles;
+- destructive-action recovery E2E passes for Item, Screen, and managed-Project deletion;
 - main typecheck, unit tests, production build, and Playwright E2E pass;
 - GitHub Pages deployment succeeds;
 - no silent mutation when inspecting diagnostics or Architecture trace state;
 - project can be recovered through versioned JSON export/import.
 
-### Personal daily-use candidate — next
+### Personal daily-use candidate — current
 
-Before treating the editor as a dependable daily tool, add practical gates for:
-
-- destructive-action recovery and clearer user-facing error states.
+The practical gates now cover the main single-device authoring and recovery risks expected during regular personal use. The next release-readiness work is therefore aimed at **general-user beta**, not at adding backend infrastructure.
 
 ### General-user beta — later
 
