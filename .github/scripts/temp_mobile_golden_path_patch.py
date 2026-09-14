@@ -24,6 +24,11 @@ replace_once(
 screens = Path("components/MobileScreens.tsx")
 replace_once(
     screens,
+    '''                <button\n                  type="button"\n                  aria-pressed={on}\n                  onClick={() => onSelect(frame.id)}\n''',
+    '''                <button\n                  type="button"\n                  aria-label={frame.name || `${t("screen", lang)} ${index + 1}`}\n                  aria-pressed={on}\n                  onClick={() => onSelect(frame.id)}\n''',
+)
+replace_once(
+    screens,
     '''      <button\n        type="button"\n        onClick={onAdd}\n        className="m3-press"\n''',
     '''      <button\n        type="button"\n        onClick={onAdd}\n        aria-label={t("addFrame", lang)}\n        className="m3-press"\n''',
 )
