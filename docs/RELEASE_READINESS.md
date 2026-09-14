@@ -10,6 +10,7 @@ The current level is **personal daily-use candidate**:
 - local-first project storage, JSON export/import, Preview, Navigation, Architecture Flow, and Undo/Redo are available;
 - practical desktop/mobile authoring, repeated larger-project persistence, recovery failures, destructive-action recovery, first-run onboarding, critical keyboard/modal accessibility, and user-facing backup/recovery guidance are protected by browser E2E gates;
 - CI protects unit/build behavior and browser-level editor behavior;
+- manual external-user and assistive-technology validation protocols are defined, but real validation evidence has not yet been collected;
 - it is not yet positioned as a zero-guidance tool for unrelated users or as a system for irreplaceable production data.
 
 ## Practical golden-path gate
@@ -119,6 +120,16 @@ The modal behavior is implemented through one shared focus-management helper rat
 
 The same policy is maintained in `docs/BACKUP_RECOVERY.md` so the in-product summary and repository documentation describe one recovery model.
 
+## Manual validation evidence gate
+
+The remaining General-user beta work now has reproducible manual protocols instead of an undefined “test with users” requirement:
+
+- `docs/USABILITY_VALIDATION.md` defines a zero-guidance task sequence for the real authoring loop, moderator rules, observations to capture, and synthesis priorities;
+- `docs/USABILITY_SESSION_TEMPLATE.md` is copied per real participant so success, hints, friction, persistence misunderstandings, and actual comments are recorded consistently;
+- `docs/ACCESSIBILITY_VALIDATION.md` defines the minimum assistive-technology matrix, including iPhone Safari + VoiceOver and desktop keyboard-only validation, plus severity and retest rules.
+
+These documents are **protocols only**. Their existence does not count as external-user or screen-reader validation. Release status changes only after real sessions are run on a specific deployed commit and their findings are fixed/retested or explicitly accepted with rationale.
+
 ## Promotion criteria
 
 ### Personal-use beta — achieved foundation
@@ -137,15 +148,15 @@ Required:
 
 ### Personal daily-use candidate — current
 
-The practical gates now cover the main single-device authoring and recovery risks expected during regular personal use. First-run guidance, critical keyboard/modal accessibility, and an explicit backup/recovery policy are also available. The remaining release-readiness work requires validation with people and assistive technology rather than additional persistence infrastructure.
+The practical gates now cover the main single-device authoring and recovery risks expected during regular personal use. First-run guidance, critical keyboard/modal accessibility, and an explicit backup/recovery policy are also available. Manual validation is now operationally defined, but the evidence still has to be collected from people and real assistive technology.
 
 ### General-user beta — later
 
 Before handing the app to unrelated users without explanation, validate:
 
-- first-run onboarding and discoverability — implemented; validate with external users rather than only browser automation;
-- accessibility and keyboard/mobile interaction — critical browser gate implemented; continue with screen-reader/assistive-technology validation and fix issues found there;
-- representative external-user usability sessions;
-- documented recovery/backup guidance — implemented in Project Manager and `docs/BACKUP_RECOVERY.md`; validate wording during external-user sessions.
+- first-run onboarding and discoverability — implemented in product and E2E; run the external-user tasks in `docs/USABILITY_VALIDATION.md`;
+- accessibility and keyboard/mobile interaction — critical browser gate implemented; run the minimum matrix in `docs/ACCESSIBILITY_VALIDATION.md` and fix/retest Blocker findings;
+- representative external-user usability sessions — protocol and per-session record template are ready; actual sessions are still pending;
+- documented recovery/backup guidance — implemented in Project Manager and `docs/BACKUP_RECOVERY.md`; validate wording during the external-user sessions.
 
 Backend, authentication, collaboration, and cloud sync are not release prerequisites for the current local-first product direction.
