@@ -91,7 +91,8 @@ test("mobile primary sheets expose stable accessible controls and native activat
   await addScreen.focus();
   await page.keyboard.press("Enter");
   await expect.poll(() => readFrameCount(page)).toBe(beforeFrames + 1);
-  await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
+  // Adding a Screen intentionally closes the mobile sheet; wait for the primary toolbar to become actionable again.
+  await expect(page.getByTitle("Add button")).toBeVisible();
 
   const addEntry = page.getByTitle("Add button");
   await addEntry.focus();
