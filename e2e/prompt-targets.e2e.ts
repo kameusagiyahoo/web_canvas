@@ -1,15 +1,30 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-test("Prompt target defaults neutral and persists explicit PySide selection", async ({ page }) => {
+async function initializeEnglishProfileOnce(page: Page) {
   await page.addInitScript(() => {
+    if (sessionStorage.getItem("prompt-targets:init") === "1") return;
     localStorage.clear();
     localStorage.setItem("m3e:ui", JSON.stringify({ lang: "en" }));
+    sessionStorage.setItem("prompt-targets:init", "1");
   });
+}
+
+async function openPromptPanel(page: Page) {
+  await page.getByTitle("Prompt").click();
+  const target = page.getByTestId("implementation-target");
+  await expect(target).toBeVisible();
+  return {
+    target,
+    prompt: page.getByRole("textbox", { name: "Prompt", exact: true }),
+  };
+}
+
+test("Prompt target defaults neutral and persists explicit PySide selection", async ({ page }) => {
+  await initializeEnglishProfileOnce(page);
   await page.goto("/");
   await expect(page.getByTitle("Undo")).toBeVisible();
 
-  const target = page.getByTestId("implementation-target");
-  const prompt = page.getByRole("textbox", { name: "Prompt", exact: true });
+  let { target, prompt } = await openPromptPanel(page);
 
   await expect(target).toHaveValue("neutral");
   await expect(prompt).toHaveValue(/platform-neutral/);
@@ -33,20 +48,17 @@ test("Prompt target defaults neutral and persists explicit PySide selection", as
 
   await page.reload();
   await expect(page.getByTitle("Undo")).toBeVisible();
-  await expect(page.getByTestId("implementation-target")).toHaveValue("pyside");
-  await expect(page.getByRole("textbox", { name: "Prompt", exact: true })).toHaveValue(/Python 3 and PySide6/);
+  ({ target, prompt } = await openPromptPanel(page));
+  await expect(target).toHaveValue("pyside");
+  await expect(prompt).toHaveValue(/Python 3 and PySide6/);
 });
 
 test("Prompt target can switch among Android, iOS and Web without stack leakage", async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.clear();
-    localStorage.setItem("m3e:ui", JSON.stringify({ lang: "en" }));
-  });
+  await initializeEnglishProfileOnce(page);
   await page.goto("/");
   await expect(page.getByTitle("Undo")).toBeVisible();
 
-  const target = page.getByTestId("implementation-target");
-  const prompt = page.getByRole("textbox", { name: "Prompt", exact: true });
+  const { target, prompt } = await openPromptPanel(page);
 
   await target.selectOption("android");
   await expect(prompt).toHaveValue(/Build it for Android, as a native app\./);
