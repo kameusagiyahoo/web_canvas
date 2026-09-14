@@ -77,8 +77,7 @@ test("mobile authoring journey creates, edits, previews, saves, and reloads one 
   await expect(mobileParts).toBeVisible();
   await mobileParts.getByRole("button", { name: "Button", exact: true }).click();
   await expect.poll(async () => allItems((await readState(page)).doc as StoredDoc).length).toBe(beforePartCount + 1);
-  const closeSheet = page.getByRole("button", { name: "Close (Esc)", exact: true });
-  if (await closeSheet.count()) await closeSheet.first().click();
+  await expect(mobileParts).toBeHidden();
 
   // Add a second screen using the mobile Screen sheet.
   await openScreens(page);
