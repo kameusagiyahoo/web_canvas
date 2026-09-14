@@ -8,7 +8,7 @@ The current level is **personal daily-use candidate**:
 
 - appropriate for the author to use on day-to-day prototype projects on one device while continuing development;
 - local-first project storage, JSON export/import, Preview, Navigation, Architecture Flow, and Undo/Redo are available;
-- practical desktop/mobile authoring, repeated larger-project persistence, recovery failures, destructive-action recovery, first-run onboarding, and critical keyboard/modal accessibility are protected by browser E2E gates;
+- practical desktop/mobile authoring, repeated larger-project persistence, recovery failures, destructive-action recovery, first-run onboarding, critical keyboard/modal accessibility, and user-facing backup/recovery guidance are protected by browser E2E gates;
 - CI protects unit/build behavior and browser-level editor behavior;
 - it is not yet positioned as a zero-guidance tool for unrelated users or as a system for irreplaceable production data.
 
@@ -106,6 +106,19 @@ Existing users are not opted into the automatic dialog: existing document, Proje
 
 The modal behavior is implemented through one shared focus-management helper rather than separate Quick Start / Project Manager rules. Together with the existing mobile golden-path test, this gives browser-level coverage for the complete mobile authoring workflow plus the editor's critical keyboard/modal boundaries. It is **not** a claim of WCAG conformance or complete screen-reader validation; those still require assistive-technology and external-user testing.
 
+## Backup and recovery guidance gate
+
+`e2e/backup-recovery-guidance.e2e.ts` protects the discoverability of the local-first recovery policy rather than introducing new persistence semantics:
+
+1. Project Manager exposes a visible **Backup & recovery** disclosure on the same desktop/mobile Project surface;
+2. the guidance explains that managed Projects live in this browser on this device and are not automatically transferred when browser data is cleared or another device is used;
+3. it points users to **Export file** for routine Project JSON backups and **Open file** for non-destructive restore as a separate managed Project;
+4. it explains that an autosave failure should be followed by **Save Project JSON**, which exports the latest in-memory document even when local persistence has failed;
+5. it distinguishes normal Item/Screen Undo from managed-Project deletion, which is outside document history;
+6. opening the guidance is view-only and leaves the working document, active Project ID, and Project Library unchanged, including at a 390 × 844 viewport.
+
+The same policy is maintained in `docs/BACKUP_RECOVERY.md` so the in-product summary and repository documentation describe one recovery model.
+
 ## Promotion criteria
 
 ### Personal-use beta — achieved foundation
@@ -124,7 +137,7 @@ Required:
 
 ### Personal daily-use candidate — current
 
-The practical gates now cover the main single-device authoring and recovery risks expected during regular personal use. First-run guidance and critical keyboard/modal accessibility are also available, so the remaining release-readiness work is aimed at validation with people and assistive technology rather than adding backend infrastructure.
+The practical gates now cover the main single-device authoring and recovery risks expected during regular personal use. First-run guidance, critical keyboard/modal accessibility, and an explicit backup/recovery policy are also available. The remaining release-readiness work requires validation with people and assistive technology rather than additional persistence infrastructure.
 
 ### General-user beta — later
 
@@ -133,6 +146,6 @@ Before handing the app to unrelated users without explanation, validate:
 - first-run onboarding and discoverability — implemented; validate with external users rather than only browser automation;
 - accessibility and keyboard/mobile interaction — critical browser gate implemented; continue with screen-reader/assistive-technology validation and fix issues found there;
 - representative external-user usability sessions;
-- documented recovery/backup guidance.
+- documented recovery/backup guidance — implemented in Project Manager and `docs/BACKUP_RECOVERY.md`; validate wording during external-user sessions.
 
 Backend, authentication, collaboration, and cloud sync are not release prerequisites for the current local-first product direction.
