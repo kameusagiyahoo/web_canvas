@@ -88,10 +88,11 @@ test("mobile authoring journey creates, edits, previews, saves, and reloads one 
   expect(second?.id).toBeTruthy();
   const secondName = second.name || "Screen 2";
 
-  // Return to Home, select Favorite through Layers, and author its navigation in the mobile Inspector.
+  // Return to Home, expand the grouped button run in Layers, select Favorite, and author its navigation.
   await openScreens(page);
   await page.getByRole("button", { name: home.name || "Home", exact: true }).click();
   await page.getByTitle("Layers").click();
+  await page.getByTitle("Show parts").first().click();
   await page.getByRole("button").filter({ hasText: "Favorite" }).first().click();
   await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
   await page.getByRole("button", { name: "Edit", exact: true }).click();
