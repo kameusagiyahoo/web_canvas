@@ -138,13 +138,15 @@ Implemented:
 - protect the behavior with browser E2E coverage;
 - add shared modal focus management for Quick Start and Project Manager;
 - trap Tab/Shift+Tab inside modal surfaces, close them with Escape, and restore Quick Start focus to its opener;
-- add semantic dialog headings/descriptions and protect critical desktop keyboard + mobile accessible-control behavior with browser E2E coverage.
+- add semantic dialog headings/descriptions and protect critical desktop keyboard + mobile accessible-control behavior with browser E2E coverage;
+- expose a localized Backup & recovery section inside the shared desktop/mobile Project Manager;
+- explain the local-only storage boundary, routine JSON export, non-destructive Project Manager import, autosave-failure export, and irreversible Project deletion;
+- keep the same recovery policy in `docs/BACKUP_RECOVERY.md` and protect the in-product guidance as view-only browser behavior.
 
 Next validation work:
 
 - screen-reader and other assistive-technology validation beyond browser semantics;
-- representative usability sessions with people who did not build the editor;
-- concise user-facing backup/recovery guidance.
+- representative usability sessions with people who did not build the editor, including validation of onboarding and backup/recovery wording.
 
 ## Phase 7 — Optional secure/cloud expansion
 
