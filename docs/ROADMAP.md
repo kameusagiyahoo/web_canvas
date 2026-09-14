@@ -124,7 +124,26 @@ Status: **interactive Action-flow foundation implemented**.
 
 See `docs/ARCHITECTURE_FLOW.md`.
 
-## Phase 6 — Optional secure/cloud expansion
+## Phase 6 — General-user readiness
+
+Status: **in progress**.
+
+Implemented:
+
+- show a five-step Quick Start automatically only for a genuinely unused browser profile;
+- explain the real workflow rather than a parallel tutorial model: Screens → Parts → Action/Navigation → Preview → Project save;
+- keep onboarding completion outside Project/Doc data;
+- keep the guide manually reopenable from desktop and mobile;
+- localize the guide for the editor's supported languages;
+- protect the behavior with browser E2E coverage.
+
+Next validation work:
+
+- accessibility and keyboard/mobile interaction across the complete authoring workflow;
+- representative usability sessions with people who did not build the editor;
+- concise user-facing backup/recovery guidance.
+
+## Phase 7 — Optional secure/cloud expansion
 
 Only when a concrete use case requires it:
 
