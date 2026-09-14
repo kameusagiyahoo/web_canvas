@@ -1423,13 +1423,15 @@ export type Group = {
 
 export type FrameMode = "blank" | "phone";
 
-/** where the generated prompt asks for the app to be built */
-export type Platform = "android" | "web";
-export const DEFAULT_PLATFORM: Platform = "android";
-export const isPlatform = (v: unknown): v is Platform => v === "android" || v === "web";
-/** The target the prompt assumes when the author has not picked one: the web as
- *  soon as a desktop screen exists, Android otherwise. */
-export const defaultPlatformOf = (frames: Frame[], mode: FrameMode): Platform => (mode === "phone" && frames.some((f) => !isPhoneFrame(f)) ? "web" : DEFAULT_PLATFORM);
+/** where the generated implementation prompt asks for the app to be built */
+export type Platform = "neutral" | "android" | "ios" | "web" | "pyside";
+export const DEFAULT_PLATFORM: Platform = "neutral";
+export const isPlatform = (v: unknown): v is Platform =>
+  v === "neutral" || v === "android" || v === "ios" || v === "web" || v === "pyside";
+/** A design does not imply an implementation stack. New/unset projects remain
+ *  platform-neutral until the author explicitly chooses a target. The parameters
+ *  stay for API compatibility with callers that already derive this alongside frames. */
+export const defaultPlatformOf = (_frames: Frame[], _mode: FrameMode): Platform => DEFAULT_PLATFORM;
 
 export type ArchitectureNodeKind = "action" | "api";
 
