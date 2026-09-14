@@ -52,6 +52,21 @@ The recovery tests intentionally compare persisted state before and after failur
 
 The mobile controls used in this journey expose stable accessible names for part choices, Screen choices, and Add Screen, so visible labels such as `Button`, `Home`, and `Add screen` can also be targeted consistently by assistive technology and browser automation.
 
+## Persistence stress gate
+
+`e2e/persistence-stress.e2e.ts` exercises one managed Project as it grows beyond the small two-Screen golden path:
+
+1. establish a real `Favorite → Screen 2` Navigation route and matching `Screen → Action → API → Screen` Architecture flow;
+2. grow the same Project to 10 Screens;
+3. explicitly save the Project Library snapshot and reload the browser;
+4. compare the complete working document with the saved Project snapshot after reload;
+5. repeat the same process after growing to 12 Screens and again at 14 Screens;
+6. verify the active Project ID and Project Library count never drift across cycles;
+7. verify Navigation and Architecture semantics remain unchanged through every cycle;
+8. execute the preserved Preview route after the third save/reload cycle.
+
+The persistence gate deliberately uses exact document equality between the working `m3e:doc` and the active Project Library snapshot after each explicit save. This catches stale snapshots, partial writes, accidental project duplication, or cross-project state leakage that frame-count-only checks would miss.
+
 ## Promotion criteria
 
 ### Personal-use beta — current target
@@ -61,6 +76,7 @@ Required:
 - practical golden-path E2E passes;
 - recovery E2E passes for malformed import and local-storage quota failure;
 - mobile golden-path E2E passes through authoring, Preview, save, and reload;
+- persistence stress E2E passes through repeated 10/12/14-Screen save and reload cycles;
 - main typecheck, unit tests, production build, and Playwright E2E pass;
 - GitHub Pages deployment succeeds;
 - no silent mutation when inspecting diagnostics or Architecture trace state;
@@ -70,7 +86,6 @@ Required:
 
 Before treating the editor as a dependable daily tool, add practical gates for:
 
-- larger multi-screen projects and repeated save/reload cycles;
 - destructive-action recovery and clearer user-facing error states.
 
 ### General-user beta — later
