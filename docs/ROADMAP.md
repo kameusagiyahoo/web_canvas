@@ -135,11 +135,14 @@ Implemented:
 - keep onboarding completion outside Project/Doc data;
 - keep the guide manually reopenable from desktop and mobile;
 - localize the guide for the editor's supported languages;
-- protect the behavior with browser E2E coverage.
+- protect the behavior with browser E2E coverage;
+- add shared modal focus management for Quick Start and Project Manager;
+- trap Tab/Shift+Tab inside modal surfaces, close them with Escape, and restore Quick Start focus to its opener;
+- add semantic dialog headings/descriptions and protect critical desktop keyboard + mobile accessible-control behavior with browser E2E coverage.
 
 Next validation work:
 
-- accessibility and keyboard/mobile interaction across the complete authoring workflow;
+- screen-reader and other assistive-technology validation beyond browser semantics;
 - representative usability sessions with people who did not build the editor;
 - concise user-facing backup/recovery guidance.
 

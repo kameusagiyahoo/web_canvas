@@ -8,7 +8,7 @@ The current level is **personal daily-use candidate**:
 
 - appropriate for the author to use on day-to-day prototype projects on one device while continuing development;
 - local-first project storage, JSON export/import, Preview, Navigation, Architecture Flow, and Undo/Redo are available;
-- practical desktop/mobile authoring, repeated larger-project persistence, recovery failures, destructive-action recovery, and first-run onboarding are protected by browser E2E gates;
+- practical desktop/mobile authoring, repeated larger-project persistence, recovery failures, destructive-action recovery, first-run onboarding, and critical keyboard/modal accessibility are protected by browser E2E gates;
 - CI protects unit/build behavior and browser-level editor behavior;
 - it is not yet positioned as a zero-guidance tool for unrelated users or as a system for irreplaceable production data.
 
@@ -94,6 +94,18 @@ This gate keeps the recovery policy explicit: Canvas/Screen edits use normal Und
 
 Existing users are not opted into the automatic dialog: existing document, Project Library, or editor-UI storage suppresses first-run auto-open while keeping the manual help entry available.
 
+## Accessibility and keyboard interaction gate
+
+`e2e/accessibility-workflow.e2e.ts` protects critical interaction semantics that pointer-only tests do not cover:
+
+1. a desktop user can focus and activate Add Screen with the keyboard's native Enter behavior;
+2. Quick Start exposes a labelled dialog/heading, moves focus into the dialog, traps Tab/Shift+Tab inside it, closes with Escape, and restores focus to the help button;
+3. Project Manager exposes a labelled full-screen dialog, starts focus on its Close control, keeps repeated Tab navigation inside the dialog, and closes with Escape;
+4. the same mobile Screen, Layers, Add, Add Screen, and part-choice controls retain stable accessible names at a 390 × 844 viewport;
+5. mobile Screen creation and part insertion can be activated through their native button keyboard behavior, complementing the touch-driven complete mobile golden path.
+
+The modal behavior is implemented through one shared focus-management helper rather than separate Quick Start / Project Manager rules. Together with the existing mobile golden-path test, this gives browser-level coverage for the complete mobile authoring workflow plus the editor's critical keyboard/modal boundaries. It is **not** a claim of WCAG conformance or complete screen-reader validation; those still require assistive-technology and external-user testing.
+
 ## Promotion criteria
 
 ### Personal-use beta — achieved foundation
@@ -112,14 +124,14 @@ Required:
 
 ### Personal daily-use candidate — current
 
-The practical gates now cover the main single-device authoring and recovery risks expected during regular personal use. First-run guidance is also available, so the remaining release-readiness work is aimed at validating the experience for people who did not build the editor.
+The practical gates now cover the main single-device authoring and recovery risks expected during regular personal use. First-run guidance and critical keyboard/modal accessibility are also available, so the remaining release-readiness work is aimed at validation with people and assistive technology rather than adding backend infrastructure.
 
 ### General-user beta — later
 
 Before handing the app to unrelated users without explanation, validate:
 
 - first-run onboarding and discoverability — implemented; validate with external users rather than only browser automation;
-- accessibility and keyboard/mobile interaction across the complete workflow;
+- accessibility and keyboard/mobile interaction — critical browser gate implemented; continue with screen-reader/assistive-technology validation and fix issues found there;
 - representative external-user usability sessions;
 - documented recovery/backup guidance.
 

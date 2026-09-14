@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Palette } from "@/lib/tokens";
 import type { Lang } from "@/lib/i18n";
 import { useLang } from "@/lib/i18n";
+import { useModalFocus } from "@/lib/modal-focus";
 import { Icon } from "./M3Node";
 
 export const QUICK_START_KEY = "m3e:quick-start:v1";
@@ -102,18 +103,19 @@ export function QuickStartGuide({ open, mobile, palette: p, onDismiss }: {
   const lang = useLang();
   const copy = COPY[lang];
   const [index, setIndex] = useState(0);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (!open) return;
-    setIndex(0);
-    queueMicrotask(() => closeRef.current?.focus());
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onDismiss();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onDismiss]);
+    if (open) setIndex(0);
+  }, [open]);
+
+  useModalFocus({
+    open,
+    containerRef: dialogRef,
+    initialFocusRef: closeRef,
+    onEscape: onDismiss,
+  });
 
   if (!open) return null;
   const current = copy.steps[index];
@@ -121,10 +123,13 @@ export function QuickStartGuide({ open, mobile, palette: p, onDismiss }: {
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       data-testid="quick-start-guide"
       role="dialog"
       aria-modal="true"
       aria-labelledby="quick-start-title"
+      aria-describedby="quick-start-intro"
       style={{
         position: "fixed",
         inset: 0,
@@ -150,8 +155,8 @@ export function QuickStartGuide({ open, mobile, palette: p, onDismiss }: {
       >
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div id="quick-start-title" style={{ fontSize: 24, lineHeight: 1.2, fontWeight: 800 }}>{copy.title}</div>
-            <div style={{ marginTop: 6, color: p.onSurfaceVariant, fontSize: 14, lineHeight: 1.5 }}>{copy.intro}</div>
+            <h2 id="quick-start-title" style={{ margin: 0, fontSize: 24, lineHeight: 1.2, fontWeight: 800 }}>{copy.title}</h2>
+            <div id="quick-start-intro" style={{ marginTop: 6, color: p.onSurfaceVariant, fontSize: 14, lineHeight: 1.5 }}>{copy.intro}</div>
           </div>
           <button
             ref={closeRef}
