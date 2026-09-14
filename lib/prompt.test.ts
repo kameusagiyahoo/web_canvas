@@ -14,7 +14,7 @@ const SECTIONS: Record<Lang, string[]> = {
   ko: ["## 색상", "## 모양, 글꼴 및 모션", "## 화면 구성", "## 동작 및 화면 전환", "## 부품별 스타일", "## 전체 지침"],
 };
 
-const PLATFORM_LINE: Record<Lang, Record<Platform, string>> = {
+const PLATFORM_LINE: Record<Lang, Record<"android" | "web", string>> = {
   ja: { android: "実装先は Android（ネイティブアプリ）です。", web: "実装先は Web（ブラウザで動くアプリ）です。" },
   en: { android: "Build it for Android, as a native app.", web: "Build it for the web, as an app that runs in the browser." },
   zh: { android: "实现目标是 Android（原生应用）。", web: "实现目标是 Web（在浏览器中运行的应用）。" },
@@ -75,17 +75,51 @@ describe("buildPrompt structure", () => {
     expect(headings(build(lang))).toEqual(SECTIONS[lang]);
   });
 
-  it.each(LANGS)("names the requested platform on the intro lines in %s", (lang) => {
-    const android = lines(build(lang, "android"));
-    const web = lines(build(lang, "web"));
-    expect(android[2]).toBe(PLATFORM_LINE[lang].android);
-    expect(web[2]).toBe(PLATFORM_LINE[lang].web);
+  it.each(LANGS)("preserves the Android and Web target lines in %s", (lang) => {
+    expect(lines(build(lang, "android"))[2]).toBe(PLATFORM_LINE[lang].android);
+    expect(lines(build(lang, "web"))[2]).toBe(PLATFORM_LINE[lang].web);
   });
 
-  it("names Android when the doc picks no platform", () => {
+  it("defaults an unconfigured design to platform-neutral instead of Android", () => {
     setGlobalLang("en");
     const { platform, ...doc } = fixture();
-    expect(lines(buildPrompt(doc, {}, undefined, "en"))[2]).toBe(PLATFORM_LINE.en.android);
+    const prompt = buildPrompt(doc, {}, undefined, "en");
+    expect(lines(prompt)[2]).toContain("platform-neutral");
+    expect(prompt).not.toContain("Jetpack Compose");
+    expect(prompt).not.toContain("Room, DataStore");
+    expect(prompt).not.toContain("release APK");
+  });
+
+  it("maps iOS to SwiftUI without leaking Android implementation requirements", () => {
+    const prompt = build("en", "ios");
+    expect(lines(prompt)[2]).toContain("native iOS app");
+    expect(prompt).toContain("SwiftUI");
+    expect(prompt).toContain("SwiftData");
+    expect(prompt).toContain("NavigationStack");
+    expect(prompt).not.toContain("Jetpack Compose");
+    expect(prompt).not.toContain("Room, DataStore");
+    expect(prompt).not.toContain("release APK");
+  });
+
+  it("maps PySide to a desktop Qt stack and distributable desktop build", () => {
+    const prompt = build("en", "pyside");
+    expect(lines(prompt)[2]).toContain("Python 3 and PySide6");
+    expect(prompt).toContain("Qt Quick/QML");
+    expect(prompt).toContain("SQLite");
+    expect(prompt).toContain("QSettings");
+    expect(prompt).toContain("PyInstaller");
+    expect(prompt).not.toContain("Jetpack Compose");
+    expect(prompt).not.toContain("release APK");
+  });
+
+  it("keeps Android and Web technology-specific deliverables when explicitly selected", () => {
+    const android = build("en", "android");
+    const web = build("en", "web");
+    expect(android).toContain("Jetpack Compose material3");
+    expect(android).toContain("signed release APK");
+    expect(web).toContain("Material Web");
+    expect(web).toContain("IndexedDB");
+    expect(web).toContain("production build");
   });
 
   it.each(LANGS)("writes one style note per part kind in use in %s", (lang) => {
