@@ -4,13 +4,13 @@
 
 The Data Model is the next view in the editor's **single source, multiple views** direction.
 
-It describes application data once and lets later UI/architecture views reference that same definition instead of drawing a second, disconnected ER diagram.
+It describes application data once and lets UI and architecture views reference that same definition instead of drawing a second, disconnected ER diagram.
 
-The first implementation is intentionally domain-only and reusable. It does not create a backend, execute database queries, or choose a database product.
+The implementation is intentionally design-time only. It does not create a backend, execute database queries, or choose a database product.
 
-## Foundation in this change
+## Model
 
-`lib/data-model.ts` introduces a versioned `DataModel` with three kinds of information:
+`lib/data-model.ts` defines a versioned `DataModel` with three kinds of information:
 
 ```text
 DataModel
@@ -24,7 +24,7 @@ DataModel
 
 An Entity is a conceptual application object such as `User`, `Order`, or `Product`.
 
-A field stores only design metadata:
+A field stores design metadata:
 
 - name
 - scalar/reference type
@@ -48,14 +48,14 @@ A relation can optionally reference concrete fields on either side. Self-relatio
 
 ### Binding
 
-A Binding is the bridge that will let other editor views say which data they use.
+A Binding is the bridge that lets the other editor views say which data they use.
 
-Supported subject kinds are already named for the existing product model:
+Supported subject kinds reference canonical objects already owned elsewhere in the project:
 
-- `frame`
-- `item`
-- `action`
-- `api`
+- `frame` — Screen / `Frame`
+- `item` — Canvas `Item`
+- `action` — Architecture Action
+- `api` — Architecture API
 
 A binding references exactly one Entity and records one or more conceptual access modes:
 
@@ -64,11 +64,11 @@ A binding references exactly one Entity and records one or more conceptual acces
 - update
 - delete
 
-Bindings are descriptive design metadata. They do not execute requests or mutate application data.
+Bindings are descriptive design metadata. They do not execute requests, mutate application data, or change Preview navigation.
 
 ## Editing rules
 
-The domain commands are immutable and return the original model for rejected operations. This matches the existing command-oriented editor architecture and makes it safe to place Data Model changes into the normal Undo/Redo path when it is wired into `Doc`.
+The domain commands are immutable and return the original model for rejected operations. This matches the existing command-oriented editor architecture and lets Data Model edits use the same whole-document Undo/Redo path as other semantic metadata.
 
 Implemented commands cover:
 
@@ -79,7 +79,9 @@ Implemented commands cover:
 - cascaded cleanup when an Entity is intentionally deleted
 - clearing field references when a referenced Field is intentionally deleted
 
-Imported malformed references are not silently guessed by diagnostics. `diagnoseDataModel()` can surface missing relation/binding targets explicitly, following the same principle used by Architecture Flow.
+Imported malformed references are not silently guessed by diagnostics. `diagnoseDataModel()` surfaces missing relation/binding targets explicitly, following the same principle used by Architecture Flow.
+
+`lib/data-model-document.ts` validates the persisted boundary before a stored or imported Data Model reaches editor state. Existing documents with no `dataModel` remain valid and open with an empty version-1 model.
 
 ## Derived ER layout
 
@@ -99,27 +101,43 @@ DataModel
 
 Acyclic dependencies are arranged left-to-right. Cyclic groups remain renderable and are placed in a deterministic fallback column rather than making the project invalid.
 
-`components/DataModelView.tsx` is a reusable first ER editor surface. It renders Entity cards, fields, cardinality edges, an Entity inspector, relation creation, deletion, and diagnostics. It accepts the model and an `onChange` callback so the host editor can later connect it to the normal document/history/persistence path without putting domain logic in the component.
+## Editor integration
 
-## Required integration before release
+Status: implemented on the Data Model foundation branch.
 
-This foundation is not yet a new source of truth in `Doc`. The safe integration sequence is:
+- The active editor document carries an optional version-1 `dataModel` payload.
+- Legacy projects without it open with an empty Data Model.
+- Local autosave, managed-project snapshots, JSON export/import, whole-document Undo/Redo and project switching carry the same payload.
+- `components/DataModelView.tsx` provides one responsive ER editor for desktop and mobile.
+- `components/DataModelWorkspace.tsx` exposes that same model from the Canvas without creating a second mobile or graph-only store.
+- Entity cards, fields and cardinality edges are rendered from the model; graph coordinates stay derived.
+- Screen, Canvas part, Architecture Action and Architecture API options are derived from their existing canonical IDs.
+- A `DataBinding` can describe `read`, `create`, `update`, and/or `delete` access to an Entity.
+- Selecting a binding can hand the user back to the real Canvas Screen/part or the real Architecture Action/API.
 
-1. Add optional `dataModel` to `Doc` and a runtime migration/default.
-2. Keep old project JSON valid by defaulting missing `dataModel` to an empty v1 model.
-3. Add `dataModel` to the existing full-document state/snapshot path so project switching, autosave, import/export, Undo and Redo preserve it.
-4. Open `DataModelView` from desktop and mobile using the same model.
-5. Localize the Data Model UI labels.
-6. Add Screen/Canvas ↔ Entity bindings using existing Frame/Item IDs.
-7. Add Architecture Action/API ↔ Entity bindings using existing Architecture node IDs.
-8. Add cross-view focus: Canvas → Architecture → Data and Data → related Screen/Action/API.
-9. Add browser E2E coverage before marking the feature complete.
+This completes the first **Single Source, Multiple Views** loop:
 
-Do **not** create a second screen, navigation, Action, or API model inside the Data Model. Those objects already have canonical identities elsewhere in the document; bindings should reference them.
+```text
+Canvas Screen / Part ─┐
+Architecture Action ──┼─ DataBinding ─ Entity ─ Relation ─ Entity
+Architecture API ─────┘
+```
+
+Do **not** create a second screen, navigation, Action, or API model inside the Data Model. Those objects already have canonical identities elsewhere in the document; bindings reference them.
+
+## Validation before merge
+
+The branch must keep the existing CI gates green and add evidence for the new persisted state. In particular:
+
+1. TypeScript/typecheck and static build must pass.
+2. Unit tests must cover Data Model commands, persisted-shape validation and project JSON round-trip/rejection.
+3. Existing Playwright coverage must remain green.
+4. Follow-up browser E2E should cover the user journey: open Data Model → create Entity/Field/Relation → bind a Screen or Action → close/reopen → save/reload → jump back to the bound object.
+5. Localization of the detailed Data Model editor copy is a follow-up; the launcher already follows the editor language.
 
 ## Longer-term view
 
-Once integrated, one project can be viewed as:
+One project can now move toward:
 
 ```text
                          Project / Doc
@@ -134,24 +152,3 @@ Once integrated, one project can be viewed as:
 ```
 
 The target is not five independently maintained diagrams. It is one application definition with multiple derived and editable views.
-
-## Editor integration
-
-Status: implemented on the Data Model foundation branch.
-
-- The active editor document carries an optional version-1 `dataModel` payload.
-- Legacy projects without it open with an empty Data Model.
-- Local autosave, managed-project snapshots, JSON export/import, whole-document Undo/Redo and project switching carry the same payload.
-- The Canvas exposes one Data Model workspace on desktop and mobile; ER coordinates remain derived and are never persisted.
-- `DataBinding` connects an Entity to an existing Screen (`frame`), Canvas part (`item`), Architecture Action, or Architecture API without duplicating those objects.
-- A binding can describe `read`, `create`, `update`, and/or `delete` access and can jump back to the real Canvas or Architecture object.
-- Bindings are descriptive design metadata only. They do not execute API/database work and do not change Preview navigation.
-
-This completes the first Single Source, Multiple Views loop:
-
-```text
-Canvas Screen / Part ─┐
-Architecture Action ──┼─ DataBinding ─ Entity ─ Relation ─ Entity
-Architecture API ─────┘
-```
-
