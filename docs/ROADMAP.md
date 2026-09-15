@@ -43,11 +43,11 @@ ScreenはFrameから導出し、Action/API/linkを意味的な設計情報とし
 
 **状態: 基盤実装済み**
 
-既存Frameを複製せずに最大3画面を横並びで比較できるCompare viewを追加します。比較対象の選択はview-only stateで、Projectへ別の比較用Screenモデルを保存しません。
+既存Frameを複製せずに最大3画面を横並びで比較できるCompare viewを追加します。比較対象の選択とA基準の構造差分はview-only stateで、Projectへ別の比較用Screenモデルや差分結果を保存しません。
 
 「バリアントを作成」は既存のFrame複製コマンドを使って実際のScreenを作成し、その後の編集・Navigation・Previewは通常のFrameとして扱います。PCはToolbar、スマホはScreensから同じCompare viewへ到達します。
 
-次の拡張は、実利用で必要性が確認できた場合に限り、Frame IDを参照する比較セット名・レビューコメント等の軽量メタデータを検討します。
+Compareでは画面サイズ・背景、部品の追加/削除、内容、見た目、配置、Navigation差分を元のFrame/Group/Itemから自動導出します。実利用で必要性が確認できた場合に限り、Frame IDを参照する比較セット名・レビューコメント等の軽量メタデータを検討します。
 
 ## Phase 6 — 一般ユーザー向け準備
 
@@ -64,6 +64,8 @@ ScreenはFrameから導出し、Action/API/linkを意味的な設計情報とし
 - 日本語操作手順書と日本語ドキュメント整備
 - スマホでのPrompt本文・実装ターゲット編集
 - スマホSettingsからのAI設定とPart BehaviorのAI補助
+- 大規模Navigation/Architectureのスマホ検索をE2E評価し、唯一の一致を自動センタリング
+- Navigation Graph / Architecture Flowの全画面dialogに共通focus trap・Escape・focus restoreを適用しE2E化
 
 次:
 
@@ -71,7 +73,6 @@ ScreenはFrameから導出し、Action/API/linkを意味的な設計情報とし
 - iPhone Safari + VoiceOver実試験
 - desktop keyboard-only実試験
 - Blocker/High修正と再試験
-- 大規模Navigation/Architectureのスマホ操作評価
 
 ## Phase 7 — 任意のsecure/cloud拡張
 
