@@ -127,13 +127,13 @@ Do **not** create a second screen, navigation, Action, or API model inside the D
 
 ## Validation before merge
 
-The branch must keep the existing CI gates green and add evidence for the new persisted state. In particular:
+The branch keeps the existing CI gates and adds evidence for the new persisted state:
 
-1. TypeScript/typecheck and static build must pass.
-2. Unit tests must cover Data Model commands, persisted-shape validation and project JSON round-trip/rejection.
-3. Existing Playwright coverage must remain green.
-4. Follow-up browser E2E should cover the user journey: open Data Model → create Entity/Field/Relation → bind a Screen or Action → close/reopen → save/reload → jump back to the bound object.
-5. Localization of the detailed Data Model editor copy is a follow-up; the launcher already follows the editor language.
+1. TypeScript/typecheck and static build cover the integrated editor.
+2. Unit tests cover Data Model commands, persisted-shape validation and project JSON round-trip/rejection.
+3. Existing Playwright coverage remains part of the release gate.
+4. `e2e/data-model.e2e.ts` covers the user journey: open Data Model → create Entity/Field → bind an Architecture Action → verify local persistence → Undo → recreate → reload → jump back to the bound Architecture object.
+5. Detailed Data Model editor-copy localization remains follow-up work; the launcher already follows the editor language.
 
 ## Longer-term view
 
