@@ -49,7 +49,13 @@ describe("compareFrames", () => {
 
     expect(diff.counts.style).toBe(1);
     expect(diff.counts.navigation).toBe(1);
-    expect(diff.entries.some((entry) => entry.property === "variant" && entry.before === "filled" && entry.after === "tonal")).toBe(true);
+    const variant = diff.entries.find((entry) => entry.property === "variant");
+    expect(variant).toMatchObject({
+      before: "filled",
+      after: "tonal",
+      beforeItemId: "ga-button",
+      afterItemId: "gb-button",
+    });
     expect(diff.entries.some((entry) => entry.property === "tapTarget" && entry.after?.includes("target-b"))).toBe(true);
   });
 
@@ -65,7 +71,9 @@ describe("compareFrames", () => {
 
     expect(added.counts.added).toBe(1);
     expect(added.counts.removed).toBe(0);
+    expect(added.entries.find((entry) => entry.category === "added")?.afterItemId).toBe("extra-text");
     expect(removed.counts.removed).toBe(1);
+    expect(removed.entries.find((entry) => entry.category === "removed")?.beforeItemId).toBe("extra-text");
   });
 
   it("reports screen geometry, background, and swipe differences", () => {

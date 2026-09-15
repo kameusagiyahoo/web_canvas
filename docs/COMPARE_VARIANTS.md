@@ -50,6 +50,12 @@ Variant duplication intentionally creates fresh Frame/Group/Item IDs, so diff ma
 
 The diff is explanatory design metadata only. It does not execute navigation, mutate either Screen, or become another source of truth.
 
+### Difference focus
+
+Each visible difference row is keyboard-focusable and selectable. Selecting a part-level difference highlights the matched canonical Item on A and on the compared Screen. Added/removed differences highlight only the side where the Item exists. Screen-level differences such as dimensions, background, or swipe targets highlight the Screen frame itself.
+
+The highlight is transient view state. It stores no coordinates, no copied Item data, and no saved diff result; it follows the Item ids already carried by the derived comparison entry.
+
 ## Creating a variant
 
 `Create variant` is different from selecting a Screen for comparison.

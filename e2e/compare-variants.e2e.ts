@@ -63,6 +63,9 @@ test("Compare derives structural differences and a created variant is a normal u
   await expect(workspace.getByTestId("compare-diff-count-details")).toHaveText(/\d+ changes/);
   await expect(workspace.getByTestId("compare-diff-details")).toContainText("label");
   await expect(workspace.getByTestId("compare-diff-details")).toContainText("variant");
+  await workspace.getByTestId("compare-diff-row-details-0").click();
+  await expect(workspace.getByTestId("compare-highlight-home-home-button")).toBeVisible();
+  await expect(workspace.getByTestId("compare-highlight-details-details-button")).toBeVisible();
 
   await workspace.getByTestId("compare-create-variant-home").click();
   await expect(workspace.locator('[data-testid^="compare-frame-"]')).toHaveCount(3);

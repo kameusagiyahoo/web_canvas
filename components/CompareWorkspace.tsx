@@ -57,6 +57,7 @@ function labels(lang: Lang) {
       same: "構造上の差分なし",
       changes: "件の差分",
       more: "件を省略",
+      highlightHint: "差分を選択すると該当箇所を画面上で強調します。",
       categories: {
         screen: "画面",
         added: "追加",
@@ -85,6 +86,7 @@ function labels(lang: Lang) {
       same: "无结构差异",
       changes: "项差异",
       more: "项已省略",
+      highlightHint: "选择差异后，会在画面上突出显示对应位置。",
       categories: {
         screen: "画面",
         added: "新增",
@@ -113,6 +115,7 @@ function labels(lang: Lang) {
       same: "구조 차이 없음",
       changes: "개 차이",
       more: "개 생략",
+      highlightHint: "차이를 선택하면 해당 위치를 화면에서 강조합니다.",
       categories: {
         screen: "화면",
         added: "추가",
@@ -140,6 +143,7 @@ function labels(lang: Lang) {
     same: "No structural differences",
     changes: "changes",
     more: "more",
+    highlightHint: "Select a difference to highlight the affected parts on the screens.",
     categories: {
       screen: "Screen",
       added: "Added",
@@ -231,6 +235,8 @@ function FrameMiniature({
   widths,
   palette,
   mobile,
+  highlightItemId,
+  highlightFrame,
 }: {
   frame: Frame;
   frames: Frame[];
@@ -238,11 +244,16 @@ function FrameMiniature({
   widths: Record<string, number>;
   palette: Palette;
   mobile?: boolean;
+  highlightItemId?: string | null;
+  highlightFrame?: boolean;
 }) {
   const owned = useMemo(
     () => groups.filter((group) => frameOfGroup(group, frames, widths)?.id === frame.id),
     [frame.id, frames, groups, widths],
   );
+  const highlightedPart = highlightItemId
+    ? owned.flatMap((group) => layoutOf(group, widths)).find((placed) => placed.item.id === highlightItemId) ?? null
+    : null;
   const { w, h } = frameSizeOf(frame);
   const maxW = mobile ? 260 : 310;
   const maxH = mobile ? 390 : 470;
@@ -252,6 +263,7 @@ function FrameMiniature({
 
   return (
     <div
+      data-testid={highlightFrame ? `compare-highlight-frame-${frame.id}` : undefined}
       style={{
         width: shownW,
         height: shownH,
@@ -259,7 +271,9 @@ function FrameMiniature({
         margin: "0 auto",
         borderRadius: Math.max(8, frameRadius(frame) * scale),
         overflow: "hidden",
-        boxShadow: "0 8px 28px rgba(0,0,0,0.14)",
+        boxShadow: highlightFrame
+          ? `0 0 0 4px ${palette.primaryContainer}, 0 0 0 7px ${palette.primary}, 0 8px 28px rgba(0,0,0,0.14)`
+          : "0 8px 28px rgba(0,0,0,0.14)",
         background: palette[frame.bg ?? "surface"],
         flex: "0 0 auto",
       }}
@@ -340,32 +354,78 @@ function FrameMiniature({
             </div>
           );
         })}
+        {highlightedPart && (
+          <div
+            data-testid={`compare-highlight-${frame.id}-${highlightedPart.item.id}`}
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: highlightedPart.x - frame.x,
+              top: highlightedPart.y - frame.y,
+              width: highlightedPart.w,
+              height: highlightedPart.h,
+              borderRadius: 12,
+              outline: `5px solid ${palette.primary}`,
+              outlineOffset: 3,
+              boxShadow: `0 0 0 8px ${palette.primaryContainer}`,
+              pointerEvents: "none",
+              zIndex: 20,
+            }}
+          />
+        )}
       </div>
     </div>
   );
 }
 
-function DiffRow({ entry, palette: p, lang }: { entry: CompareDiffEntry; palette: Palette; lang: Lang }) {
+function DiffRow({
+  entry,
+  palette: p,
+  lang,
+  active,
+  testId,
+  onSelect,
+}: {
+  entry: CompareDiffEntry;
+  palette: Palette;
+  lang: Lang;
+  active: boolean;
+  testId: string;
+  onSelect: () => void;
+}) {
   return (
-    <div
+    <button
+      type="button"
+      data-testid={testId}
+      aria-pressed={active}
+      onClick={onSelect}
+      className="m3-press"
       style={{
+        width: "100%",
         display: "grid",
         gridTemplateColumns: "minmax(110px, 0.8fr) minmax(0, 1.4fr)",
         gap: 8,
-        padding: "7px 0",
+        padding: "7px 8px",
+        border: "none",
         borderTop: `1px solid ${p.outlineVariant}`,
+        borderRadius: 8,
+        background: active ? p.primaryContainer : "transparent",
+        color: active ? p.onPrimaryContainer : p.onSurface,
+        textAlign: "left",
+        font: "inherit",
         fontSize: 11,
         lineHeight: 1.35,
+        cursor: "pointer",
       }}
     >
-      <div style={{ minWidth: 0, fontWeight: 720, color: p.onSurface }}>
+      <span style={{ minWidth: 0, fontWeight: 720 }}>
         {entry.subject}
-      </div>
-      <div style={{ minWidth: 0, color: p.onSurfaceVariant, overflowWrap: "anywhere" }}>
-        <strong style={{ color: p.onSurface }}>{propertyLabel(entry.property, lang)}</strong>
+      </span>
+      <span style={{ minWidth: 0, color: active ? p.onPrimaryContainer : p.onSurfaceVariant, overflowWrap: "anywhere" }}>
+        <strong style={{ color: "inherit" }}>{propertyLabel(entry.property, lang)}</strong>
         {entry.before !== undefined && entry.after !== undefined ? ` · ${entry.before} → ${entry.after}` : ""}
-      </div>
-    </div>
+      </span>
+    </button>
   );
 }
 
@@ -375,12 +435,16 @@ function DiffPanel({
   lang,
   mobile,
   frameId,
+  activeKey,
+  onSelectEntry,
 }: {
   summary: CompareDiffSummary;
   palette: Palette;
   lang: Lang;
   mobile?: boolean;
   frameId: string;
+  activeKey?: string | null;
+  onSelectEntry: (entry: CompareDiffEntry, key: string) => void;
 }) {
   const text = labels(lang);
   const shown = summary.entries.slice(0, mobile ? 5 : 8);
@@ -389,6 +453,8 @@ function DiffPanel({
     keyof typeof text.categories,
     number,
   ]>;
+  const entryKey = (entry: CompareDiffEntry, index: number) =>
+    `${frameId}:${index}:${entry.category}:${entry.property}:${entry.beforeItemId ?? ""}:${entry.afterItemId ?? ""}`;
 
   return (
     <div
@@ -414,6 +480,9 @@ function DiffPanel({
 
       {summary.total > 0 && (
         <>
+          <div style={{ marginTop: 6, fontSize: 10, color: p.onSurfaceVariant }}>
+            {text.highlightHint}
+          </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
             {activeCategories.map(([category, count]) => (
               <span
@@ -443,9 +512,20 @@ function DiffPanel({
             ))}
           </div>
           <div style={{ marginTop: 5 }}>
-            {shown.map((entry, index) => (
-              <DiffRow key={`${entry.category}-${entry.subject}-${entry.property}-${index}`} entry={entry} palette={p} lang={lang} />
-            ))}
+            {shown.map((entry, index) => {
+              const key = entryKey(entry, index);
+              return (
+                <DiffRow
+                  key={key}
+                  entry={entry}
+                  palette={p}
+                  lang={lang}
+                  active={activeKey === key}
+                  testId={`compare-diff-row-${frameId}-${index}`}
+                  onSelect={() => onSelectEntry(entry, key)}
+                />
+              );
+            })}
             {hidden > 0 && (
               <div style={{ paddingTop: 7, fontSize: 10, color: p.onSurfaceVariant }}>
                 +{hidden} {text.more}
@@ -473,6 +553,7 @@ export function CompareWorkspace({
   const lang = useLang();
   const text = labels(lang);
   const [slots, setSlots] = useState<CompareSlot[]>(() => initialSlots(frames, initialFrameId));
+  const [activeDiff, setActiveDiff] = useState<{ candidateFrameId: string; key: string; entry: CompareDiffEntry } | null>(null);
 
   useEffect(() => {
     setSlots((current) => {
@@ -489,6 +570,10 @@ export function CompareWorkspace({
       return next;
     });
   }, [frames]);
+
+  useEffect(() => {
+    setActiveDiff(null);
+  }, [slots]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -662,6 +747,16 @@ export function CompareWorkspace({
                 const partCount = owned.reduce((count, group) => count + group.items.length, 0);
                 const size = frameSizeOf(frame);
                 const diff = index === 0 ? null : diffByFrame.get(frame.id) ?? null;
+                const candidateActive = activeDiff?.candidateFrameId === frame.id;
+                const highlightItemId = index === 0
+                  ? activeDiff?.entry.beforeItemId ?? null
+                  : candidateActive
+                    ? activeDiff?.entry.afterItemId ?? null
+                    : null;
+                const highlightFrame = !!activeDiff
+                  && !activeDiff.entry.beforeItemId
+                  && !activeDiff.entry.afterItemId
+                  && (index === 0 || candidateActive);
                 return (
                   <section
                     key={frame.id}
@@ -701,10 +796,33 @@ export function CompareWorkspace({
                       </div>
                     </div>
 
-                    {diff && <DiffPanel summary={diff} palette={p} lang={lang} mobile={mobile} frameId={frame.id} />}
+                    {diff && (
+                      <DiffPanel
+                        summary={diff}
+                        palette={p}
+                        lang={lang}
+                        mobile={mobile}
+                        frameId={frame.id}
+                        activeKey={candidateActive ? activeDiff?.key : null}
+                        onSelectEntry={(entry, key) => setActiveDiff((current) =>
+                          current?.key === key
+                            ? null
+                            : { candidateFrameId: frame.id, key, entry },
+                        )}
+                      />
+                    )}
 
                     <div style={{ padding: "10px 12px 14px", display: "grid", placeItems: "center", minHeight: mobile ? 300 : 390 }}>
-                      <FrameMiniature frame={frame} frames={frames} groups={groups} widths={widths} palette={p} mobile={mobile} />
+                      <FrameMiniature
+                        frame={frame}
+                        frames={frames}
+                        groups={groups}
+                        widths={widths}
+                        palette={p}
+                        mobile={mobile}
+                        highlightItemId={highlightItemId}
+                        highlightFrame={highlightFrame}
+                      />
                     </div>
 
                     <div

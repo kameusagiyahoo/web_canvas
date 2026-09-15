@@ -23,6 +23,9 @@ export type CompareDiffEntry = {
   property: string;
   before?: string;
   after?: string;
+  /** canonical Item ids used only to focus/highlight the derived difference */
+  beforeItemId?: string;
+  afterItemId?: string;
 };
 
 export type CompareDiffSummary = {
@@ -181,6 +184,7 @@ function compareProperty(
 
 function comparePart(entries: CompareDiffEntry[], before: PartSnapshot, after: PartSnapshot, frames: Frame[]) {
   const subject = partSubject(before.item);
+  const firstEntry = entries.length;
 
   compareProperty(entries, "content", subject, "label", before.item.label, after.item.label);
   compareProperty(entries, "content", subject, "supporting", before.item.supporting, after.item.supporting);
@@ -213,6 +217,11 @@ function comparePart(entries: CompareDiffEntry[], before: PartSnapshot, after: P
   const beforeActions = actionsText(before.item.actions, frames);
   const afterActions = actionsText(after.item.actions, frames);
   compareProperty(entries, "navigation", subject, "slotTargets", beforeActions, afterActions);
+
+  for (const entry of entries.slice(firstEntry)) {
+    entry.beforeItemId = before.item.id;
+    entry.afterItemId = after.item.id;
+  }
 }
 
 function swipeText(frame: Frame, frames: Frame[]): string {
@@ -246,10 +255,10 @@ export function compareFrames(
 
   for (const [before, after] of paired.pairs) comparePart(entries, before, after, frames);
   for (const removed of paired.removed) {
-    addEntry(entries, { category: "removed", subject: partSubject(removed.item), property: "part", before: "present", after: "removed" });
+    addEntry(entries, { category: "removed", subject: partSubject(removed.item), property: "part", before: "present", after: "removed", beforeItemId: removed.item.id });
   }
   for (const added of paired.added) {
-    addEntry(entries, { category: "added", subject: partSubject(added.item), property: "part", before: "absent", after: "added" });
+    addEntry(entries, { category: "added", subject: partSubject(added.item), property: "part", before: "absent", after: "added", afterItemId: added.item.id });
   }
 
   const counts = emptyCounts();
