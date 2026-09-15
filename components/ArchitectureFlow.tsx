@@ -215,6 +215,11 @@ export function ArchitectureFlowView({
     return matches;
   }, [graphKindFilter, layout.nodes, normalizedGraphQuery]);
   const graphFilterActive = graphKindFilter !== "all" || Boolean(normalizedGraphQuery);
+  const uniqueMatchingEndpoint = useMemo(() => {
+    if (!graphFilterActive || matchingNodeKeys.size !== 1) return null;
+    const key = matchingNodeKeys.values().next().value;
+    return key ? parseEndpoint(key) : null;
+  }, [graphFilterActive, matchingNodeKeys]);
   const graphNodes = useMemo(() => new Map(layout.nodes.map((node) => [node.key, node])), [layout.nodes]);
   const relationshipTrace = useMemo(() => {
     if (!highlightedEndpointKey) return null;
@@ -320,7 +325,7 @@ export function ArchitectureFlowView({
     setLabel("");
   };
 
-  const focusGraphNode = (endpoint: ArchitectureEndpoint, behavior: ScrollBehavior = "smooth") => {
+  const focusGraphNode = (endpoint: ArchitectureEndpoint, behavior: ScrollBehavior = "smooth", moveFocus = true) => {
     const viewport = graphViewportRef.current;
     const node = graphNodes.get(architectureEndpointKey(endpoint));
     if (!viewport || !node) return;
@@ -334,9 +339,16 @@ export function ArchitectureFlowView({
       scrollHeight: viewport.scrollHeight,
     });
     viewport.scrollTo({ ...position, behavior });
-    const element = document.querySelector(`[data-testid="${endpointTestId(endpoint)}"]`) as HTMLElement | null;
-    element?.focus({ preventScroll: true });
+    if (moveFocus) {
+      const element = document.querySelector(`[data-testid="${endpointTestId(endpoint)}"]`) as HTMLElement | null;
+      element?.focus({ preventScroll: true });
+    }
   };
+
+  useEffect(() => {
+    if (!uniqueMatchingEndpoint) return;
+    requestAnimationFrame(() => focusGraphNode(uniqueMatchingEndpoint, "smooth", false));
+  }, [graphZoom, uniqueMatchingEndpoint?.kind, uniqueMatchingEndpoint?.id]);
 
   useEffect(() => {
     if (!focusEndpoint) return;

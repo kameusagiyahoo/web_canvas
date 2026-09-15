@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   deriveNavigationGraph,
   layoutNavigationGraph,
@@ -13,6 +13,7 @@ import { BACK_TARGET, TRANSITIONS, type Doc, type Palette, type Transition } fro
 import { availableNavigationRouteTriggers, type NavigationEdgePatch, type NavigationRouteTrigger } from "@/lib/navigation-graph-edit";
 import { Icon } from "./M3Node";
 import { useLang, type Lang } from "@/lib/i18n";
+import { graphCenterScroll } from "@/lib/graph-viewport";
 
 const COPY: Record<Lang, {
   title: string;
@@ -203,6 +204,7 @@ export function NavigationGraph({
   const [pendingTrigger, setPendingTrigger] = useState<NavigationRouteTrigger | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const graphViewportRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!routeDrag) return;
     const sourceFrameId = routeDrag.sourceFrameId;
@@ -248,11 +250,35 @@ export function NavigationGraph({
   );
   const validEdges = graph.edges.filter((edge) => edge.validTarget);
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
-  const matchingFrameIds = new Set(
-    graph.nodes
-      .filter((node) => !normalizedSearch || node.label.toLocaleLowerCase().includes(normalizedSearch))
-      .map((node) => node.frameId),
+  const matchingFrameIds = useMemo(
+    () => new Set(
+      graph.nodes
+        .filter((node) => !normalizedSearch || node.label.toLocaleLowerCase().includes(normalizedSearch))
+        .map((node) => node.frameId),
+    ),
+    [graph.nodes, normalizedSearch],
   );
+  const uniqueMatchingFrameId = normalizedSearch && matchingFrameIds.size === 1
+    ? matchingFrameIds.values().next().value ?? null
+    : null;
+
+  useEffect(() => {
+    if (!uniqueMatchingFrameId) return;
+    const viewport = graphViewportRef.current;
+    const node = nodeById.get(uniqueMatchingFrameId);
+    if (!viewport || !node) return;
+    const position = graphCenterScroll({
+      centerX: node.x + layout.nodeWidth / 2,
+      centerY: node.y + layout.nodeHeight / 2,
+      zoom: 1,
+      viewportWidth: viewport.clientWidth,
+      viewportHeight: viewport.clientHeight,
+      scrollWidth: viewport.scrollWidth,
+      scrollHeight: viewport.scrollHeight,
+    });
+    viewport.scrollTo({ ...position, behavior: "smooth" });
+  }, [layout.nodeHeight, layout.nodeWidth, nodeById, uniqueMatchingFrameId]);
+
   const pairIndex = new Map<string, number>();
   const pendingTriggers = pendingRoute
     ? availableNavigationRouteTriggers(doc, widths, pendingRoute.sourceFrameId)
@@ -424,7 +450,7 @@ export function NavigationGraph({
         )}
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, overflow: "auto", overscrollBehavior: "contain" }}>
+      <div ref={graphViewportRef} data-testid="graph-viewport" style={{ flex: 1, minHeight: 0, overflow: "auto", overscrollBehavior: "contain" }}>
         {!layout.nodes.length ? (
           <div style={{ minHeight: "100%", display: "grid", placeItems: "center", color: p.onSurfaceVariant, fontSize: 15 }}>{copy.empty}</div>
         ) : (

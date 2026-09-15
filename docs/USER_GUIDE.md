@@ -58,7 +58,7 @@ Architectureでは、Screenとは別に意味的なActionやAPIを設計でき�
 
 ### Screen
 
-下部のScreenボタンからScreen一覧を開きます。追加、選択、名前変更、複製、削除、Preview、Navigation Graph、Architecture、Projectsへ移動できます。
+下部のScreenボタンからScreen一覧を開きます。追加、選択、名前変更、複製、削除、Preview、Navigation Graph、Architecture、Projectsへ移動できます。大規模なNavigation Graph / Architectureでは、検索や種類絞り込みで候補が1件になると、そのノードが自動で見える位置へ移動します。検索入力中のフォーカスは維持されます。
 
 ### Part追加
 
