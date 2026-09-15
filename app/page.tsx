@@ -126,9 +126,13 @@ import { StorageWarning } from "@/components/StorageWarning";
 import { FrameExportLayer } from "@/components/FrameExportLayer";
 import { NavigationGraph } from "@/components/NavigationGraph";
 import { ArchitectureFlowView } from "@/components/ArchitectureFlow";
+import { DataModelWorkspace } from "@/components/DataModelWorkspace";
+import type { DataModelSubjectOption } from "@/components/DataModelView";
 import { ProjectManager } from "@/components/ProjectManager";
 import { createNavigationRoute, editNavigationEdge } from "@/lib/navigation-graph-edit";
 import { addArchitectureAction, addArchitectureApi, bindArchitectureActionSource, connectArchitectureNodes, createArchitectureQuickFlow, deleteArchitectureAction, deleteArchitectureApi, deleteArchitectureEdge, duplicateArchitectureNode, renameArchitectureAction, updateArchitectureApi, updateArchitectureEdgeLabel } from "@/lib/architecture-flow";
+import { emptyDataModel, type DataModel } from "@/lib/data-model";
+import { dataModelFromDocument, type DataModelDocument } from "@/lib/data-model-document";
 import { createLocalProject, deleteProject as deleteLocalProject, duplicateProject as duplicateLocalProject, readActiveProjectId, readProjectLibrary, renameProject as renameLocalProject, saveProjectSnapshot, upsertProject, writeActiveProjectId, writeProjectLibrary, type ProjectLibrary, type LocalProject } from "@/lib/project-library";
 import { ConfirmDialog, IconBtn, Segmented } from "@/components/ui";
 import { Lang, LangContext, SEED_TEXT, getLang, isLang, setGlobalLang, t, translateDefaultFrameName, translateDefaultText } from "@/lib/i18n";
@@ -200,7 +204,7 @@ type Gesture =
   | { kind: "group"; id: string; sx: number; sy: number; gx: number; gy: number; moved: boolean; overBin: boolean };
 
 /** everything in a document apart from its screens and parts */
-type DocMeta = Omit<Doc, "groups" | "frames">;
+type DocMeta = Omit<DataModelDocument, "groups" | "frames">;
 /** an undo step: the screens and parts, plus the rest of the document for steps that replaced it all */
 type Snapshot = { groups: Group[]; frames: Frame[]; meta?: DocMeta };
 
@@ -261,6 +265,7 @@ export default function Page() {
   const [groups, setGroups] = useState<Group[]>(createDesktopSeed);
   const [frames, setFrames] = useState<Frame[]>(DEFAULT_SEED_FRAMES);
   const [architecture, setArchitecture] = useState<ArchitectureFlow>(emptyArchitectureFlow);
+  const [dataModel, setDataModel] = useState<DataModel>(emptyDataModel);
   const [paletteKey, setPaletteKey] = useState("purple");
   const [customPalette, setCustomPalette] = useState<Palette | null>(null);
   const [dynamicColor, setDynamicColor] = useState(false);
@@ -545,6 +550,9 @@ export default function Page() {
     if (Array.isArray(doc.frames)) setFrames(doc.frames);
     if (doc.architecture?.version === 1) setArchitecture(doc.architecture);
     else if (reset) setArchitecture(emptyArchitectureFlow());
+    const nextDataModel = dataModelFromDocument(doc);
+    if (nextDataModel) setDataModel(nextDataModel);
+    else if (reset) setDataModel(emptyDataModel());
     if (typeof doc.paletteKey === "string" && doc.paletteKey) setPaletteKey(doc.paletteKey);
     else if (reset) setPaletteKey("purple");
     if (doc.customPalette && typeof doc.customPalette.primary === "string") setCustomPalette(doc.customPalette);
@@ -704,10 +712,11 @@ export default function Page() {
   useEffect(() => {
     if (!loadedRef.current || editAccess !== "editable") return;
     const storage = getBrowserStorage();
-    const nextDoc: Doc = {
+    const nextDoc: DataModelDocument = {
       groups,
       frames,
       architecture,
+      dataModel,
       paletteKey,
       frame,
       title,
@@ -739,7 +748,7 @@ export default function Page() {
     setProjectLibrary(library);
     const failure = !result.ok ? result.reason : !libraryResult.ok ? libraryResult.reason : null;
     setStorageWarning(failure);
-  }, [editAccess, groups, frames, architecture, paletteKey, frame, title, brief, promptEdit, platform, customPalette, dynamicColor, theme, activeProjectId]);
+  }, [editAccess, groups, frames, architecture, dataModel, paletteKey, frame, title, brief, promptEdit, platform, customPalette, dynamicColor, theme, activeProjectId]);
 
   useEffect(() => {
     if (!loadedRef.current) return;
@@ -1515,8 +1524,15 @@ export default function Page() {
 
   const clearAll = () => {
     setConfirmClear(false);
-    if (groupsRef.current.length === 0 && framesRef.current.length === 0 && architecture.nodes.length === 0 && architecture.edges.length === 0)
-      return;
+    if (
+      groupsRef.current.length === 0 &&
+      framesRef.current.length === 0 &&
+      architecture.nodes.length === 0 &&
+      architecture.edges.length === 0 &&
+      dataModel.entities.length === 0 &&
+      dataModel.relations.length === 0 &&
+      dataModel.bindings.length === 0
+    ) return;
     setDraftBefore(null);
     setQuickUndo(false);
     clearStoredDraft(getBrowserStorage());
@@ -1524,6 +1540,7 @@ export default function Page() {
     setGroups([]);
     setFrames([]);
     setArchitecture(emptyArchitectureFlow());
+    setDataModel(emptyDataModel());
     setSelectedIds([]);
     setSelectedFrameId(null);
   };
@@ -2148,12 +2165,72 @@ const changeFrame = (f: FrameMode) => {
     if (mobileRef.current) setSheet(null);
   };
 
+  const commitDataModel = (next: DataModel) => {
+    if (next === dataModel) return;
+    snapshot(true);
+    setDataModel(next);
+  };
+
+  const dataModelSubjects = useMemo<DataModelSubjectOption[]>(() => {
+    const screenSubjects: DataModelSubjectOption[] = frames.map((screen) => ({
+      kind: "frame",
+      id: screen.id,
+      label: screen.name || "Screen",
+    }));
+    const itemSubjects: DataModelSubjectOption[] = groups.flatMap((group) => {
+      const owningFrame = frameOfGroup(group, frames, widths);
+      return group.items.map((item) => ({
+        kind: "item" as const,
+        id: item.id,
+        label: item.label.trim() || KIND_SPEC[item.kind].label,
+        detail: owningFrame?.name || undefined,
+      }));
+    });
+    const architectureSubjects: DataModelSubjectOption[] = architecture.nodes.map((node) => ({
+      kind: node.kind,
+      id: node.id,
+      label: node.name,
+      detail: node.kind === "api" ? `${node.method} ${node.path}` : undefined,
+    }));
+    return [...screenSubjects, ...itemSubjects, ...architectureSubjects];
+  }, [frames, groups, widths, architecture.nodes]);
+
+  const openDataModelSubject = (subject: DataModelSubjectOption) => {
+    if (subject.kind === "frame") {
+      setSelectedIds([]);
+      setSelectedLinkId(null);
+      setSelectedFrameId(subject.id);
+      setLayersFrameId(subject.id);
+      focusFrame(subject.id);
+      return;
+    }
+    if (subject.kind === "item") {
+      const group = groupsRef.current.find((candidate) => candidate.items.some((item) => item.id === subject.id));
+      if (!group) return;
+      const owningFrame = frameOfGroup(group, framesRef.current, widthsRef.current);
+      setSelectedIds([subject.id]);
+      setSelectedFrameId(null);
+      setSelectedLinkId(null);
+      setRightTab("edit");
+      if (mobileRef.current) setSheet("edit");
+      else setRightOpen(true);
+      if (owningFrame) {
+        setLayersFrameId(owningFrame.id);
+        focusFrame(owningFrame.id);
+      }
+      return;
+    }
+    setArchitectureFocus({ kind: subject.kind, id: subject.id });
+    setArchitectureOpen(true);
+    if (mobileRef.current) setSheet(null);
+  };
+
   /* ---------- render ---------- */
   const dragSize = drag ? sizeOf(drag.item, widths) : { w: 0, h: 0 };
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const doc: Doc = useMemo(
-    () => ({ groups, frames, architecture, paletteKey, frame, title, brief, promptEdit, platform: platform ?? undefined, customPalette: customPalette ?? undefined, dynamicColor, theme }),
-    [groups, frames, architecture, paletteKey, frame, title, brief, promptEdit, platform, customPalette, dynamicColor, theme],
+  const doc: DataModelDocument = useMemo(
+    () => ({ groups, frames, architecture, dataModel, paletteKey, frame, title, brief, promptEdit, platform: platform ?? undefined, customPalette: customPalette ?? undefined, dynamicColor, theme }),
+    [groups, frames, architecture, dataModel, paletteKey, frame, title, brief, promptEdit, platform, customPalette, dynamicColor, theme],
   );
   /** the same document, for callbacks that were created on an earlier render */
   const docRef = useRef(doc);
@@ -2235,13 +2312,14 @@ const changeFrame = (f: FrameMode) => {
   };
 
   const createManagedProject = () => {
-    const fresh: Doc = {
+    const fresh: DataModelDocument = {
       title: "",
       brief: "",
       paletteKey: "purple",
       frame: "phone",
       groups: mobileRef.current ? createMobileSeed(lang) : createDesktopSeed(lang),
       frames: [localizedSeedFrame(lang)],
+      dataModel: emptyDataModel(),
       dynamicColor: false,
       theme: DEFAULT_THEME,
     };
@@ -3089,7 +3167,15 @@ const changeFrame = (f: FrameMode) => {
             onUndo={undo}
             onRedo={redo}
             onClear={() => {
-              if (groupsRef.current.length || framesRef.current.length) setConfirmClear(true);
+              if (
+                groupsRef.current.length ||
+                framesRef.current.length ||
+                architecture.nodes.length ||
+                architecture.edges.length ||
+                dataModel.entities.length ||
+                dataModel.relations.length ||
+                dataModel.bindings.length
+              ) setConfirmClear(true);
             }}
             onAddFrame={addFrame}
             onPreview={() => openPreview()}
@@ -3120,6 +3206,16 @@ const changeFrame = (f: FrameMode) => {
                 showToast(t("copied", lang), 1400, "check");
               } catch {}
             }}
+          />
+
+          <DataModelWorkspace
+            model={dataModel}
+            onChange={commitDataModel}
+            palette={p}
+            subjects={dataModelSubjects}
+            onOpenSubject={openDataModelSubject}
+            mobile={isMobile}
+            readOnly={editAccess !== "editable"}
           />
 
           {isMobile && (

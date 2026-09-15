@@ -134,3 +134,24 @@ Once integrated, one project can be viewed as:
 ```
 
 The target is not five independently maintained diagrams. It is one application definition with multiple derived and editable views.
+
+## Editor integration
+
+Status: implemented on the Data Model foundation branch.
+
+- The active editor document carries an optional version-1 `dataModel` payload.
+- Legacy projects without it open with an empty Data Model.
+- Local autosave, managed-project snapshots, JSON export/import, whole-document Undo/Redo and project switching carry the same payload.
+- The Canvas exposes one Data Model workspace on desktop and mobile; ER coordinates remain derived and are never persisted.
+- `DataBinding` connects an Entity to an existing Screen (`frame`), Canvas part (`item`), Architecture Action, or Architecture API without duplicating those objects.
+- A binding can describe `read`, `create`, `update`, and/or `delete` access and can jump back to the real Canvas or Architecture object.
+- Bindings are descriptive design metadata only. They do not execute API/database work and do not change Preview navigation.
+
+This completes the first Single Source, Multiple Views loop:
+
+```text
+Canvas Screen / Part ─┐
+Architecture Action ──┼─ DataBinding ─ Entity ─ Relation ─ Entity
+Architecture API ─────┘
+```
+
