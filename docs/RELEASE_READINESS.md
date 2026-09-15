@@ -10,6 +10,7 @@
 
 - Desktop practical journey
 - Mobile golden path
+- Mobile golden pathのPlaywright WebKit / iPhone profile preflight
 - Persistence stress
 - Recovery / malformed import / quota failure
 - Destructive action recovery
@@ -17,6 +18,8 @@
 - Keyboard / modal accessibility workflow
 - Backup & recovery guidance
 - Prompt実装ターゲット分離
+
+WebKit preflightはSafari系エンジンで主要スマホフローが動くことを継続確認するためのもので、実iPhone Safari + VoiceOver検証の代替ではありません。
 
 ## 手動検証の証拠ゲート
 
