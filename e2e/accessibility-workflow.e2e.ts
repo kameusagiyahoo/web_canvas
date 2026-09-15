@@ -150,3 +150,80 @@ test("full-screen graph dialogs trap keyboard focus and restore their openers", 
   await expect(architectureOpener).toBeFocused();
 });
 
+test("Preview traps focus, restores its opener, and Part actions work from the keyboard", async ({ page }) => {
+  const doc = {
+    title: "Keyboard Preview",
+    paletteKey: "purple",
+    frame: "phone",
+    brief: "",
+    groups: [
+      {
+        id: "home-group",
+        x: 32,
+        y: 120,
+        axis: "x",
+        items: [
+          {
+            id: "go-details",
+            kind: "button",
+            label: "Go details",
+            icon: null,
+            variant: "filled",
+            action: { to: "details", transition: "slide" },
+          },
+        ],
+      },
+      {
+        id: "details-group",
+        x: 564,
+        y: 120,
+        axis: "x",
+        items: [
+          {
+            id: "details-label",
+            kind: "button",
+            label: "Details page",
+            icon: null,
+            variant: "filled",
+          },
+        ],
+      },
+    ],
+    frames: [
+      { id: "home", name: "Home", x: 0, y: 0 },
+      { id: "details", name: "Details", x: 532, y: 0 },
+    ],
+  };
+  await page.addInitScript(({ seed }) => {
+    localStorage.clear();
+    localStorage.setItem("m3e:doc", JSON.stringify(seed));
+    localStorage.setItem("m3e:ui", JSON.stringify({ lang: "en" }));
+    localStorage.setItem("m3e:quick-start:v1", "done");
+  }, { seed: doc });
+  await page.goto("/");
+  await expect(page.getByTitle("Undo")).toBeVisible();
+
+  const opener = page.getByTitle("Preview (P)");
+  await opener.focus();
+  await page.keyboard.press("Enter");
+  const preview = page.getByTestId("preview");
+  const close = preview.getByRole("button", { name: "Close", exact: true });
+  await expect(preview).toHaveRole("dialog");
+  await expect(close).toBeFocused();
+
+  const action = preview.getByTestId("preview-item-go-details");
+  await expect(action).toHaveRole("button");
+  await action.focus();
+  await page.keyboard.press("Enter");
+  await expect(preview.getByText("Details page", { exact: true })).toBeVisible();
+  await page.keyboard.press("ArrowLeft");
+  await expect(preview.getByText("Go details", { exact: true })).toBeVisible();
+
+  await close.focus();
+  await page.keyboard.press("Shift+Tab");
+  await expectFocusInside(preview);
+  await page.keyboard.press("Escape");
+  await expect(preview).toBeHidden();
+  await expect(opener).toBeFocused();
+});
+
