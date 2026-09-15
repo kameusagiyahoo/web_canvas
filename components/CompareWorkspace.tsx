@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { M3Static, Icon } from "./M3Node";
-import { IconBtn } from "./ui";
+import { compareFrames, type CompareDiffEntry, type CompareDiffSummary } from "@/lib/compare-diff";
 import { useLang } from "@/lib/i18n";
 import { interpolatedRunRadii } from "@/lib/run-radii";
 import {
@@ -21,8 +20,11 @@ import {
   type Group,
   type Palette,
 } from "@/lib/tokens";
+import { Icon, M3Static } from "./M3Node";
+import { IconBtn } from "./ui";
 
 type CompareSlot = string | null;
+type Lang = ReturnType<typeof useLang>;
 
 export type CompareWorkspaceProps = {
   frames: Frame[];
@@ -37,11 +39,11 @@ export type CompareWorkspaceProps = {
   onCreateVariant: (frameId: string) => string | null;
 };
 
-function labels(lang: ReturnType<typeof useLang>) {
+function labels(lang: Lang) {
   if (lang === "ja") {
     return {
       title: "比較 / バリアント",
-      subtitle: "既存の画面を同じ元データから並べて比較します。比較用の画面コピーは作りません。",
+      subtitle: "既存の画面を同じ元データから並べて比較します。Aを基準に構造差分も自動検出します。",
       slot: "比較枠",
       none: "未選択",
       canvas: "Canvasで開く",
@@ -51,12 +53,25 @@ function labels(lang: ReturnType<typeof useLang>) {
       one: "画面が1つだけです。バリアントを作成すると並べて比較できます。",
       parts: "部品",
       source: "比較元",
+      diff: "Aとの差分",
+      same: "構造上の差分なし",
+      changes: "件の差分",
+      more: "件を省略",
+      categories: {
+        screen: "画面",
+        added: "追加",
+        removed: "削除",
+        content: "内容",
+        style: "見た目",
+        layout: "配置",
+        navigation: "遷移",
+      },
     };
   }
   if (lang === "zh") {
     return {
       title: "比较 / 变体",
-      subtitle: "并排比较现有画面，继续使用同一份源数据，不创建独立的比较副本。",
+      subtitle: "并排比较现有画面，并以 A 为基准自动检测结构差异。",
       slot: "比较槽",
       none: "未选择",
       canvas: "在 Canvas 中打开",
@@ -66,12 +81,25 @@ function labels(lang: ReturnType<typeof useLang>) {
       one: "目前只有一个画面。创建变体后即可并排比较。",
       parts: "组件",
       source: "比较基准",
+      diff: "与 A 的差异",
+      same: "无结构差异",
+      changes: "项差异",
+      more: "项已省略",
+      categories: {
+        screen: "画面",
+        added: "新增",
+        removed: "删除",
+        content: "内容",
+        style: "样式",
+        layout: "布局",
+        navigation: "导航",
+      },
     };
   }
   if (lang === "ko") {
     return {
       title: "비교 / 변형",
-      subtitle: "기존 화면을 같은 원본 데이터에서 나란히 비교합니다. 별도 비교 사본은 만들지 않습니다.",
+      subtitle: "기존 화면을 나란히 비교하고 A를 기준으로 구조 차이를 자동 감지합니다.",
       slot: "비교 슬롯",
       none: "선택 안 함",
       canvas: "Canvas에서 열기",
@@ -81,11 +109,24 @@ function labels(lang: ReturnType<typeof useLang>) {
       one: "화면이 하나뿐입니다. 변형을 만들면 나란히 비교할 수 있습니다.",
       parts: "부품",
       source: "기준",
+      diff: "A와의 차이",
+      same: "구조 차이 없음",
+      changes: "개 차이",
+      more: "개 생략",
+      categories: {
+        screen: "화면",
+        added: "추가",
+        removed: "삭제",
+        content: "내용",
+        style: "스타일",
+        layout: "배치",
+        navigation: "이동",
+      },
     };
   }
   return {
     title: "Compare / variants",
-    subtitle: "Compare existing screens side by side from the same source data. No separate compare copy is created.",
+    subtitle: "Compare existing screens side by side and automatically derive structural differences from A.",
     slot: "Compare slot",
     none: "Not selected",
     canvas: "Open on canvas",
@@ -95,7 +136,82 @@ function labels(lang: ReturnType<typeof useLang>) {
     one: "There is only one screen. Create a variant to compare them side by side.",
     parts: "parts",
     source: "Baseline",
+    diff: "Differences from A",
+    same: "No structural differences",
+    changes: "changes",
+    more: "more",
+    categories: {
+      screen: "Screen",
+      added: "Added",
+      removed: "Removed",
+      content: "Content",
+      style: "Style",
+      layout: "Layout",
+      navigation: "Navigation",
+    },
   };
+}
+
+function propertyLabel(property: string, lang: Lang): string {
+  const en: Record<string, string> = {
+    width: "width",
+    height: "height",
+    background: "background",
+    swipeTargets: "swipe",
+    label: "label",
+    supporting: "supporting text",
+    icon: "icon",
+    secondaryIcon: "secondary icon",
+    tabs: "tabs",
+    selected: "selection",
+    checked: "checked state",
+    value: "value",
+    bold: "bold",
+    switch: "trailing switch",
+    image: "image",
+    variant: "variant",
+    fill: "fill",
+    iconFill: "icon fill",
+    wavy: "wavy",
+    contained: "contained",
+    corners: "corners",
+    toggle: "toggle look",
+    x: "x position",
+    y: "y position",
+    tapTarget: "tap target",
+    slotTargets: "slot targets",
+    part: "part",
+  };
+  const ja: Record<string, string> = {
+    width: "幅",
+    height: "高さ",
+    background: "背景",
+    swipeTargets: "スワイプ遷移",
+    label: "ラベル",
+    supporting: "補助テキスト",
+    icon: "アイコン",
+    secondaryIcon: "副アイコン",
+    tabs: "タブ",
+    selected: "選択状態",
+    checked: "ON/OFF",
+    value: "値",
+    bold: "太字",
+    switch: "末尾スイッチ",
+    image: "画像",
+    variant: "スタイル",
+    fill: "背景色ロール",
+    iconFill: "アイコン背景",
+    wavy: "波形",
+    contained: "内包表示",
+    corners: "角丸",
+    toggle: "トグル時の見た目",
+    x: "X位置",
+    y: "Y位置",
+    tapTarget: "タップ遷移先",
+    slotTargets: "各スロットの遷移先",
+    part: "部品",
+  };
+  return (lang === "ja" ? ja[property] : en[property]) ?? property;
 }
 
 function initialSlots(frames: Frame[], initialFrameId?: string | null): CompareSlot[] {
@@ -168,21 +284,13 @@ function FrameMiniature({
             return layoutOf(group, widths).map((placed) => (
               <div
                 key={placed.item.id}
-                style={{
-                  position: "absolute",
-                  left: placed.x - frame.x,
-                  top: placed.y - frame.y,
-                }}
+                style={{ position: "absolute", left: placed.x - frame.x, top: placed.y - frame.y }}
               >
                 <M3Static
                   item={placed.item}
                   palette={palette}
                   radii={corners.get(placed.item.id)}
-                  style={
-                    MEASURED.includes(placed.item.kind)
-                      ? undefined
-                      : { width: placed.w, height: placed.h }
-                  }
+                  style={MEASURED.includes(placed.item.kind) ? undefined : { width: placed.w, height: placed.h }}
                 />
               </div>
             ));
@@ -204,21 +312,20 @@ function FrameMiniature({
               {group.items.map((item, index) => {
                 const connection = connectSpecOf(item);
                 const count = group.items.length;
-                const radii =
-                  connection && count > 1
-                    ? interpolatedRunRadii(
-                        group.axis,
-                        index === 0,
-                        index === count - 1,
-                        false,
-                        false,
-                        0,
-                        connection.outer,
-                        connection.inner,
-                      )
-                    : connection
-                      ? uniformRadii(connection.outer)
-                      : baseRadii(item);
+                const radii = connection && count > 1
+                  ? interpolatedRunRadii(
+                      group.axis,
+                      index === 0,
+                      index === count - 1,
+                      false,
+                      false,
+                      0,
+                      connection.outer,
+                      connection.inner,
+                    )
+                  : connection
+                    ? uniformRadii(connection.outer)
+                    : baseRadii(item);
                 const size = sizeOf(item, widths);
                 return (
                   <M3Static
@@ -226,11 +333,7 @@ function FrameMiniature({
                     item={item}
                     palette={palette}
                     radii={radii}
-                    style={
-                      MEASURED.includes(item.kind)
-                        ? undefined
-                        : { width: size.w, height: size.h }
-                    }
+                    style={MEASURED.includes(item.kind) ? undefined : { width: size.w, height: size.h }}
                   />
                 );
               })}
@@ -238,6 +341,119 @@ function FrameMiniature({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function DiffRow({ entry, palette: p, lang }: { entry: CompareDiffEntry; palette: Palette; lang: Lang }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(110px, 0.8fr) minmax(0, 1.4fr)",
+        gap: 8,
+        padding: "7px 0",
+        borderTop: `1px solid ${p.outlineVariant}`,
+        fontSize: 11,
+        lineHeight: 1.35,
+      }}
+    >
+      <div style={{ minWidth: 0, fontWeight: 720, color: p.onSurface }}>
+        {entry.subject}
+      </div>
+      <div style={{ minWidth: 0, color: p.onSurfaceVariant, overflowWrap: "anywhere" }}>
+        <strong style={{ color: p.onSurface }}>{propertyLabel(entry.property, lang)}</strong>
+        {entry.before !== undefined && entry.after !== undefined ? ` · ${entry.before} → ${entry.after}` : ""}
+      </div>
+    </div>
+  );
+}
+
+function DiffPanel({
+  summary,
+  palette: p,
+  lang,
+  mobile,
+  frameId,
+}: {
+  summary: CompareDiffSummary;
+  palette: Palette;
+  lang: Lang;
+  mobile?: boolean;
+  frameId: string;
+}) {
+  const text = labels(lang);
+  const shown = summary.entries.slice(0, mobile ? 5 : 8);
+  const hidden = summary.entries.length - shown.length;
+  const activeCategories = Object.entries(summary.counts).filter(([, count]) => count > 0) as Array<[
+    keyof typeof text.categories,
+    number,
+  ]>;
+
+  return (
+    <div
+      data-testid={`compare-diff-${frameId}`}
+      style={{
+        margin: "0 12px 12px",
+        padding: "10px 12px",
+        borderRadius: 16,
+        background: summary.total === 0 ? p.secondaryContainer : p.surfaceContainerHigh,
+        color: summary.total === 0 ? p.onSecondaryContainer : p.onSurface,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Icon name={summary.total === 0 ? "check_circle" : "difference"} size={18} />
+        <span style={{ fontSize: 12, fontWeight: 780 }}>{text.diff}</span>
+        <span
+          data-testid={`compare-diff-count-${frameId}`}
+          style={{ marginLeft: "auto", fontSize: 11, fontWeight: 760 }}
+        >
+          {summary.total === 0 ? text.same : `${summary.total} ${text.changes}`}
+        </span>
+      </div>
+
+      {summary.total > 0 && (
+        <>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+            {activeCategories.map(([category, count]) => (
+              <span
+                key={category}
+                style={{
+                  minHeight: 24,
+                  padding: "0 8px",
+                  borderRadius: 12,
+                  background: category === "added"
+                    ? p.primaryContainer
+                    : category === "removed"
+                      ? p.errorContainer
+                      : p.surfaceContainerHighest,
+                  color: category === "added"
+                    ? p.onPrimaryContainer
+                    : category === "removed"
+                      ? p.onErrorContainer
+                      : p.onSurfaceVariant,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  fontSize: 10,
+                  fontWeight: 720,
+                }}
+              >
+                {text.categories[category]} {count}
+              </span>
+            ))}
+          </div>
+          <div style={{ marginTop: 5 }}>
+            {shown.map((entry, index) => (
+              <DiffRow key={`${entry.category}-${entry.subject}-${entry.property}-${index}`} entry={entry} palette={p} lang={lang} />
+            ))}
+            {hidden > 0 && (
+              <div style={{ paddingTop: 7, fontSize: 10, color: p.onSurfaceVariant }}>
+                +{hidden} {text.more}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -298,6 +514,13 @@ export function CompareWorkspace({
   const selectedFrames = slots
     .map((id) => frames.find((frame) => frame.id === id) ?? null)
     .filter((frame): frame is Frame => frame !== null);
+  const baseline = selectedFrames[0] ?? null;
+  const diffByFrame = new Map<string, CompareDiffSummary>();
+  if (baseline) {
+    for (const frame of selectedFrames.slice(1)) {
+      diffByFrame.set(frame.id, compareFrames(baseline, frame, frames, groups, widths));
+    }
+  }
 
   const createVariant = (frameId: string) => {
     const nextId = onCreateVariant(frameId);
@@ -377,14 +600,7 @@ export function CompareWorkspace({
         {[0, 1, 2].map((index) => (
           <label
             key={index}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              minWidth: 0,
-              fontSize: 12,
-              color: p.onSurfaceVariant,
-            }}
+            style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, fontSize: 12, color: p.onSurfaceVariant }}
           >
             <span style={{ flex: "0 0 auto", fontWeight: 700 }}>{text.slot} {index + 1}</span>
             <select
@@ -445,6 +661,7 @@ export function CompareWorkspace({
                 const owned = groups.filter((group) => frameOfGroup(group, frames, widths)?.id === frame.id);
                 const partCount = owned.reduce((count, group) => count + group.items.length, 0);
                 const size = frameSizeOf(frame);
+                const diff = index === 0 ? null : diffByFrame.get(frame.id) ?? null;
                 return (
                   <section
                     key={frame.id}
@@ -483,6 +700,8 @@ export function CompareWorkspace({
                         </div>
                       </div>
                     </div>
+
+                    {diff && <DiffPanel summary={diff} palette={p} lang={lang} mobile={mobile} frameId={frame.id} />}
 
                     <div style={{ padding: "10px 12px 14px", display: "grid", placeItems: "center", minHeight: mobile ? 300 : 390 }}>
                       <FrameMiniature frame={frame} frames={frames} groups={groups} widths={widths} palette={p} mobile={mobile} />
