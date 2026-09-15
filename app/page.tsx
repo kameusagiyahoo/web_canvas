@@ -288,6 +288,7 @@ export default function Page() {
   };
   const [isMobile, setIsMobile] = useState(false);
   const [sheet, setSheet] = useState<"edit" | "parts" | "screens" | "layers" | "prompt" | "settings" | "lang" | null>(null);
+  const [mobileSettingsTab, setMobileSettingsTab] = useState<"theme" | "ai">("theme");
   const [confirmClear, setConfirmClear] = useState(false);
   /** frame being rendered offscreen for the PNG export */
   const [exportFrame, setExportFrame] = useState<Frame | null>(null);
@@ -3248,6 +3249,15 @@ const changeFrame = (f: FrameMode) => {
                   architectureActions={architectureActionNodes}
                   onBindArchitectureAction={bindSelectedArchitectureAction}
                   onOpenArchitectureAction={openArchitectureActionFromInspector}
+                  ai={{
+                    ready: aiReady && !!selectedPartFrame,
+                    reason: !aiReady ? t("aiNoKey", lang) : !selectedPartFrame ? t("aiSelectScreen", lang) : undefined,
+                    busy: aiBusy && aiFrameId === selectedPartFrame?.id,
+                    onRun: () => {
+                      if (selectedPartFrame) void runAi("behavior", selectedPartFrame, selected.id);
+                    },
+                    onCancel: cancelAi,
+                  }}
                   onChange={patchSelected}
                   onDelete={() => {
                     deleteSelected();
@@ -3343,7 +3353,25 @@ const changeFrame = (f: FrameMode) => {
             )}
             {isMobile && sheet === "settings" && (
               <BottomSheet key="settings" p={p} onClose={() => setSheet(null)}>
-                <MobileSettings palette={p} paletteKey={paletteKey} onPalette={setPaletteKey} theme={theme} onTheme={patchTheme} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, minHeight: 360 }}>
+                  <Segmented<"theme" | "ai">
+                    options={[
+                      { key: "theme", icon: "palette", label: t("theme", lang) },
+                      { key: "ai", icon: "auto_awesome", label: t("ai", lang) },
+                    ]}
+                    value={mobileSettingsTab}
+                    onChange={setMobileSettingsTab}
+                    p={p}
+                    height={44}
+                  />
+                  {mobileSettingsTab === "theme" ? (
+                    <MobileSettings palette={p} paletteKey={paletteKey} onPalette={setPaletteKey} theme={theme} onTheme={patchTheme} />
+                  ) : (
+                    <div style={{ height: "min(54vh, 500px)", minHeight: 320 }}>
+                      <AiPanel p={p} settings={aiSettings} onSettings={updateAiSettings} />
+                    </div>
+                  )}
+                </div>
               </BottomSheet>
             )}
             {isMobile && sheet === "lang" && (

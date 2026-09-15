@@ -7,7 +7,8 @@ import { ensureFontLoaded } from "@/lib/theme";
 import { KIND_TEXT, LANGS, Lang, t, useLang } from "@/lib/i18n";
 import { IconPicker } from "./IconPicker";
 import { Icon } from "./M3Node";
-import { VariantSwatch, variantsOf } from "./Inspector";
+import { VariantSwatch, variantsOf, type AiHooks } from "./Inspector";
+import { AiWriteBtn } from "./AiPanel";
 import { ArchitectureBindingControls } from "./ArchitectureBinding";
 import { Field, IconBtn, Segmented, Toggle } from "./ui";
 
@@ -106,6 +107,7 @@ export function MobileInspector({
   architectureActions = [],
   onBindArchitectureAction,
   onOpenArchitectureAction,
+  ai,
 }: {
   item: Item;
   
@@ -118,6 +120,7 @@ export function MobileInspector({
   architectureActions?: ArchitectureActionNode[];
   onBindArchitectureAction?: (actionId: string | null) => void;
   onOpenArchitectureAction?: (actionId: string) => void;
+  ai?: AiHooks;
 }) {
   const lang = useLang();
   const spec = KIND_SPEC[item.kind];
@@ -400,6 +403,19 @@ export function MobileInspector({
 
       <Row icon="bolt" label={t("behavior", lang)} p={p}>
         <Field value={item.note ?? ""} onChange={(note) => onChange({ note })} placeholder={["button", "fab", "iconButton", "extendedFab"].includes(item.kind) ? t("whenPressed", lang) : t("whatItDoes", lang)} p={p} icon="bolt" height={48} />
+        {ai && (
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+            <AiWriteBtn
+              p={p}
+              busy={ai.busy}
+              disabled={!ai.ready}
+              onClick={ai.onRun}
+              onCancel={ai.onCancel}
+              label={t("aiWriteShort", lang)}
+              title={ai.ready ? t("aiWrite", lang) : (ai.reason ?? t("aiNoKey", lang))}
+            />
+          </div>
+        )}
       </Row>
     </div>
   );
