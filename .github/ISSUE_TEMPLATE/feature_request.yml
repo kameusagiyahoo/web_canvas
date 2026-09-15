@@ -1,36 +1,36 @@
-name: Feature request
-description: An idea for the editor, the theme panels, the preview or the prompt
+name: 機能要望
+description: Editor、Theme、Preview、Promptなどの改善案
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        For a new Material 3 part, use the **Part request** template instead. For open-ended ideas, Discussions is a better place.
+        新しいMaterial 3部品の追加要望は「Part追加要望」を使用してください。
   - type: textarea
     id: problem
     attributes:
-      label: What are you trying to do
-      description: The situation, not the solution. What is hard or impossible today?
+      label: 何をしたいですか
+      description: 解決案より先に、現在どの操作が難しい・不可能なのかを書いてください。
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
-      label: What would help
-      description: How you imagine it working. Sketches and references to other tools are welcome.
+      label: どのようになると便利ですか
+      description: 想定する操作方法を書いてください。スケッチや他ツールの参考例も歓迎します。
     validations:
       required: true
   - type: dropdown
     id: area
     attributes:
-      label: Area
+      label: 対象領域
       options:
-        - Parts and editing
-        - Theme (color, shape, type, motion)
-        - Preview and navigation
-        - Generated prompt
-        - Phone editor
-        - Languages
-        - Other
+        - Partと編集
+        - Theme（色・形・文字・Motion）
+        - PreviewとNavigation
+        - 生成Prompt
+        - スマホEditor
+        - 言語
+        - その他
     validations:
       required: true

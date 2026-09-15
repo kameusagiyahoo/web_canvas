@@ -1,26 +1,19 @@
-# Security
+# セキュリティ方針
 
-M3E Canvas is a static site. It has no server and no accounts; everything you draw
-stays in your browser's local storage. The only network calls are loading fonts
-and, if you turn it on, the optional AI helper: with your own API key entered in
-the AI tab, the browser sends the generated description of your whole design
-straight to the provider you chose (OpenAI, Anthropic, Google or DeepSeek) and
-nothing else. The key is kept in this browser's local storage under `m3e:ai` and
-never appears in the prompt, an exported image or the saved document. That keeps
-the attack surface small, but if you find something, please tell us.
+## 現在の構成
 
-## Reporting
+web_canvasはGitHub Pagesで動作するローカルファーストのWebアプリです。Projectデータは原則としてブラウザ内に保存されます。
 
-Use GitHub's private vulnerability reporting for this repository:
-**Security → Report a vulnerability**. Please do not open a public issue for
-security problems.
+## AI APIキー
 
-Include what you found, how to reproduce it and, if you can, what impact you think
-it has. You will get a reply within a week.
+AI補助機能で入力したAPIキーは現状ブラウザ保存です。公開端末・共有端末・信頼できない環境では使用しないでください。
 
-## Scope
+将来、一般公開用途で管理されたAI機能が必要になった場合は、Cloudflare Worker等のサーバー側境界へ秘密情報を移すことを検討します。具体的な要件がない段階ではbackendを追加しません。
 
-Things that count: anything that lets a page, a pasted image or a crafted document
-run code, read data it should not, or break the site for other visitors. Things
-that do not: the prompt text an AI tool generates from your sketch, and the
-behaviour of that tool.
+## 脆弱性の報告
+
+公開IssueにAPIキー、認証情報、個人情報、再現用秘密データを貼らないでください。報告時は、影響範囲、再現手順、想定されるリスクをできるだけ具体的に示してください。
+
+## 対象外
+
+ブラウザlocalStorageそのものを秘密情報保管庫として保証するものではありません。Project JSONの持ち出し・共有は利用者自身が管理してください。

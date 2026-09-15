@@ -1,162 +1,42 @@
-# Release readiness
+# リリース準備状況
 
-web_canvas is now evaluated as a product flow, not only as a collection of isolated editor features.
+## 現在のレベル
 
-## Current level
+**個人の日常利用候補（personal daily-use candidate）**
 
-The current level is **personal daily-use candidate**:
+主要な編集・保存・復旧・スマホ操作の自動テストは整備されていますが、一般ユーザー向けbetaを名乗るための実ユーザー検証はまだ完了していません。
 
-- appropriate for the author to use on day-to-day prototype projects on one device while continuing development;
-- local-first project storage, JSON export/import, Preview, Navigation, Architecture Flow, and Undo/Redo are available;
-- practical desktop/mobile authoring, repeated larger-project persistence, recovery failures, destructive-action recovery, first-run onboarding, critical keyboard/modal accessibility, and user-facing backup/recovery guidance are protected by browser E2E gates;
-- CI protects unit/build behavior and browser-level editor behavior;
-- manual external-user and assistive-technology validation protocols are defined, but real validation evidence has not yet been collected;
-- it is not yet positioned as a zero-guidance tool for unrelated users or as a system for irreplaceable production data.
+## 自動テスト済みの主な範囲
 
-## Practical golden-path gate
+- Desktop practical journey
+- Mobile golden path
+- Persistence stress
+- Recovery / malformed import / quota failure
+- Destructive action recovery
+- First-run onboarding
+- Keyboard / modal accessibility workflow
+- Backup & recovery guidance
+- Prompt実装ターゲット分離
 
-`e2e/practical-journey.e2e.ts` exercises one continuous user journey through the real UI:
+## 手動検証の証拠ゲート
 
-1. start the editor and create a new managed project;
-2. use the seeded Canvas UI and add a second Screen;
-3. create a Navigation route from the `Favorite` button to that Screen;
-4. execute that route in Preview;
-5. describe the same flow in Architecture with `Screen → Action → API → Screen` and bind the Canvas source;
-6. rename and explicitly save the managed project;
-7. reload the browser and verify Navigation + Architecture survive;
-8. export the saved project as a versioned JSON file;
-9. import that file as a separate managed project and verify the same design survives.
+次の文書は手順を定義したもので、実施済みの証拠ではありません。
 
-This test is intentionally cross-feature. Its purpose is to catch failures at feature boundaries that isolated tests do not expose.
+- `USABILITY_VALIDATION.md`
+- `USABILITY_SESSION_TEMPLATE.md`
+- `ACCESSIBILITY_VALIDATION.md`
 
-## Recovery gate
+General-user betaへ進めるには、特定のdeploy commitに対して実セッションを行い、Blocker/Highの問題を修正・再試験するか、理由付きで受容する必要があります。
 
-`e2e/recovery.e2e.ts` protects the two failure paths most likely to lose confidence in a local-first editor:
+## 残作業
 
-- a malformed managed-project import must not replace the active document, active Project ID, or Project Library; the Projects screen remains available and shows the import error so the author can immediately try another file;
-- a local-storage quota failure must surface a persistent warning with a Project JSON backup action, and that export must contain the latest in-memory design even though browser persistence is still on the older snapshot.
+- 3〜5人の非開発者によるユーザビリティ検証
+- iPhone Safari + VoiceOver
+- Desktop keyboard-only
+- 必要に応じてAndroid Chrome + TalkBack
+- onboardingとbackup/recovery文言の実利用確認
+- スマホ／PCの機能差をさらに縮小
 
-The recovery tests intentionally compare persisted state before and after failure so error handling cannot silently mutate or partially replace the working project.
+## リリース判定
 
-## Mobile golden-path gate
-
-`e2e/mobile-practical-journey.e2e.ts` verifies a complete authoring loop at a 390 × 844 phone viewport using the mobile UI rather than desktop-only controls:
-
-1. create and activate a managed Project from the mobile Screen sheet;
-2. add a Canvas part from the mobile Parts sheet;
-3. add a second Screen and return to Home;
-4. expand the grouped button run in Layers and select `Favorite`;
-5. use the mobile Inspector to route `Favorite` to the second Screen with a Fade transition;
-6. execute that route in Preview;
-7. explicitly save the managed Project;
-8. reload at phone size and verify the active Project, Screens, and Navigation route survive;
-9. execute the same Preview route again after reload.
-
-The mobile controls used in this journey expose stable accessible names for part choices, Screen choices, and Add Screen, so visible labels such as `Button`, `Home`, and `Add screen` can also be targeted consistently by assistive technology and browser automation.
-
-## Persistence stress gate
-
-`e2e/persistence-stress.e2e.ts` exercises one managed Project as it grows beyond the small two-Screen golden path:
-
-1. establish a real `Favorite → Screen 2` Navigation route and matching `Screen → Action → API → Screen` Architecture flow;
-2. grow the same Project to 10 Screens;
-3. explicitly save the Project Library snapshot and reload the browser;
-4. compare the complete working document with the saved Project snapshot after reload;
-5. repeat the same process after growing to 12 Screens and again at 14 Screens;
-6. verify the active Project ID and Project Library count never drift across cycles;
-7. verify Navigation and Architecture semantics remain unchanged through every cycle;
-8. execute the preserved Preview route after the third save/reload cycle.
-
-The persistence gate deliberately uses exact document equality between the working `m3e:doc` and the active Project Library snapshot after each explicit save. This catches stale snapshots, partial writes, accidental project duplication, or cross-project state leakage that frame-count-only checks would miss.
-
-## Destructive-action recovery gate
-
-`e2e/destructive-recovery.e2e.ts` protects destructive actions according to whether they are recoverable document edits or irreversible library operations:
-
-1. delete a routed Canvas Item and verify normal Undo restores the exact pre-delete document, including its Navigation action;
-2. delete a Screen from the mobile Screen sheet and verify its owned content and inbound Navigation are removed together;
-3. Undo that Screen deletion and verify the exact pre-delete document returns in one step;
-4. attempt to delete an active managed Project, cancel the confirmation dialog, and verify the document, active Project ID, and Project Library remain byte-for-byte equivalent at the parsed-data level;
-5. confirm the same Project deletion and verify the editor activates the surviving Project and restores its saved document;
-6. verify the final remaining Project cannot be deleted.
-
-This gate keeps the recovery policy explicit: Canvas/Screen edits use normal Undo/Redo history, while managed-Project deletion is outside document history and therefore requires confirmation plus a last-Project safety guard.
-
-## First-run onboarding gate
-
-`e2e/onboarding.e2e.ts` protects the editor's first-run discoverability without adding a second product model:
-
-1. a browser with no existing web_canvas storage automatically receives a five-step Quick Start;
-2. the guide explains the real authoring loop: create Screens, add parts, connect Screens, Preview, and save/manage Projects;
-3. completing or closing the guide stores only the lightweight `m3e:quick-start:v1` preference, outside the Project/Doc payload;
-4. normal reload does not interrupt returning work with the first-run guide again;
-5. the guide remains manually reopenable from a visible `?` control on both desktop and mobile;
-6. the instructions adapt to the current device UI and the current editor language.
-
-Existing users are not opted into the automatic dialog: existing document, Project Library, or editor-UI storage suppresses first-run auto-open while keeping the manual help entry available.
-
-## Accessibility and keyboard interaction gate
-
-`e2e/accessibility-workflow.e2e.ts` protects critical interaction semantics that pointer-only tests do not cover:
-
-1. a desktop user can focus and activate Add Screen with the keyboard's native Enter behavior;
-2. Quick Start exposes a labelled dialog/heading, moves focus into the dialog, traps Tab/Shift+Tab inside it, closes with Escape, and restores focus to the help button;
-3. Project Manager exposes a labelled full-screen dialog, starts focus on its Close control, keeps repeated Tab navigation inside the dialog, and closes with Escape;
-4. the same mobile Screen, Layers, Add, Add Screen, and part-choice controls retain stable accessible names at a 390 × 844 viewport;
-5. mobile Screen creation and part insertion can be activated through their native button keyboard behavior, complementing the touch-driven complete mobile golden path.
-
-The modal behavior is implemented through one shared focus-management helper rather than separate Quick Start / Project Manager rules. Together with the existing mobile golden-path test, this gives browser-level coverage for the complete mobile authoring workflow plus the editor's critical keyboard/modal boundaries. It is **not** a claim of WCAG conformance or complete screen-reader validation; those still require assistive-technology and external-user testing.
-
-## Backup and recovery guidance gate
-
-`e2e/backup-recovery-guidance.e2e.ts` protects the discoverability of the local-first recovery policy rather than introducing new persistence semantics:
-
-1. Project Manager exposes a visible **Backup & recovery** disclosure on the same desktop/mobile Project surface;
-2. the guidance explains that managed Projects live in this browser on this device and are not automatically transferred when browser data is cleared or another device is used;
-3. it points users to **Export file** for routine Project JSON backups and **Open file** for non-destructive restore as a separate managed Project;
-4. it explains that an autosave failure should be followed by **Save Project JSON**, which exports the latest in-memory document even when local persistence has failed;
-5. it distinguishes normal Item/Screen Undo from managed-Project deletion, which is outside document history;
-6. opening the guidance is view-only and leaves the working document, active Project ID, and Project Library unchanged, including at a 390 × 844 viewport.
-
-The same policy is maintained in `docs/BACKUP_RECOVERY.md` so the in-product summary and repository documentation describe one recovery model.
-
-## Manual validation evidence gate
-
-The remaining General-user beta work now has reproducible manual protocols instead of an undefined “test with users” requirement:
-
-- `docs/USABILITY_VALIDATION.md` defines a zero-guidance task sequence for the real authoring loop, moderator rules, observations to capture, and synthesis priorities;
-- `docs/USABILITY_SESSION_TEMPLATE.md` is copied per real participant so success, hints, friction, persistence misunderstandings, and actual comments are recorded consistently;
-- `docs/ACCESSIBILITY_VALIDATION.md` defines the minimum assistive-technology matrix, including iPhone Safari + VoiceOver and desktop keyboard-only validation, plus severity and retest rules.
-
-These documents are **protocols only**. Their existence does not count as external-user or screen-reader validation. Release status changes only after real sessions are run on a specific deployed commit and their findings are fixed/retested or explicitly accepted with rationale.
-
-## Promotion criteria
-
-### Personal-use beta — achieved foundation
-
-Required:
-
-- practical golden-path E2E passes;
-- recovery E2E passes for malformed import and local-storage quota failure;
-- mobile golden-path E2E passes through authoring, Preview, save, and reload;
-- persistence stress E2E passes through repeated 10/12/14-Screen save and reload cycles;
-- destructive-action recovery E2E passes for Item, Screen, and managed-Project deletion;
-- main typecheck, unit tests, production build, and Playwright E2E pass;
-- GitHub Pages deployment succeeds;
-- no silent mutation when inspecting diagnostics or Architecture trace state;
-- project can be recovered through versioned JSON export/import.
-
-### Personal daily-use candidate — current
-
-The practical gates now cover the main single-device authoring and recovery risks expected during regular personal use. First-run guidance, critical keyboard/modal accessibility, and an explicit backup/recovery policy are also available. Manual validation is now operationally defined, but the evidence still has to be collected from people and real assistive technology.
-
-### General-user beta — later
-
-Before handing the app to unrelated users without explanation, validate:
-
-- first-run onboarding and discoverability — implemented in product and E2E; run the external-user tasks in `docs/USABILITY_VALIDATION.md`;
-- accessibility and keyboard/mobile interaction — critical browser gate implemented; run the minimum matrix in `docs/ACCESSIBILITY_VALIDATION.md` and fix/retest Blocker findings;
-- representative external-user usability sessions — protocol and per-session record template are ready; actual sessions are still pending;
-- documented recovery/backup guidance — implemented in Project Manager and `docs/BACKUP_RECOVERY.md`; validate wording during the external-user sessions.
-
-Backend, authentication, collaboration, and cloud sync are not release prerequisites for the current local-first product direction.
+チェックリストが存在するだけでは検証完了としません。実施日、deploy SHA、環境、結果、問題、再試験結果を残して初めてrelease levelを更新します。

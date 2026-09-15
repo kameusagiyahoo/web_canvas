@@ -189,7 +189,7 @@ export function Toolbar({
             <IconBtn icon="redo" p={p} onClick={onRedo} disabled={!canRedo} title={t("redo", lang)} size={S} />
             <IconBtn icon="translate" p={p} onClick={onLangSheet} title={t("language", lang)} size={S} />
             <IconBtn icon="palette" p={p} onClick={onSettings} title={t("settings", lang)} size={S} />
-            <GitHubLink p={p} size={S} />
+            <IconBtn icon="play_arrow" p={p} onClick={onPreview} title={t("preview", lang)} size={S} fill />
             <button
               onClick={onPrompt}
               title={t("copyPrompt", lang)}

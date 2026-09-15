@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Questions and ideas
-    url: https://github.com/lnkiai/m3e-canvas/discussions
-    about: Ask how something works, share what you built, or float an idea before it becomes an issue.
-  - name: Security report
-    url: https://github.com/lnkiai/m3e-canvas/security/advisories/new
-    about: Report a vulnerability privately.
+  - name: 質問・アイデア
+    url: https://github.com/kameusagiyahoo/web_canvas/discussions
+    about: 使い方の質問、作ったものの共有、Issue化する前のアイデア相談はこちらです。
+  - name: セキュリティ報告
+    url: https://github.com/kameusagiyahoo/web_canvas/security/advisories/new
+    about: 脆弱性は公開Issueではなく非公開で報告してください。

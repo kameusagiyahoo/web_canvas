@@ -1,25 +1,17 @@
-# Original Project
+# 元Projectと派生方針
 
-This repository is an independently maintained derivative of the following public project.
+このリポジトリ `kameusagiyahoo/web_canvas` は、公開Project `lnkiai/m3e-canvas` をGitHub Importで複製し、独立して継続開発する派生Projectです。
 
-- Original repository: https://github.com/lnkiai/m3e-canvas
-- Original project: m3e-canvas
-- Original author/owner: lnkiai
-- Import method: GitHub Import
-- Imported on: 2026-09-05
-- Import baseline commit: `5c83ac6f437153b4df4d2348c4f94c4ff71b864a`
-- License: MIT
+元Project:
+https://github.com/lnkiai/m3e-canvas
 
-## Independence
+派生Project:
+https://github.com/kameusagiyahoo/web_canvas
 
-`kameusagiyahoo/web_canvas` is maintained as an independent repository. Changes made here do not automatically follow changes made in the original repository.
+## 方針
 
-The project should remain buildable and deployable even if the original repository is later deleted, made private, archived, or substantially changed.
+GitHub Import後は、このリポジトリを独立したoriginとして扱います。元Projectの更新を自動的にupstream追従することは前提にしません。必要な変更は内容・license・影響を確認した上で個別に取り込みます。
 
-## License and attribution
+## ライセンス
 
-The original `LICENSE`, copyright notices, and `NOTICE` file must be preserved where required. Do not remove attribution that is required by the original project or bundled third-party material.
-
-## Upstream policy
-
-There is currently no automatic synchronization with the original repository. If upstream tracking is added later, changes should be reviewed and imported selectively so local development is not overwritten.
+元ProjectのMIT Licenseおよび第三者コンポーネントのNOTICEを維持します。`LICENSE` と `NOTICE` は帰属と法的文面のため原文を保持します。

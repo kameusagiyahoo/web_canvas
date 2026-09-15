@@ -1,161 +1,188 @@
-# M3E Canvas: sketches from an AI agent (beta)
+# web_canvas: AIエージェントから設計を作るための仕様（beta）
 
-M3E Canvas (https://lnkiai.github.io/m3e-canvas/) is a browser editor for Material 3 Expressive screens. A design is one JSON document. You, the agent, write that document and hand it back; the person opens it on their canvas, refines it, and turns it into a prompt for a coding tool.
+web_canvas（https://kameusagiyahoo.github.io/web_canvas/）は、Material 3 Expressiveの画面をブラウザで設計するEditorです。設計は1つのJSON documentとして表現されます。AIエージェントはこのdocumentを生成し、利用者はweb_canvasで開いて調整し、実装用Promptへ変換できます。
 
-This format is in beta. Fields may be added; existing ones keep their meaning.
+この形式はbetaです。新しいfieldが追加される可能性がありますが、既存fieldの意味は維持します。
 
-## What to deliver
+## 成果物
 
-**Reply with a share link.** If you cannot run code, reply with the JSON document itself in a code block; the person saves it as a `.json` file and opens it with **Open project**. Either way, **do not verify, decode, or round-trip your output**: the app checks the document when it opens and tells the person what is wrong, so your checks add nothing.
+原則として **share link** を返してください。コードを実行できない場合は、JSON documentをコードブロックで返してください。利用者は `.json` として保存し、Project Managerの **Open file** から開けます。
 
-To make the link:
-
-1. Save the document to a file, for example `design.json`. Do not inline it in a shell command; quoting breaks in PowerShell and long shells.
-2. Run one of these on the file and reply with the printed link.
+share linkを作る場合はJSONを `design.json` などへ保存し、次のいずれかを実行します。長いJSONをshell commandへ直接埋め込まないでください。
 
 ```js
-// Node (link.mjs): node link.mjs design.json
+// Node: node link.mjs design.json
 import { readFileSync } from "node:fs";
 import { deflateRawSync } from "node:zlib";
 const json = readFileSync(process.argv[2], "utf8");
-console.log("https://lnkiai.github.io/m3e-canvas/#docz=" + deflateRawSync(json).toString("base64url"));
+console.log("https://kameusagiyahoo.github.io/web_canvas/#docz=" + deflateRawSync(json).toString("base64url"));
 ```
 
 ```python
-# Python (link.py): python link.py design.json
+# Python: python link.py design.json
 import sys, zlib, base64
 data = open(sys.argv[1], "rb").read()
-c = zlib.compressobj(9, zlib.DEFLATED, -15)          # raw deflate, no header
+c = zlib.compressobj(9, zlib.DEFLATED, -15)
 raw = c.compress(data) + c.flush()
-print("https://lnkiai.github.io/m3e-canvas/#docz=" + base64.urlsafe_b64encode(raw).decode().rstrip("="))
+print("https://kameusagiyahoo.github.io/web_canvas/#docz=" + base64.urlsafe_b64encode(raw).decode().rstrip("="))
 ```
 
-The link is long (a few thousand characters for a few screens). That is expected; it carries the whole design and nothing is stored anywhere. If you fetched this guide from a different address than `https://lnkiai.github.io/m3e-canvas/agent.md`, build the link on that address instead (the app lives next to its guide).
+このguideを別のURLから取得した場合は、そのguideと同じsite rootをshare linkに使ってください。documentは概ね100 KB未満を目安にします。`image` Partは `src` にHTTPS画像URLを指定できますが、画像dataを埋め込まないでください。
 
-Keep the document under about 100 KB. An `image` part may carry `"src": "https://…"` pointing at a picture on the web; do not embed image data.
-
-Rough placement is fine. The person presses **Tidy** and bars snap to the edges, neighbouring parts fuse into connected runs, and the rest stacks on 16dp margins. Spend your effort on the right parts, sensible labels, and the navigation between screens.
-
-## The document
+## Documentの基本形
 
 ```jsonc
 {
-  "title": "Recipes",              // the app's name
-  "brief": "Save and search recipes.",   // one or two sentences on what the app is for (optional)
-  "frame": "phone",                // always "phone"
-  "platform": "android",           // "android" (default) or "web"
-  "paletteKey": "purple",          // "purple" | "blue" | "green" | "coral" | "amber" | "teal" | "mono"
-  "theme": { "dark": false, "bothModes": true, "contrast": "standard", "shape": "rounded", "font": "roboto", "emphasized": false, "motion": "expressive" },
-  "frames": [ /* screens */ ],
-  "groups": [ /* parts, bottom layer first */ ]
+  "title": "レシピ",
+  "brief": "レシピを保存・検索するアプリ。",
+  "frame": "phone",
+  "platform": "neutral",
+  "paletteKey": "purple",
+  "theme": {
+    "dark": false,
+    "bothModes": true,
+    "contrast": "standard",
+    "shape": "rounded",
+    "font": "roboto",
+    "emphasized": false,
+    "motion": "expressive"
+  },
+  "frames": [],
+  "groups": []
 }
 ```
 
-`theme` is optional. `contrast`: `standard | medium | high`. `shape`: `square | rounded | full`. `font`: `roboto | robotoFlex | robotoSerif | system`. `motion`: `standard | expressive`. `bothModes: true` asks for light and dark; `dark` picks which one the canvas shows.
+`platform` は `neutral | android | ios | web | pyside`。未指定時はPlatform neutralとして扱います。画面サイズだけからAndroidを決めません。
 
-### Screens (`frames`)
+`theme` は任意です。
 
-A phone screen is **412 × 892**; a desktop screen is **1280 × 800** (set `w` and `h`). Place screens side by side on the canvas, 80 apart:
+- `contrast`: `standard | medium | high`
+- `shape`: `square | rounded | full`
+- `font`: `roboto | robotoFlex | robotoSerif | system`
+- `motion`: `standard | expressive`
+- `bothModes: true`: light/darkの両方を実装対象にする
+- `dark`: Canvasで現在表示するmode
 
-```json
-{ "id": "home", "name": "Home", "x": 0, "y": 0, "note": "Lists the saved recipes." }
-{ "id": "detail", "name": "Recipe", "x": 492, "y": 0 }
-{ "id": "settings", "name": "Settings", "x": 984, "y": 0, "swipe": { "left": "home" } }
-```
+## Screen (`frames`)
 
-- `id`: any unique string. `name`: what the screen is called in the prompt.
-- `note` (optional): what the screen is for, in a sentence. It goes into the prompt.
-- `bg` (optional): background token, one of `surface | surfaceContainerLow | surfaceContainer | surfaceContainerHigh | surfaceContainerHighest | primaryContainer | secondaryContainer | tertiaryContainer | primary | inverseSurface`.
-- `swipe` (optional): screens reached by swiping `left | right | up | down`.
-
-### Parts (`groups`)
-
-Every part sits in a **group**. A group is one part, or a **connected run** of parts of one family drawn as a unit: buttons side by side (`"axis": "x"`), list items stacked (`"axis": "y"`). Coordinates are **canvas coordinates**, so add the screen's `x` and `y`. Later groups draw on top of earlier ones.
+標準phone screenは **412 × 892**、desktop screenは **1280 × 800** です。desktopは `w` / `h` を持ちます。
 
 ```json
-{ "id": "g1", "x": 0, "y": 0, "axis": "x", "items": [ { "id": "bar", "kind": "topAppBar", "label": "Recipes", "icon": "menu", "icon2": "search", "variant": "filled" } ] }
-{ "id": "g2", "x": 16, "y": 112, "axis": "y", "items": [
-  { "id": "r1", "kind": "listItem", "label": "Tomato soup", "supporting": "30 min", "icon": "restaurant", "variant": "filled", "action": { "to": "detail", "transition": "slide" } },
-  { "id": "r2", "kind": "listItem", "label": "Pancakes", "supporting": "20 min", "icon": "restaurant", "variant": "filled" }
-] }
-{ "id": "g3", "x": 340, "y": 716, "axis": "x", "items": [ { "id": "fab", "kind": "fab", "label": "", "icon": "add", "variant": "filled", "note": "Opens the new recipe form." } ] }
-{ "id": "g4", "x": 0, "y": 788, "axis": "x", "items": [ { "id": "nav", "kind": "bottomNav", "label": "", "icon": null, "variant": "filled",
-  "tabs": [ { "icon": "home", "label": "Home" }, { "icon": "search", "label": "Search" }, { "icon": "settings", "label": "Settings" } ],
-  "selected": 0,
-  "actions": { "tab:2": { "to": "settings", "transition": "fade" } } } ] }
+{ "id": "home", "name": "ホーム", "x": 0, "y": 0, "note": "保存したレシピを一覧表示する。" }
+{ "id": "detail", "name": "詳細", "x": 492, "y": 0 }
+{ "id": "settings", "name": "設定", "x": 984, "y": 0, "swipe": { "left": "home" } }
 ```
 
-Every item needs `id`, `kind`, `label` (may be `""`), `icon` (a Material Symbols name, or `null`) and `variant`. Use `"variant": "filled"` unless you want another look: `filled | tonal | elevated | outlined | text`.
+- `id`: document内で一意な文字列
+- `name`: Promptへ出すScreen名
+- `note`: Screenの目的（任意）
+- `bg`: background role（任意）
+- `swipe`: `left | right | up | down` 方向の移動先（任意）
 
-A tab entry is `{ "icon": "home", "label": "Home" }`; `icon` may be omitted on a `tabs` row and `label` may be `""` on a `toolbar`.
+Screenのsource of truthはFrameです。Navigation用に別Screen dataを作らないでください。
 
-Which families connect: `button` with `button`, `iconButton` with `iconButton`, `chip` with `chip` (all `"axis": "x"`), `listItem` with `listItem` (`"axis": "y"`). Anything else is a group of one; `axis` is then irrelevant but required (`"x"`).
+## Part (`groups` / `items`)
 
-### Kinds and their fields
+すべてのPartはGroupの中に置きます。1つのGroupが1 Partの場合もあれば、connected buttonやlist item runのように複数Itemをまとめる場合もあります。座標はCanvas座標なので、Screenの `x` / `y` offsetを含めます。後ろに書いたGroupほど前面に描画されます。
 
-Sizes are in dp; `size` is the width unless noted. Content width inside the phone margins is **380**. Heights below are what the canvas draws when you omit them.
+```json
+{
+  "id": "g1",
+  "x": 0,
+  "y": 0,
+  "axis": "x",
+  "items": [
+    { "id": "bar", "kind": "topAppBar", "label": "レシピ", "icon": "menu", "icon2": "search", "variant": "filled" }
+  ]
+}
+```
 
-| kind | what it is | useful fields | default size |
-|---|---|---|---|
-| `topAppBar` | top app bar | `label` title, `icon` leading, `icon2` trailing, `actions` with keys `icon` / `icon2` | 412 × 88, at the top |
-| `bottomNav` | navigation bar | `tabs` (3–5 of `{icon,label}`), `selected` index, `actions` with keys `tab:0`… | 412 × 104, at the bottom |
-| `navRail` | navigation rail (desktop) | `tabs`, `selected` | 80 wide, full height |
-| `tabs` | tab row | `tabs`, `selected` | 412 × 48 |
-| `searchBar` | search bar | `label` placeholder, `icon2` trailing | 380 × 56 |
-| `button` | button | `label`, `icon`, `variant`, `action`, `toggle`, `size` width (omit for text-sized; 380 fills the content width, 182 is half) | text-sized × 56 |
-| `iconButton` | icon button | `icon`, `variant`, `action` | 48 × 48 |
-| `fab` | FAB | `icon`, `size` 40 / 56 / 96 | 56 × 56, bottom-right |
-| `extendedFab` | extended FAB | `label`, `icon` | text-sized × 56 |
-| `splitButton` | split button | `label`, `icon` | text-sized × 56 |
-| `fabMenu` | FAB menu, drawn open | `tabs` as its entries | 220 wide |
-| `toolbar` | floating toolbar | `tabs` as icon buttons, `variant` `tonal` (standard) or `filled` (vibrant) | 64 tall |
-| `chip` | chip | `label`, `icon`, `checked` | text-sized × 32 |
-| `card` | card with image area, title, body | `label`, `supporting`, `icon`, `variant` `filled` (default) / `elevated` / `outlined`, `fill` background token, `size` width, `size2` height, `"noImage": true` to drop the image area, `src` an https picture for it, `action` | 380 × 223 |
-| `listItem` | list item | `label`, `supporting`, `icon` leading, `icon2` trailing, or `"switch": true` for a trailing switch with `checked` as its state, `action` | 380 × 72 |
-| `box` | plain container, or a bottom sheet when `checked` | `size` width, `size2` height, `fill` token, `radiusTop`, `radiusBottom` | 412 × 220 |
-| `dialog` | dialog | `label` title, `supporting` body, `icon` | 312 × 220, centered |
-| `snackbar` | snackbar | `label`, `supporting` action label | 344 × 48 |
-| `textField` | text field | `label`, `supporting` helper, `icon`, `variant` `outlined / filled` | 380 × 56 |
-| `switch` | switch with label | `label`, `checked`, `size` width (omit for text-sized; 380 puts the label left and the switch right) | text-sized × 48 |
-| `checkbox` | checkbox with label | `label`, `checked` | 40 tall |
-| `radio` | radio button with label | `label`, `checked` | 40 tall |
-| `slider` | slider | `value` 0–100 | 380 × 44 |
-| `text` | a line of text | `label`, `size` font size (28 default), `bold` | |
-| `image` | image | `size` square side, `src` an https URL (optional) | 200 × 200 |
-| `divider` | divider | | 380 × 16 |
-| `badge` | badge | `label` (empty for a dot) | |
-| `loadingIndicator` | M3 Expressive loading indicator | `contained` | 48 × 48 |
-| `linearProgress` | linear progress | `value` or omit for indeterminate, `wavy` | 380 × 24 |
-| `circularProgress` | circular progress | `value` or omit, `wavy` | 48 × 48 |
+基本的に各Itemには `id`, `kind`, `label`, `icon`（なければ `null`）, `variant` を持たせます。特に理由がなければ `variant: "filled"` を使います。
 
-Fields that any part may carry:
+連結できる代表的なfamily:
 
-- `note`: what the part does, in your words. It goes into the prompt verbatim, so say what happens on tap, what is saved, what is validated.
-- `action`: `{ "to": "<frame id>" | "back", "transition": "slide" | "slideLeft" | "slideUp" | "slideDown" | "fade" | "expand" | "none" }`, the screen a tap opens.
-- `toggle` (buttons): `{ "icon": "favorite", "variant": "filled", "label": "Saved" }`, the look after a tap flips it on.
+- `button` + `button`: `axis: "x"`
+- `iconButton` + `iconButton`: `axis: "x"`
+- `chip` + `chip`: `axis: "x"`
+- `listItem` + `listItem`: `axis: "y"`
 
-Icons are Material Symbols names (`home`, `search`, `add`, `favorite`, `settings`, `arrow_back`, `more_vert`, `edit`, `delete`, `share`, `restaurant`, `photo_camera`, …).
+## 主なPart kind
 
-## Keep it simple
+| kind | 用途 | 主なfield |
+|---|---|---|
+| `topAppBar` | 上部App bar | `label`, `icon`, `icon2`, `actions` |
+| `bottomNav` | Navigation bar | `tabs`, `selected`, `actions` |
+| `navRail` | desktop navigation rail | `tabs`, `selected` |
+| `tabs` | tab row | `tabs`, `selected` |
+| `searchBar` | 検索欄 | `label`, `icon2` |
+| `button` | Button | `label`, `icon`, `variant`, `action`, `toggle`, `size` |
+| `iconButton` | Icon button | `icon`, `variant`, `action` |
+| `fab` | FAB | `icon`, `size` |
+| `extendedFab` | Extended FAB | `label`, `icon` |
+| `splitButton` | Split button | `label`, `icon` |
+| `fabMenu` | FAB menu | `tabs` |
+| `toolbar` | Floating toolbar | `tabs`, `variant` |
+| `chip` | Chip | `label`, `icon`, `checked` |
+| `card` | Card | `label`, `supporting`, `src`, `action`, `size`, `size2` |
+| `listItem` | List item | `label`, `supporting`, `icon`, `icon2`, `action` |
+| `box` | Container / sheet | `size`, `size2`, `fill` |
+| `dialog` | Dialog | `label`, `supporting`, `icon` |
+| `snackbar` | Snackbar | `label`, `supporting` |
+| `textField` | Text field | `label`, `supporting`, `icon`, `variant` |
+| `switch` | Switch | `label`, `checked` |
+| `checkbox` | Checkbox | `label`, `checked` |
+| `radio` | Radio button | `label`, `checked` |
+| `slider` | Slider | `value` |
+| `text` | Text | `label`, `size`, `bold` |
+| `image` | Image | `size`, `src` |
+| `divider` | Divider | 追加field不要 |
+| `badge` | Badge | `label` |
+| `loadingIndicator` | M3E loading | `contained` |
+| `linearProgress` | Linear progress | `value`, `wavy` |
+| `circularProgress` | Circular progress | `value`, `wavy` |
 
-- Leave what the app does not need empty: `"icon": null`, no `icon2`, no `note`, no `supporting`. A top app bar with just a title is normal; not every bar needs a menu and a search icon, not every list row needs a trailing chevron.
-- Do not add parts to fill space. A screen with a bar, a list and a FAB is complete.
-- One idea per screen. If a screen needs a second scroll of parts, it is two screens.
-- Prefer the plain variant (`"filled"`) and the default sizes; the person retunes the theme afterwards.
-- Buttons: a main action on its own gets `"size": 380` (full content width); two side by side get `"size": 182` each in one connected group; a button next to text stays text-sized. Do not scatter small buttons around a screen.
-- Cards: give one a `size2` only when it holds more than a headline and a line of body, and keep a stack of cards the same height. A list of similar rows is a `listItem` run, not a column of cards.
+## Navigation
 
-## A good sketch
+通常のtap navigationはItemの `action`、navigation componentのslotは `actions`、Screen swipeはFrameの `swipe` を使います。
 
-- One `topAppBar` at the top of each screen, a `bottomNav` on the main screens with the same tabs everywhere, and `selected` set to the tab that screen belongs to.
-- Real labels in the person's language, not lorem ipsum. Match the language of the request.
-- A `note` only where the label does not already say what happens; a `note` on every screen.
-- Navigation that closes: list rows open a detail screen, detail screens have a way back (`"to": "back"`), the FAB opens a form.
-- Three to five screens is plenty. Leave polish to the person: they will tidy, retheme, and edit.
+```json
+{
+  "action": {
+    "to": "detail",
+    "transition": "slide"
+  }
+}
+```
 
-## Checklist before you reply
+`to` はFrame `id` または `back`。`transition` は `slide | slideLeft | slideUp | slideDown | fade | expand | none` です。
 
-- Every `id` is unique; every `action.to` names a frame `id` or `back`.
-- Every item has `id`, `kind`, `label`, `icon` (or `null`), `variant`.
-- Group coordinates include the screen offset.
-- You are replying with the link (or the JSON), not with a description of it.
+Navigation Graphはこれらから導出されるため、別のNavigation source of truthを作らないでください。
+
+## Part共通の補助field
+
+- `note`: ラベルだけでは分からない振る舞い。Promptへ反映されます。
+- `action`: tap時の移動先
+- `toggle`: ButtonのON状態の見た目
+- `supporting`: 補足文
+- `fill`: Material color role
+
+IconはMaterial Symbols名（`home`, `search`, `add`, `favorite`, `settings`, `arrow_back`, `edit`, `delete`, `share` など）を使用します。
+
+## 設計するときの原則
+
+- 不要なIconやPartを空間埋めのために追加しない。
+- 1 Screenに役割を詰め込みすぎない。
+- 同種のrowが並ぶならCardの乱用よりList Item runを優先する。
+- Main actionは明確にし、Navigationが行き止まりにならないようにする。
+- labelは利用者の依頼言語に合わせ、Lorem ipsumを使わない。
+- rough placementでよい。最終調整は利用者がCanvasのTidyやdragで行える。
+- ArchitectureのAction/API metadataが必要な場合でも、Navigationと同じdataへ統合しない。
+
+## 返答前チェック
+
+- `id` がdocument内で重複していない。
+- `action.to` が存在するFrame `id` または `back` になっている。
+- 各Itemに必要な `id`, `kind`, `label`, `icon`, `variant` がある。
+- Group座標にScreen offsetが含まれている。
+- `platform` が必要なら `neutral | android | ios | web | pyside` のいずれかである。
+- 最終返答はshare linkまたはJSON documentであり、説明文だけで終わっていない。
