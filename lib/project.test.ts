@@ -41,6 +41,45 @@ describe("project serialization", () => {
     expect(parseProjectText(serializeProject(withApi))).toEqual(withApi);
   });
 
+  it("round-trips the optional Data Model and its cross-view bindings", () => {
+    const withDataModel = {
+      ...doc,
+      dataModel: {
+        version: 1 as const,
+        entities: [
+          {
+            id: "user",
+            name: "User",
+            fields: [{ id: "user-id", name: "id", type: "uuid" as const, primaryKey: true }],
+          },
+        ],
+        relations: [],
+        bindings: [
+          {
+            id: "home-user",
+            subject: { kind: "frame" as const, id: "home" },
+            entityId: "user",
+            access: ["read" as const],
+          },
+        ],
+      },
+    };
+    expect(parseProjectText(serializeProject(withDataModel))).toEqual(withDataModel);
+  });
+
+  it("rejects malformed persisted Data Models instead of guessing their shape", () => {
+    const malformed = {
+      ...doc,
+      dataModel: {
+        version: 1,
+        entities: [{ id: "user", name: "User", fields: [] }],
+        relations: [],
+        bindings: [{ id: "bad", subject: { kind: "frame", id: "home" }, entityId: "user", access: [] }],
+      },
+    };
+    expect(parseProjectText(serializeProject(malformed as Doc))).toBeNull();
+  });
+
   it("opens legacy raw Doc files through the version-0 migration path", () => {
     expect(parseProjectText(JSON.stringify(doc))).toEqual(doc);
     expect(migrateProjectValue(doc)).toEqual(doc);
