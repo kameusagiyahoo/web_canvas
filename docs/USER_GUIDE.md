@@ -76,9 +76,13 @@ Partを選択し、Editから文字・アイコン・スタイル・Action等を
 
 上部の ▶ Preview ボタンから現在の設計をすぐ確認できます。Screen一覧から特定のScreenを選んでPreviewを開始することもできます。
 
-### Theme
+### Theme / AI設定
 
-上部のpaletteボタンから、light/dark、contrast、palette、shape、typography、motionを変更できます。
+上部のpaletteボタンからSettingsを開きます。Themeタブではlight/dark、contrast、palette、shape、typography、motionを変更できます。AIタブではPCと同じprovider、model、Base URL、API keyを設定できます。AI設定はProjectデータではなく、このブラウザにローカル保存されます。
+
+### PartのAI補助
+
+Partを選択してEditを開くと、Behavior欄から「AIで書く」を実行できます。これはPC版と同じ既存のBehavior生成処理を使い、選択中Partの動作説明だけを書き換えます。結果は通常のUndoで戻せます。AI設定が未入力の場合は実行ボタンが無効になります。
 
 ### Prompt
 
@@ -105,7 +109,7 @@ Projectは端末・ブラウザ内に保存されます。別端末へ自動同�
 
 ## 7. Undo / Redo
 
-Canvas上の通常編集、Navigation、Architectureなどの永続変更は基本的に共通のUndo / Redo履歴に入ります。Projectそのものの削除はDoc内Undoの対象ではありません。
+Canvas上の通常編集、Navigation、Architecture、AI補助によるPart変更などの永続変更は基本的に共通のUndo / Redo履歴に入ります。Projectそのものの削除はDoc内Undoの対象ではありません。
 
 ## 8. スマホとPCを行き来する
 
@@ -116,6 +120,7 @@ Canvas上の通常編集、Navigation、Architectureなどの永続変更は基�
 - 初回ガイド: `?` ボタンからQuick Startを再表示
 - 画面遷移がおかしい: Navigation Graphで経路を確認
 - Architectureの紐付けがおかしい: diagnosticsとCanvas bindingを確認
+- AI補助が押せない: Settings → AIでmodel、Base URL、必要ならAPI keyを確認
 - 保存が不安: Project JSONを書き出す
 - 表示が古い: GitHub Pagesの最新版を再読み込み
 
