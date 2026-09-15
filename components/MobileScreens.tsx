@@ -17,6 +17,7 @@ export function MobileScreens({
   onPreview,
   onGraph,
   onArchitecture,
+  onCompare,
   onProjects,
 }: {
   frames: Frame[];
@@ -30,6 +31,7 @@ export function MobileScreens({
   onPreview: (id: string) => void;
   onGraph: () => void;
   onArchitecture: () => void;
+  onCompare: () => void;
   onProjects: () => void;
 }) {
   const lang = useLang();
@@ -279,6 +281,33 @@ export function MobileScreens({
       >
         <Icon name="schema" size={22} />
         {lang === "ja" ? "アプリアーキテクチャ" : lang === "zh" ? "应用架构" : lang === "ko" ? "앱 아키텍처" : "App architecture"}
+      </button>
+
+
+      <button
+        type="button"
+        onClick={onCompare}
+        aria-label={lang === "ja" ? "比較 / バリアント" : lang === "zh" ? "比较 / 变体" : lang === "ko" ? "비교 / 변형" : "Compare / variants"}
+        className="m3-press"
+        style={{
+          marginTop: 12,
+          width: "100%",
+          minHeight: 52,
+          border: `1px solid ${p.outlineVariant}`,
+          borderRadius: 26,
+          background: p.surfaceContainerHighest,
+          color: p.onSurface,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          cursor: "pointer",
+          fontSize: 15,
+          fontWeight: 700,
+        }}
+      >
+        <Icon name="difference" size={22} />
+        {lang === "ja" ? "比較 / バリアント" : lang === "zh" ? "比较 / 变体" : lang === "ko" ? "비교 / 변형" : "Compare / variants"}
       </button>
 
       <button

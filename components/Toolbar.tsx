@@ -77,6 +77,7 @@ export function Toolbar({
   onPreview,
   onGraph,
   onArchitecture,
+  onCompare,
   onProjects,
   rightInset,
   mobile,
@@ -112,6 +113,7 @@ export function Toolbar({
   onPreview: () => void;
   onGraph?: () => void;
   onArchitecture?: () => void;
+  onCompare?: () => void;
   onProjects?: () => void;
   /** width of the open right panel, so the zoom pill slides out of its way */
   rightInset: number;
@@ -141,6 +143,7 @@ export function Toolbar({
   const lang = useLang();
   const graphTitle = lang === "ja" ? "画面フロー" : lang === "zh" ? "画面流程" : lang === "ko" ? "화면 흐름" : "Screen flow";
   const architectureTitle = lang === "ja" ? "アプリアーキテクチャ" : lang === "zh" ? "应用架构" : lang === "ko" ? "앱 아키텍처" : "App architecture";
+  const compareTitle = lang === "ja" ? "比較 / バリアント" : lang === "zh" ? "比较 / 变体" : lang === "ko" ? "비교 / 변형" : "Compare / variants";
   const guideTitle = quickStartTitle(lang);
   const [guideOpen, setGuideOpen] = useState(false);
 
@@ -418,6 +421,15 @@ export function Toolbar({
               p={p}
               onClick={onArchitecture}
               title={architectureTitle}
+              size={40}
+            />
+          )}
+          {onCompare && (
+            <IconBtn
+              icon="difference"
+              p={p}
+              onClick={onCompare}
+              title={compareTitle}
               size={40}
             />
           )}
