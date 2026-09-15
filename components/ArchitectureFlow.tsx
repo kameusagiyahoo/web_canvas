@@ -20,6 +20,7 @@ import {
 import { useLang } from "@/lib/i18n";
 import { fitGraphZoom, graphCenterScroll, stepGraphZoom } from "@/lib/graph-viewport";
 import { getArchitectureCanvasBindingState } from "@/lib/architecture-binding";
+import { useModalFocus } from "@/lib/modal-focus";
 import { Icon } from "./M3Node";
 
 const parseEndpoint = (value: string): ArchitectureEndpoint | null => {
@@ -184,6 +185,23 @@ export function ArchitectureFlowView({
   const [graphKindFilter, setGraphKindFilter] = useState<"all" | ArchitectureEndpoint["kind"]>("all");
   const [graphZoom, setGraphZoom] = useState(1);
   const graphViewportRef = useRef<HTMLDivElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useModalFocus({
+    open: true,
+    containerRef: dialogRef,
+    initialFocusRef: closeRef,
+    onEscape: () => {
+      if (connectMode || selectedEdgeId) {
+        setConnectMode(false);
+        setGraphSource(null);
+        setSelectedEdgeId(null);
+        return;
+      }
+      onClose();
+    },
+  });
 
   const quickSourceItems = useMemo(
     () => canvasItems.filter((item) => item.screenId === quickSourceFrameId),
@@ -264,22 +282,6 @@ export function ArchitectureFlowView({
   useEffect(() => {
     setEdgeLabelDraft(selectedEdge?.label ?? "");
   }, [selectedEdgeId, selectedEdge?.label]);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        if (connectMode || selectedEdgeId) {
-          setConnectMode(false);
-          setGraphSource(null);
-          setSelectedEdgeId(null);
-        } else {
-          onClose();
-        }
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [connectMode, onClose, selectedEdgeId]);
 
   const addAction = () => {
     const name = actionName.trim();
@@ -530,6 +532,8 @@ export function ArchitectureFlowView({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label={copy.title}
@@ -544,7 +548,7 @@ export function ArchitectureFlowView({
           <div style={{ fontSize: 20, fontWeight: 850 }}>{copy.title}</div>
           <div style={{ marginTop: 2, fontSize: 12, color: p.onSurfaceVariant }}>{copy.subtitle}</div>
         </div>
-        <button type="button" onClick={onClose} aria-label={copy.close} className="m3-press" style={{ width: 44, height: 44, border: "none", borderRadius: 22, background: "transparent", color: p.onSurfaceVariant, display: "grid", placeItems: "center", cursor: "pointer" }}>
+        <button ref={closeRef} type="button" onClick={onClose} aria-label={copy.close} className="m3-press" style={{ width: 44, height: 44, border: "none", borderRadius: 22, background: "transparent", color: p.onSurfaceVariant, display: "grid", placeItems: "center", cursor: "pointer" }}>
           <Icon name="close" size={24} />
         </button>
       </header>

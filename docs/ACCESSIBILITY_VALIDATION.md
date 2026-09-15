@@ -49,8 +49,14 @@
 - toolbar
 - Quick StartのTab/Shift+Tab trap、Escape、focus restore
 - Project Managerのfocus containmentとEscape
+- Navigation Graphの初期focus、Tab/Shift+Tab containment、Escape、open元へのfocus restore
+- Architecture Flowの初期focus、Tab/Shift+Tab containment、Escape、open元へのfocus restore
 - Preview
 - 主要編集操作
+
+## 自動E2Eとの境界
+
+`e2e/accessibility-workflow.e2e.ts` では、主要dialogの初期focus、Tab/Shift+Tab containment、Escape、focus restoreをpreflightとして固定します。これは実ブラウザ／支援技術での読み上げ順、発見性、実操作の代替ではないため、上記の手動マトリクスは引き続き必須です。
 
 ## 重大度
 
