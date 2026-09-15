@@ -52,6 +52,7 @@ ScreenはFrameから導出し、Action/API/linkを意味的な設計情報とし
 - usability validation protocol
 - accessibility validation protocol
 - 日本語操作手順書と日本語ドキュメント整備
+- スマホでのPrompt本文・実装ターゲット編集
 
 次:
 
@@ -59,7 +60,8 @@ ScreenはFrameから導出し、Action/API/linkを意味的な設計情報とし
 - iPhone Safari + VoiceOver実試験
 - desktop keyboard-only実試験
 - Blocker/High修正と再試験
-- スマホとPCの機能差縮小
+- スマホからAI設定／AI補助機能へ到達する導線の評価
+- 大規模Navigation/Architectureのスマホ操作評価
 
 ## Phase 7 — 任意のsecure/cloud拡張
 

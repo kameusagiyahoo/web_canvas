@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { AnimatePresence, motion, useReducedMotion, useSpring } from "motion/react";
-import { buildPrompt, effectivePrompt } from "@/lib/prompt";
+import { buildPrompt } from "@/lib/prompt";
 import {
   Action,
   ArchitectureActionNode,
@@ -287,7 +287,7 @@ export default function Page() {
     futureRef.current = futureRef.current.map((snap) => translateDocumentSnapshot(snap, next));
   };
   const [isMobile, setIsMobile] = useState(false);
-  const [sheet, setSheet] = useState<"edit" | "parts" | "screens" | "layers" | "settings" | "lang" | null>(null);
+  const [sheet, setSheet] = useState<"edit" | "parts" | "screens" | "layers" | "prompt" | "settings" | "lang" | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   /** frame being rendered offscreen for the PNG export */
   const [exportFrame, setExportFrame] = useState<Frame | null>(null);
@@ -2159,6 +2159,13 @@ const changeFrame = (f: FrameMode) => {
   const docRef = useRef(doc);
   docRef.current = doc;
 
+  const patchPromptDoc = (patch: Partial<Doc>) => {
+    if (patch.title !== undefined) setTitle(patch.title);
+    if (patch.brief !== undefined) setBrief(patch.brief);
+    if ("promptEdit" in patch) setPromptEdit(patch.promptEdit);
+    if ("platform" in patch) setPlatform(isPlatform(patch.platform) ? patch.platform : null);
+  };
+
   const persistProjectLibrary = (library: ProjectLibrary) => {
     projectLibraryRef.current = library;
     setProjectLibrary(library);
@@ -3114,12 +3121,7 @@ const changeFrame = (f: FrameMode) => {
             mobile={isMobile}
             onSettings={() => setSheet(sheet === "settings" ? null : "settings")}
             onLangSheet={() => setSheet(sheet === "lang" ? null : "lang")}
-            onPrompt={async () => {
-              try {
-                await navigator.clipboard.writeText(effectivePrompt(doc, widths, lang));
-                showToast(t("copied", lang), 1400, "check");
-              } catch {}
-            }}
+            onPrompt={() => setSheet(sheet === "prompt" ? null : "prompt")}
           />
 
           {isMobile && (
@@ -3332,6 +3334,13 @@ const changeFrame = (f: FrameMode) => {
                 />
               </BottomSheet>
             )}
+            {isMobile && sheet === "prompt" && (
+              <BottomSheet key="prompt" p={p} onClose={() => setSheet(null)}>
+                <div style={{ height: "min(62vh, 560px)", minHeight: 360 }}>
+                  <PromptPanel doc={doc} widths={widths} palette={p} onDoc={patchPromptDoc} />
+                </div>
+              </BottomSheet>
+            )}
             {isMobile && sheet === "settings" && (
               <BottomSheet key="settings" p={p} onClose={() => setSheet(null)}>
                 <MobileSettings palette={p} paletteKey={paletteKey} onPalette={setPaletteKey} theme={theme} onTheme={patchTheme} />
@@ -3537,12 +3546,7 @@ const changeFrame = (f: FrameMode) => {
                   doc={doc}
                   widths={widths}
                   palette={p}
-                  onDoc={(patch) => {
-                    if (patch.title !== undefined) setTitle(patch.title);
-                    if (patch.brief !== undefined) setBrief(patch.brief);
-                    if ("promptEdit" in patch) setPromptEdit(patch.promptEdit);
-                    if ("platform" in patch) setPlatform(isPlatform(patch.platform) ? patch.platform : null);
-                  }}
+                  onDoc={patchPromptDoc}
                 />
               )}
             </div>

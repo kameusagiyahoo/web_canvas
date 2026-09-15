@@ -192,7 +192,8 @@ export function Toolbar({
             <IconBtn icon="play_arrow" p={p} onClick={onPreview} title={t("preview", lang)} size={S} fill />
             <button
               onClick={onPrompt}
-              title={t("copyPrompt", lang)}
+              title={t("prompt", lang)}
+              aria-label={t("prompt", lang)}
               className="m3-press"
               style={{
                 height: S,
