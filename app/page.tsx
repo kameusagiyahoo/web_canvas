@@ -126,6 +126,7 @@ import { StorageWarning } from "@/components/StorageWarning";
 import { FrameExportLayer } from "@/components/FrameExportLayer";
 import { NavigationGraph } from "@/components/NavigationGraph";
 import { ArchitectureFlowView } from "@/components/ArchitectureFlow";
+import { CompareWorkspace } from "@/components/CompareWorkspace";
 import { ProjectManager } from "@/components/ProjectManager";
 import { createNavigationRoute, editNavigationEdge } from "@/lib/navigation-graph-edit";
 import { addArchitectureAction, addArchitectureApi, bindArchitectureActionSource, connectArchitectureNodes, createArchitectureQuickFlow, deleteArchitectureAction, deleteArchitectureApi, deleteArchitectureEdge, duplicateArchitectureNode, renameArchitectureAction, updateArchitectureApi, updateArchitectureEdgeLabel } from "@/lib/architecture-flow";
@@ -304,6 +305,7 @@ export default function Page() {
   const [shareOpen, setShareOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
   const [architectureOpen, setArchitectureOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
   const [architectureFocus, setArchitectureFocus] = useState<ArchitectureEndpoint | null>(null);
   const [projectManagerOpen, setProjectManagerOpen] = useState(false);
   const [projectImportError, setProjectImportError] = useState<string | null>(null);
@@ -1887,6 +1889,25 @@ const changeFrame = (f: FrameMode) => {
   const duplicateFrameRef = useRef(duplicateFrame);
   duplicateFrameRef.current = duplicateFrame;
 
+
+  /** A variant is a real Frame duplicate, not a second compare-only screen model. */
+  const createFrameVariant = (id: string): string | null => {
+    const suffix = lang === "ja" ? " バリアント" : lang === "zh" ? " 变体" : lang === "ko" ? " 변형" : " variant";
+    const result = duplicateFrameInDocument(framesRef.current, groupsRef.current, widthsRef.current, id, {
+      makeId: uid,
+      copySuffix: suffix,
+    });
+    if (!result) return null;
+    snapshot();
+    setFrames(result.frames);
+    setGroups(result.groups);
+    setSelectedIds([]);
+    setSelectedLinkId(null);
+    setSelectedFrameId(result.frame.id);
+    setLayersFrameId(result.frame.id);
+    return result.frame.id;
+  };
+
   /** The screen is re-rendered offscreen at 1:1 with static parts, so the
    *  canvas zoom, selection outlines and in-flight animations never leak into the PNG. */
   const saveFrameImage = async (f: Frame) => {
@@ -3103,6 +3124,7 @@ const changeFrame = (f: FrameMode) => {
             onPreview={() => openPreview()}
             onGraph={() => setGraphOpen(true)}
             onArchitecture={() => setArchitectureOpen(true)}
+            onCompare={() => setCompareOpen(true)}
             onProjects={() => setProjectManagerOpen(true)}
             tidy={tidyState ?? undefined}
             onTidy={tidyTarget ? () => tidy(tidyTarget) : undefined}
@@ -3337,6 +3359,10 @@ const changeFrame = (f: FrameMode) => {
                     setSheet(null);
                     setArchitectureOpen(true);
                   }}
+                  onCompare={() => {
+                    setSheet(null);
+                    setCompareOpen(true);
+                  }}
                   onProjects={() => {
                     setSheet(null);
                     setProjectManagerOpen(true);
@@ -3409,6 +3435,33 @@ const changeFrame = (f: FrameMode) => {
               onConnect={connectArchitecture}
               onUpdateEdgeLabel={updateArchitectureLinkLabel}
               onDeleteEdge={removeArchitectureEdge}
+            />
+          )}
+
+
+          {compareOpen && (
+            <CompareWorkspace
+              frames={frames}
+              groups={groups}
+              widths={widths}
+              palette={p}
+              initialFrameId={selectedFrameId ?? layersFrameId ?? frames[0]?.id ?? null}
+              mobile={isMobile}
+              onClose={() => setCompareOpen(false)}
+              onFocusFrame={(id) => {
+                setCompareOpen(false);
+                setSelectedIds([]);
+                setSelectedLinkId(null);
+                setSelectedFrameId(id);
+                setLayersFrameId(id);
+                focusFrame(id);
+              }}
+              onPreviewFrame={(id) => {
+                setCompareOpen(false);
+                setLayersFrameId(id);
+                openPreview(id);
+              }}
+              onCreateVariant={createFrameVariant}
             />
           )}
 
