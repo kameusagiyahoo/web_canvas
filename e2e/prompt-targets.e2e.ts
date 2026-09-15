@@ -77,3 +77,39 @@ test("Prompt target can switch among Android, iOS and Web without stack leakage"
   await expect(prompt).toHaveValue(/IndexedDB/);
   await expect(prompt).not.toHaveValue(/PySide6/);
 });
+
+test("mobile Prompt sheet edits target and prompt body with desktop-equivalent persistence", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await initializeEnglishProfileOnce(page);
+  await page.goto("/");
+  await expect(page.getByTitle("Undo")).toBeVisible();
+
+  await page.getByRole("button", { name: "Prompt", exact: true }).click();
+  const target = page.getByTestId("implementation-target");
+  const prompt = page.getByRole("textbox", { name: "Prompt", exact: true });
+  await expect(target).toBeVisible();
+  await expect(prompt).toBeVisible();
+
+  await target.selectOption("pyside");
+  await expect(prompt).toHaveValue(/Python 3 and PySide6/);
+
+  await prompt.fill("Mobile custom prompt");
+  await expect.poll(async () =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem("m3e:doc");
+      return raw ? JSON.parse(raw).promptEdit ?? null : null;
+    }),
+  ).toBe("Mobile custom prompt");
+  await expect.poll(async () =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem("m3e:doc");
+      return raw ? JSON.parse(raw).platform ?? null : null;
+    }),
+  ).toBe("pyside");
+
+  await page.reload();
+  await expect(page.getByTitle("Undo")).toBeVisible();
+  await page.getByRole("button", { name: "Prompt", exact: true }).click();
+  await expect(page.getByTestId("implementation-target")).toHaveValue("pyside");
+  await expect(page.getByRole("textbox", { name: "Prompt", exact: true })).toHaveValue("Mobile custom prompt");
+});
