@@ -56,6 +56,7 @@ ScreenはFrameから導出し、Action/API/linkを意味的な設計情報とし
 - スマホSettingsからのAI設定とPart BehaviorのAI補助
 - 大規模Navigation/Architectureのスマホ検索をE2E評価し、唯一の一致を自動センタリング
 - Navigation Graph / Architecture Flowの全画面dialogに共通focus trap・Escape・focus restoreを適用しE2E化
+- Previewにも共通focus trap・focus restoreを適用し、Action付きPartのkeyboard activationをE2E化
 
 次:
 

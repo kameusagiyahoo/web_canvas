@@ -43,6 +43,7 @@ import {
 import { Icon, M3Node } from "./M3Node";
 import { IconBtn } from "./ui";
 import { t, useLang } from "@/lib/i18n";
+import { useModalFocus } from "@/lib/modal-focus";
 
 const EASE = [0.2, 0, 0, 1] as const;
 const SLIDE_MS = 0.42;
@@ -160,6 +161,14 @@ function Tappable({
   const [hot, setHot] = useState<string | null>(null);
   const live = !!onTap || (TAPPABLE.includes(item.kind) && item.kind !== "text");
   const ref = useRef<HTMLDivElement>(null);
+  const keyboardRole = onTap
+    ? item.kind === "switch"
+      ? "switch"
+      : item.kind === "checkbox"
+        ? "checkbox"
+        : "button"
+    : undefined;
+  const keyboardChecked = item.kind === "switch" || item.kind === "checkbox" ? Boolean(item.checked) : undefined;
 
   const dragValue = (e: React.PointerEvent) => {
     const r = ref.current?.getBoundingClientRect();
@@ -198,6 +207,16 @@ function Tappable({
   return (
     <div
       ref={ref}
+      data-testid={`preview-item-${item.id}`}
+      role={keyboardRole}
+      tabIndex={onTap ? 0 : undefined}
+      aria-label={onTap ? item.label || item.kind : undefined}
+      aria-checked={keyboardRole === "switch" || keyboardRole === "checkbox" ? keyboardChecked : undefined}
+      onKeyDown={(e) => {
+        if (!onTap || (e.key !== "Enter" && e.key !== " ")) return;
+        e.preventDefault();
+        onTap();
+      }}
       onPointerDown={(e) => {
         if (onValue) {
           e.stopPropagation();
@@ -408,6 +427,15 @@ export function Preview({
   const peekRef = useRef(peek);
   peekRef.current = peek;
   const swiped = useRef(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useModalFocus({
+    open: true,
+    containerRef: dialogRef,
+    initialFocusRef: closeRef,
+    onEscape: onClose,
+  });
 
   const flip = (id: string) =>
     setFlipped((s) => {
@@ -521,12 +549,11 @@ export function Preview({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
       if (e.key === "Backspace" || e.key === "ArrowLeft") back();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [back, onClose]);
+  }, [back]);
 
   const groupsFor = useCallback((f: Frame) => groupsInFrame(doc.groups, f, frames, widths), [doc.groups, frames, widths]);
   const groups = useMemo(() => (current ? groupsFor(current) : []), [current, groupsFor]);
@@ -682,6 +709,11 @@ export function Preview({
 
   return (
     <motion.div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("preview", lang)}
       data-testid="preview"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -903,7 +935,7 @@ export function Preview({
               )}
             </AnimatePresence>
           </div>
-          <button onClick={onClose} title={t("close", lang)} className="m3-press" style={{ ...barBtn, color: p.onSurfaceVariant }}>
+          <button ref={closeRef} type="button" onClick={onClose} title={t("close", lang)} aria-label={t("closeBtn", lang)} className="m3-press" style={{ ...barBtn, color: p.onSurfaceVariant }}>
             <Icon name="close" size={20} />
             <span style={label}>{t("closeBtn", lang)}</span>
           </button>

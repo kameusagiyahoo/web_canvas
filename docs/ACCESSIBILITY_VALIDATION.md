@@ -51,7 +51,8 @@
 - Project Managerのfocus containmentとEscape
 - Navigation Graphの初期focus、Tab/Shift+Tab containment、Escape、open元へのfocus restore
 - Architecture Flowの初期focus、Tab/Shift+Tab containment、Escape、open元へのfocus restore
-- Preview
+- Previewの初期focus、Tab/Shift+Tab containment、Escape、open元へのfocus restore
+- Preview内のAction付きPartをEnter/Spaceで実行し、画面遷移・戻る操作を確認
 - 主要編集操作
 
 ## 自動E2Eとの境界
