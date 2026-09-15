@@ -13,7 +13,7 @@
 
 - [x] スマホでもPrompt本文・実装ターゲットをPC同等に編集できるようにする
 - [x] スマホからAI設定／AI補助機能へ無理なく到達できる導線を用意する
-- [ ] スマホで大規模Navigation/Architectureを扱う際の検索・focus操作を評価
+- [x] スマホで大規模Navigation/Architectureを扱う際の検索・focus操作を評価
 - [ ] タッチによる細かい配置調整の改善を、実利用で必要性確認後に実装
 
 ## 優先度C — 現Architectureの拡張条件
