@@ -35,8 +35,8 @@ text = replace_once(
 )
 text = replace_once(
     text,
-    '  const [architecture, setArchitecture] = useState<ArchitectureFlow>(emptyArchitectureFlow());\n  const [paletteKey, setPaletteKey] = useState("purple");',
-    '  const [architecture, setArchitecture] = useState<ArchitectureFlow>(emptyArchitectureFlow());\n  const [dataModel, setDataModel] = useState<DataModel>(emptyDataModel);\n  const [paletteKey, setPaletteKey] = useState("purple");',
+    '  const [architecture, setArchitecture] = useState<ArchitectureFlow>(emptyArchitectureFlow);\n  const [paletteKey, setPaletteKey] = useState("purple");',
+    '  const [architecture, setArchitecture] = useState<ArchitectureFlow>(emptyArchitectureFlow);\n  const [dataModel, setDataModel] = useState<DataModel>(emptyDataModel);\n  const [paletteKey, setPaletteKey] = useState("purple");',
     "data model state",
 )
 text = replace_once(
@@ -188,7 +188,6 @@ text = replace_once(text, marker, workspace, "workspace render")
 
 PAGE.write_text(text)
 
-# Record the now-real integration contract next to the domain-model documentation.
 doc = DOC.read_text()
 section = '''
 
@@ -215,6 +214,5 @@ Architecture API ─────┘
 if "## Editor integration" not in doc:
     DOC.write_text(doc.rstrip() + section + "\n")
 
-# The workflow and this script are one-shot scaffolding; keep the product branch clean.
 SELF.unlink(missing_ok=True)
 WORKFLOW.unlink(missing_ok=True)
