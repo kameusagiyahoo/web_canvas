@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
+  addDataBinding,
   addDataEntity,
   addDataField,
   cardinalityLabels,
   connectDataEntities,
+  deleteDataBinding,
   deleteDataEntity,
   deleteDataField,
   deleteDataRelation,
@@ -13,6 +15,9 @@ import {
   layoutDataModel,
   makeDataId,
   updateDataEntity,
+  updateDataField,
+  type DataAccessKind,
+  type DataBindingSubjectKind,
   type DataFieldType,
   type DataModel,
   type DataRelationCardinality,
@@ -31,6 +36,13 @@ export type DataModelViewColors = {
   outline: string;
   outlineVariant: string;
   error: string;
+};
+
+export type DataModelSubjectOption = {
+  kind: DataBindingSubjectKind;
+  id: string;
+  label: string;
+  detail?: string;
 };
 
 const DEFAULT_COLORS: DataModelViewColors = {
@@ -66,7 +78,17 @@ const CARDINALITIES: { value: DataRelationCardinality; label: string }[] = [
   { value: "many-to-many", label: "many → many" },
 ];
 
-const controlStyle = (colors: DataModelViewColors): React.CSSProperties => ({
+const ACCESS_KINDS: { value: DataAccessKind; label: string }[] = [
+  { value: "read", label: "Read" },
+  { value: "create", label: "Create" },
+  { value: "update", label: "Update" },
+  { value: "delete", label: "Delete" },
+];
+
+const subjectKey = (subject: Pick<DataModelSubjectOption, "kind" | "id">) =>
+  `${subject.kind}|${subject.id}`;
+
+const controlStyle = (colors: DataModelViewColors): CSSProperties => ({
   minHeight: 40,
   borderRadius: 12,
   border: `1px solid ${colors.outlineVariant}`,
@@ -74,12 +96,13 @@ const controlStyle = (colors: DataModelViewColors): React.CSSProperties => ({
   color: colors.onSurface,
   padding: "8px 10px",
   font: "inherit",
+  boxSizing: "border-box",
 });
 
 const buttonStyle = (
   colors: DataModelViewColors,
   variant: "filled" | "tonal" | "text" = "tonal",
-): React.CSSProperties => ({
+): CSSProperties => ({
   minHeight: 40,
   borderRadius: 20,
   border: variant === "text" ? "none" : `1px solid ${colors.outlineVariant}`,
@@ -97,8 +120,16 @@ const buttonStyle = (
         : colors.primary,
   padding: "8px 14px",
   font: "inherit",
-  fontWeight: 600,
+  fontWeight: 650,
   cursor: "pointer",
+});
+
+const sectionStyle = (colors: DataModelViewColors): CSSProperties => ({
+  display: "grid",
+  gap: 10,
+  padding: 14,
+  borderRadius: 18,
+  background: colors.surfaceContainer,
 });
 
 export function DataModelView({
@@ -107,18 +138,38 @@ export function DataModelView({
   onClose,
   colors = DEFAULT_COLORS,
   readOnly = false,
+  subjects = [],
+  onOpenSubject,
 }: {
   model: DataModel;
   onChange: (next: DataModel) => void;
   onClose?: () => void;
   colors?: DataModelViewColors;
   readOnly?: boolean;
+  subjects?: DataModelSubjectOption[];
+  onOpenSubject?: (subject: DataModelSubjectOption) => void;
 }) {
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(model.entities[0]?.id ?? null);
   const [fieldName, setFieldName] = useState("");
   const [fieldType, setFieldType] = useState<DataFieldType>("string");
   const [relationTargetId, setRelationTargetId] = useState("");
   const [cardinality, setCardinality] = useState<DataRelationCardinality>("one-to-many");
+  const [bindingSubjectKey, setBindingSubjectKey] = useState("");
+  const [bindingAccess, setBindingAccess] = useState<DataAccessKind[]>(["read"]);
+  const [compact, setCompact] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 840px)");
+    const apply = () => setCompact(media.matches);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+
+  useEffect(() => {
+    if (selectedEntityId && model.entities.some((entity) => entity.id === selectedEntityId)) return;
+    setSelectedEntityId(model.entities[0]?.id ?? null);
+  }, [model.entities, selectedEntityId]);
 
   const layout = useMemo(() => layoutDataModel(model), [model]);
   const diagnostics = useMemo(() => diagnoseDataModel(model), [model]);
@@ -127,6 +178,14 @@ export function DataModelView({
   const relationById = useMemo(
     () => new Map(model.relations.map((relation) => [relation.id, relation])),
     [model.relations],
+  );
+  const subjectByKey = useMemo(
+    () => new Map(subjects.map((subject) => [subjectKey(subject), subject])),
+    [subjects],
+  );
+  const bindingsForSelected = useMemo(
+    () => selected ? model.bindings.filter((binding) => binding.entityId === selected.id) : [],
+    [model.bindings, selected],
   );
 
   const commit = (next: DataModel) => {
@@ -164,6 +223,34 @@ export function DataModelView({
     commit(next);
   };
 
+  const addBinding = () => {
+    if (readOnly || !selected || !bindingSubjectKey || bindingAccess.length === 0) return;
+    const subject = subjectByKey.get(bindingSubjectKey);
+    if (!subject) return;
+    const next = addDataBinding(model, {
+      id: makeDataId("binding"),
+      subject: { kind: subject.kind, id: subject.id },
+      entityId: selected.id,
+      access: bindingAccess,
+    });
+    commit(next);
+  };
+
+  const toggleAccess = (access: DataAccessKind) => {
+    setBindingAccess((current) =>
+      current.includes(access)
+        ? current.filter((value) => value !== access)
+        : [...current, access],
+    );
+  };
+
+  const relationRows = selected
+    ? model.relations.filter(
+        (relation) =>
+          relation.sourceEntityId === selected.id || relation.targetEntityId === selected.id,
+      )
+    : [];
+
   return (
     <section
       aria-label="Data model"
@@ -182,17 +269,20 @@ export function DataModelView({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 12,
-          padding: "0 16px",
+          gap: 10,
+          padding: "0 12px 0 16px",
           borderBottom: `1px solid ${colors.outlineVariant}`,
           background: colors.surface,
+          minWidth: 0,
         }}
       >
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>Data model</div>
-          <div style={{ fontSize: 12, color: colors.onSurfaceVariant }}>
-            {model.entities.length} entities · {model.relations.length} relations · {diagnostics.length} diagnostics
-          </div>
+          <div style={{ fontSize: 18, fontWeight: 750 }}>Data model</div>
+          {!compact && (
+            <div style={{ fontSize: 12, color: colors.onSurfaceVariant }}>
+              {model.entities.length} entities · {model.relations.length} relations · {model.bindings.length} bindings · {diagnostics.length} diagnostics
+            </div>
+          )}
         </div>
         {!readOnly && (
           <button type="button" onClick={addEntity} style={buttonStyle(colors, "filled")}>
@@ -210,7 +300,8 @@ export function DataModelView({
         style={{
           minHeight: 0,
           display: "grid",
-          gridTemplateColumns: selected ? "minmax(0, 1fr) min(360px, 38vw)" : "minmax(0, 1fr)",
+          gridTemplateColumns: compact || !selected ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(300px, 360px)",
+          gridTemplateRows: compact && selected ? "minmax(280px, 52vh) minmax(0, 1fr)" : undefined,
         }}
       >
         <div style={{ minWidth: 0, minHeight: 0, overflow: "auto", background: colors.surfaceContainer }}>
@@ -226,9 +317,9 @@ export function DataModelView({
               }}
             >
               <div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: colors.onSurface }}>No entities yet</div>
+                <div style={{ fontSize: 22, fontWeight: 750, color: colors.onSurface }}>No entities yet</div>
                 <p style={{ maxWidth: 440, lineHeight: 1.6 }}>
-                  Add an entity to start describing the data that screens, actions and APIs will use.
+                  Add an entity to describe the data shared by screens, Canvas parts, Actions and APIs.
                 </p>
                 {!readOnly && (
                   <button type="button" onClick={addEntity} style={buttonStyle(colors, "filled")}>
@@ -311,7 +402,7 @@ export function DataModelView({
                         color: selectedNode ? colors.onPrimaryContainer : colors.onSurface,
                       }}
                     >
-                      <strong style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{entity.name}</strong>
+                      <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entity.name}</strong>
                       <span style={{ fontSize: 11, opacity: 0.75 }}>{entity.fields.length}</span>
                     </div>
                     <div style={{ padding: "8px 0" }}>
@@ -324,14 +415,14 @@ export function DataModelView({
                             style={{
                               height: 32,
                               display: "grid",
-                              gridTemplateColumns: "20px minmax(0, 1fr) auto",
+                              gridTemplateColumns: "24px minmax(0, 1fr) auto",
                               alignItems: "center",
                               gap: 6,
                               padding: "0 14px",
                               fontSize: 13,
                             }}
                           >
-                            <span aria-hidden="true" style={{ color: colors.primary, fontWeight: 700 }}>
+                            <span aria-hidden="true" style={{ color: colors.primary, fontWeight: 750, fontSize: 10 }}>
                               {field.primaryKey ? "PK" : field.type === "reference" ? "FK" : "·"}
                             </span>
                             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{field.name}</span>
@@ -352,22 +443,25 @@ export function DataModelView({
             aria-label={`${selected.name} entity inspector`}
             style={{
               minWidth: 0,
+              minHeight: 0,
               overflow: "auto",
-              borderLeft: `1px solid ${colors.outlineVariant}`,
+              borderLeft: compact ? "none" : `1px solid ${colors.outlineVariant}`,
+              borderTop: compact ? `1px solid ${colors.outlineVariant}` : "none",
               background: colors.surface,
-              padding: 18,
+              padding: compact ? 12 : 16,
             }}
           >
-            <div style={{ display: "grid", gap: 18 }}>
-              <section style={{ display: "grid", gap: 8 }}>
+            <div style={{ display: "grid", gap: 14 }}>
+              <section style={sectionStyle(colors)}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                   <strong>Entity</strong>
                   {!readOnly && (
                     <button
                       type="button"
                       onClick={() => {
+                        const nextId = model.entities.find((entity) => entity.id !== selected.id)?.id ?? null;
                         commit(deleteDataEntity(model, selected.id));
-                        setSelectedEntityId(model.entities.find((entity) => entity.id !== selected.id)?.id ?? null);
+                        setSelectedEntityId(nextId);
                       }}
                       style={{ ...buttonStyle(colors, "text"), color: colors.error }}
                     >
@@ -388,33 +482,63 @@ export function DataModelView({
                   readOnly={readOnly}
                   onChange={(event) => commit(updateDataEntity(model, selected.id, { note: event.target.value }))}
                   placeholder="What does this entity represent?"
-                  rows={3}
+                  rows={2}
                   style={{ ...controlStyle(colors), resize: "vertical" }}
                 />
               </section>
 
-              <section style={{ display: "grid", gap: 8 }}>
+              <section style={sectionStyle(colors)}>
                 <strong>Fields</strong>
+                {selected.fields.length === 0 && (
+                  <div style={{ color: colors.onSurfaceVariant, fontSize: 13 }}>No fields yet.</div>
+                )}
                 {selected.fields.map((field) => (
                   <div
                     key={field.id}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "minmax(0, 1fr) auto auto",
-                      alignItems: "center",
+                      gridTemplateColumns: "minmax(0, 1fr) auto",
                       gap: 8,
-                      padding: "8px 10px",
+                      padding: 10,
                       borderRadius: 14,
-                      background: colors.surfaceContainer,
+                      background: colors.surface,
+                      border: `1px solid ${colors.outlineVariant}`,
                     }}
                   >
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>{field.name}</div>
+                      <div style={{ fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis" }}>{field.name}</div>
                       <div style={{ fontSize: 12, color: colors.onSurfaceVariant }}>
-                        {field.type}{field.primaryKey ? " · primary key" : ""}{field.required ? " · required" : ""}
+                        {field.type}{field.primaryKey ? " · primary key" : ""}{field.required ? " · required" : ""}{field.unique ? " · unique" : ""}
                       </div>
+                      {!readOnly && (
+                        <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                          <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                            <input
+                              type="checkbox"
+                              checked={!!field.primaryKey}
+                              onChange={(event) => commit(updateDataField(model, selected.id, field.id, { primaryKey: event.target.checked }))}
+                            />
+                            PK
+                          </label>
+                          <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                            <input
+                              type="checkbox"
+                              checked={!!field.required}
+                              onChange={(event) => commit(updateDataField(model, selected.id, field.id, { required: event.target.checked }))}
+                            />
+                            Required
+                          </label>
+                          <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                            <input
+                              type="checkbox"
+                              checked={!!field.unique}
+                              onChange={(event) => commit(updateDataField(model, selected.id, field.id, { unique: event.target.checked }))}
+                            />
+                            Unique
+                          </label>
+                        </div>
+                      )}
                     </div>
-                    {field.unique && <span style={{ fontSize: 11, color: colors.onSurfaceVariant }}>unique</span>}
                     {!readOnly && (
                       <button
                         type="button"
@@ -427,128 +551,150 @@ export function DataModelView({
                     )}
                   </div>
                 ))}
-
                 {!readOnly && (
-                  <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 118px auto", gap: 8 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
                     <input
                       aria-label="New field name"
                       value={fieldName}
                       onChange={(event) => setFieldName(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") addField();
-                      }}
-                      placeholder="field name"
+                      placeholder="Field name"
+                      onKeyDown={(event) => { if (event.key === "Enter") addField(); }}
                       style={controlStyle(colors)}
                     />
-                    <select
-                      aria-label="New field type"
-                      value={fieldType}
-                      onChange={(event) => setFieldType(event.target.value as DataFieldType)}
-                      style={controlStyle(colors)}
-                    >
-                      {FIELD_TYPES.map((type) => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
+                    <select aria-label="Field type" value={fieldType} onChange={(event) => setFieldType(event.target.value as DataFieldType)} style={controlStyle(colors)}>
+                      {FIELD_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
                     </select>
-                    <button type="button" onClick={addField} disabled={!fieldName.trim()} style={buttonStyle(colors)}>
-                      Add
+                    <button type="button" onClick={addField} disabled={!fieldName.trim()} style={{ ...buttonStyle(colors), gridColumn: "1 / -1", opacity: fieldName.trim() ? 1 : 0.5 }}>
+                      Add field
                     </button>
                   </div>
                 )}
               </section>
 
-              <section style={{ display: "grid", gap: 8 }}>
+              <section style={sectionStyle(colors)}>
                 <strong>Relations</strong>
-                {model.relations
-                  .filter((relation) => relation.sourceEntityId === selected.id || relation.targetEntityId === selected.id)
-                  .map((relation) => {
-                    const source = model.entities.find((entity) => entity.id === relation.sourceEntityId);
-                    const target = model.entities.find((entity) => entity.id === relation.targetEntityId);
-                    const [from, to] = cardinalityLabels(relation.cardinality);
-                    return (
-                      <div
-                        key={relation.id}
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "minmax(0, 1fr) auto",
-                          gap: 8,
-                          alignItems: "center",
-                          padding: "8px 10px",
-                          borderRadius: 14,
-                          background: colors.surfaceContainer,
-                        }}
-                      >
-                        <div style={{ minWidth: 0, fontSize: 13 }}>
-                          <div>{source?.name ?? "Missing"} {from} → {to} {target?.name ?? "Missing"}</div>
-                          {relation.label && <div style={{ color: colors.onSurfaceVariant }}>{relation.label}</div>}
-                        </div>
-                        {!readOnly && (
-                          <button
-                            type="button"
-                            aria-label="Delete relation"
-                            onClick={() => commit(deleteDataRelation(model, relation.id))}
-                            style={{ ...buttonStyle(colors, "text"), minHeight: 32, padding: "4px 8px", color: colors.error }}
-                          >
-                            ×
-                          </button>
-                        )}
+                {relationRows.length === 0 && (
+                  <div style={{ color: colors.onSurfaceVariant, fontSize: 13 }}>No relations yet.</div>
+                )}
+                {relationRows.map((relation) => {
+                  const otherId = relation.sourceEntityId === selected.id ? relation.targetEntityId : relation.sourceEntityId;
+                  const other = model.entities.find((entity) => entity.id === otherId);
+                  const [from, to] = cardinalityLabels(relation.cardinality);
+                  return (
+                    <div key={relation.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 14, background: colors.surface }}>
+                      <div style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
+                        <strong>{other?.name ?? otherId}</strong>
+                        <div style={{ color: colors.onSurfaceVariant, fontSize: 12 }}>{from} → {to}{relation.label ? ` · ${relation.label}` : ""}</div>
                       </div>
-                    );
-                  })}
-
+                      {!readOnly && (
+                        <button type="button" onClick={() => commit(deleteDataRelation(model, relation.id))} style={{ ...buttonStyle(colors, "text"), minHeight: 32, padding: "4px 8px", color: colors.error }}>
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
                 {!readOnly && model.entities.length > 1 && (
-                  <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(120px, 0.7fr) auto", gap: 8 }}>
-                    <select
-                      aria-label="Relation target"
-                      value={relationTargetId}
-                      onChange={(event) => setRelationTargetId(event.target.value)}
-                      style={controlStyle(colors)}
-                    >
-                      <option value="">Target entity</option>
-                      {model.entities
-                        .filter((entity) => entity.id !== selected.id)
-                        .map((entity) => (
-                          <option key={entity.id} value={entity.id}>{entity.name}</option>
-                        ))}
-                    </select>
-                    <select
-                      aria-label="Relation cardinality"
-                      value={cardinality}
-                      onChange={(event) => setCardinality(event.target.value as DataRelationCardinality)}
-                      style={controlStyle(colors)}
-                    >
-                      {CARDINALITIES.map((item) => (
-                        <option key={item.value} value={item.value}>{item.label}</option>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <select aria-label="Relation target" value={relationTargetId} onChange={(event) => setRelationTargetId(event.target.value)} style={controlStyle(colors)}>
+                      <option value="">Connect to…</option>
+                      {model.entities.filter((entity) => entity.id !== selected.id).map((entity) => (
+                        <option key={entity.id} value={entity.id}>{entity.name}</option>
                       ))}
                     </select>
-                    <button type="button" onClick={addRelation} disabled={!relationTargetId} style={buttonStyle(colors)}>
-                      Link
+                    <select aria-label="Relation cardinality" value={cardinality} onChange={(event) => setCardinality(event.target.value as DataRelationCardinality)} style={controlStyle(colors)}>
+                      {CARDINALITIES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <button type="button" onClick={addRelation} disabled={!relationTargetId} style={{ ...buttonStyle(colors), opacity: relationTargetId ? 1 : 0.5 }}>
+                      Add relation
                     </button>
                   </div>
                 )}
               </section>
 
-              {diagnostics.some((diagnostic) => diagnostic.entityId === selected.id) && (
-                <section style={{ display: "grid", gap: 8 }}>
-                  <strong>Diagnostics</strong>
-                  {diagnostics
-                    .filter((diagnostic) => diagnostic.entityId === selected.id)
-                    .map((diagnostic) => (
-                      <div
-                        key={diagnostic.id}
-                        style={{
-                          padding: 10,
-                          borderRadius: 12,
-                          background: colors.surfaceContainerHigh,
-                          color: diagnostic.severity === "error" ? colors.error : colors.onSurfaceVariant,
-                          fontSize: 13,
-                        }}
+              <section style={sectionStyle(colors)}>
+                <div>
+                  <strong>Used by</strong>
+                  <div style={{ marginTop: 3, color: colors.onSurfaceVariant, fontSize: 12, lineHeight: 1.4 }}>
+                    Link this Entity to a Screen, Canvas part, Action or API. This is design metadata; it does not execute requests or change navigation.
+                  </div>
+                </div>
+                {bindingsForSelected.length === 0 && (
+                  <div style={{ color: colors.onSurfaceVariant, fontSize: 13 }}>No cross-view bindings yet.</div>
+                )}
+                {bindingsForSelected.map((binding) => {
+                  const subject = subjectByKey.get(subjectKey(binding.subject));
+                  return (
+                    <div key={binding.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 14, background: colors.surface }}>
+                      <button
+                        type="button"
+                        disabled={!subject || !onOpenSubject}
+                        onClick={() => { if (subject && onOpenSubject) onOpenSubject(subject); }}
+                        style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", color: colors.onSurface, textAlign: "left", padding: 0, cursor: subject && onOpenSubject ? "pointer" : "default", font: "inherit" }}
                       >
-                        {diagnostic.message}
-                      </div>
-                    ))}
-                </section>
-              )}
+                        <div style={{ fontSize: 12, fontWeight: 750, color: colors.primary, textTransform: "uppercase" }}>{binding.subject.kind}</div>
+                        <div style={{ fontSize: 13, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{subject?.label ?? binding.subject.id}</div>
+                        <div style={{ color: colors.onSurfaceVariant, fontSize: 11 }}>{binding.access.join(" · ")}</div>
+                      </button>
+                      {!readOnly && (
+                        <button type="button" aria-label="Delete binding" onClick={() => commit(deleteDataBinding(model, binding.id))} style={{ ...buttonStyle(colors, "text"), minHeight: 32, padding: "4px 8px", color: colors.error }}>
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                {!readOnly && subjects.length > 0 && (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <select aria-label="Binding subject" value={bindingSubjectKey} onChange={(event) => setBindingSubjectKey(event.target.value)} style={controlStyle(colors)}>
+                      <option value="">Link to…</option>
+                      {subjects.map((subject) => (
+                        <option key={subjectKey(subject)} value={subjectKey(subject)}>
+                          {subject.kind.toUpperCase()} · {subject.label}{subject.detail ? ` · ${subject.detail}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {ACCESS_KINDS.map((option) => {
+                        const on = bindingAccess.includes(option.value);
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => toggleAccess(option.value)}
+                            style={{ ...buttonStyle(colors, "text"), minHeight: 32, padding: "4px 10px", background: on ? colors.primaryContainer : "transparent", color: on ? colors.onPrimaryContainer : colors.onSurfaceVariant }}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button type="button" onClick={addBinding} disabled={!bindingSubjectKey || bindingAccess.length === 0} style={{ ...buttonStyle(colors), opacity: bindingSubjectKey && bindingAccess.length ? 1 : 0.5 }}>
+                      Add binding
+                    </button>
+                  </div>
+                )}
+              </section>
+
+              <section style={sectionStyle(colors)}>
+                <strong>Diagnostics</strong>
+                {diagnostics.length === 0 ? (
+                  <div style={{ color: colors.onSurfaceVariant, fontSize: 13 }}>No Data Model problems found.</div>
+                ) : (
+                  diagnostics.map((diagnostic) => (
+                    <button
+                      key={diagnostic.id}
+                      type="button"
+                      onClick={() => { if (diagnostic.entityId) setSelectedEntityId(diagnostic.entityId); }}
+                      style={{ border: `1px solid ${diagnostic.severity === "error" ? colors.error : colors.outlineVariant}`, borderRadius: 14, background: colors.surface, color: diagnostic.severity === "error" ? colors.error : colors.onSurface, padding: 10, textAlign: "left", font: "inherit", cursor: diagnostic.entityId ? "pointer" : "default" }}
+                    >
+                      <div style={{ fontSize: 11, fontWeight: 750, textTransform: "uppercase" }}>{diagnostic.severity}</div>
+                      <div style={{ marginTop: 3, fontSize: 12, lineHeight: 1.4 }}>{diagnostic.message}</div>
+                    </button>
+                  ))
+                )}
+              </section>
             </div>
           </aside>
         )}
