@@ -70,7 +70,7 @@ test("mobile AI settings persist and the existing behavior helper works from the
   await expect(page.getByText("AI settings", { exact: true })).toBeVisible();
   await page.getByRole("textbox", { name: "Base URL", exact: true }).fill("http://127.0.0.1:4141");
   await page.getByRole("textbox", { name: "Model ID", exact: true }).fill("test-model");
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
 
   // Settings use the existing browser-local AI settings store and survive reload.
   await page.reload();
@@ -78,7 +78,7 @@ test("mobile AI settings persist and the existing behavior helper works from the
   await page.getByRole("button", { name: "AI", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Base URL", exact: true })).toHaveValue("http://127.0.0.1:4141");
   await expect(page.getByRole("textbox", { name: "Model ID", exact: true })).toHaveValue("test-model");
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
 
   // Select a real Canvas item and invoke the same proposeBehavior command used by desktop.
   await page.getByTitle("Layers").click();
@@ -86,7 +86,7 @@ test("mobile AI settings persist and the existing behavior helper works from the
   await page.getByRole("button").filter({ hasText: "Favorite" }).first().click();
   const favorite = allItems(await readDoc(page)).find((item) => item.label === "Favorite");
   expect(favorite?.id).toBeTruthy();
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
   await page.getByRole("button", { name: "Edit", exact: true }).click();
 
   const aiButton = page.getByRole("button", { name: "Let the AI write it", exact: true });
