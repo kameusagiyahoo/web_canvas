@@ -109,3 +109,44 @@ test("mobile primary sheets expose stable accessible controls and native activat
   expect(await page.evaluate((key) => localStorage.getItem(key), QUICK_START_KEY)).toBe("done");
   await expect(page.getByTitle("Quick start")).toBeVisible();
 });
+
+test("full-screen graph dialogs trap keyboard focus and restore their openers", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem("m3e:ui", JSON.stringify({ lang: "en" }));
+    localStorage.setItem("m3e:quick-start:v1", "done");
+  });
+  await page.goto("/");
+  await expect(page.getByTitle("Undo")).toBeVisible();
+
+  const graphOpener = page.getByTitle("Screen flow");
+  await graphOpener.focus();
+  await page.keyboard.press("Enter");
+  const graph = page.getByTestId("navigation-graph");
+  const graphClose = graph.getByRole("button", { name: "Close", exact: true });
+  await expect(graph).toHaveRole("dialog");
+  await expect(graphClose).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expectFocusInside(graph);
+  await page.keyboard.press("Tab");
+  await expect(graphClose).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(graph).toBeHidden();
+  await expect(graphOpener).toBeFocused();
+
+  const architectureOpener = page.getByTitle("App architecture");
+  await architectureOpener.focus();
+  await page.keyboard.press("Enter");
+  const architecture = page.getByTestId("architecture-flow");
+  const architectureClose = architecture.getByRole("button", { name: "Close", exact: true });
+  await expect(architecture).toHaveRole("dialog");
+  await expect(architectureClose).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expectFocusInside(architecture);
+  await page.keyboard.press("Tab");
+  await expect(architectureClose).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(architecture).toBeHidden();
+  await expect(architectureOpener).toBeFocused();
+});
+

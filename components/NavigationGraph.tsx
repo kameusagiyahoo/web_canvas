@@ -14,6 +14,7 @@ import { availableNavigationRouteTriggers, type NavigationEdgePatch, type Naviga
 import { Icon } from "./M3Node";
 import { useLang, type Lang } from "@/lib/i18n";
 import { graphCenterScroll } from "@/lib/graph-viewport";
+import { useModalFocus } from "@/lib/modal-focus";
 
 const COPY: Record<Lang, {
   title: string;
@@ -205,6 +206,16 @@ export function NavigationGraph({
   const [searchQuery, setSearchQuery] = useState("");
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const graphViewportRef = useRef<HTMLDivElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useModalFocus({
+    open: true,
+    containerRef: dialogRef,
+    initialFocusRef: closeRef,
+    onEscape: onClose,
+  });
+
   useEffect(() => {
     if (!routeDrag) return;
     const sourceFrameId = routeDrag.sourceFrameId;
@@ -232,13 +243,6 @@ export function NavigationGraph({
       window.removeEventListener("pointerup", up);
     };
   }, [routeDrag?.sourceFrameId]);
-  useEffect(() => {
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, [onClose]);
   const selectedEdge = graph.edges.find((edge) => edge.id === selectedEdgeId) ?? null;
   const nodeById = useMemo(
     () => new Map(layout.nodes.map((node) => [node.frameId, node])),
@@ -344,6 +348,8 @@ export function NavigationGraph({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label={copy.title}
@@ -398,6 +404,7 @@ export function NavigationGraph({
             {copy.routes} {validEdges.length}
           </span>
           <button
+            ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label={copy.close}
