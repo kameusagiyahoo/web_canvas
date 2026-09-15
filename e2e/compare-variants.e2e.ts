@@ -44,7 +44,7 @@ const compareDoc = {
   architecture: { version: 1, nodes: [], edges: [] },
 };
 
-test("Compare reuses canonical Frames and a created variant is a normal undoable Screen", async ({ page }) => {
+test("Compare derives structural differences and a created variant is a normal undoable Screen", async ({ page }) => {
   await page.addInitScript(({ doc }) => {
     localStorage.setItem("m3e:doc", JSON.stringify(doc));
     localStorage.setItem("m3e:ui", JSON.stringify({ lang: "en" }));
@@ -60,9 +60,13 @@ test("Compare reuses canonical Frames and a created variant is a normal undoable
   await expect(workspace.getByTestId("compare-frame-details")).toBeVisible();
   await expect(workspace.getByTestId("compare-slot-0")).toHaveValue("home");
   await expect(workspace.getByTestId("compare-slot-1")).toHaveValue("details");
+  await expect(workspace.getByTestId("compare-diff-count-details")).toHaveText("2 changes");
+  await expect(workspace.getByTestId("compare-diff-details")).toContainText("label");
+  await expect(workspace.getByTestId("compare-diff-details")).toContainText("variant");
 
   await workspace.getByTestId("compare-create-variant-home").click();
   await expect(workspace.locator('[data-testid^="compare-frame-"]')).toHaveCount(3);
+  await expect(workspace.getByText("No structural differences")).toBeVisible();
   await expect.poll(() => page.evaluate(() => {
     const raw = localStorage.getItem("m3e:doc");
     const frames = raw ? JSON.parse(raw).frames ?? [] : [];
