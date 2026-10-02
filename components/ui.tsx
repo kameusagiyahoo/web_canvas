@@ -32,7 +32,6 @@ export function IconBtn({
       onClick={onClick}
       title={title}
       aria-label={title}
-      aria-pressed={on}
       disabled={disabled}
       className="m3-press"
       style={{
