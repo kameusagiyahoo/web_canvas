@@ -9,6 +9,17 @@ async function readFrameCount(page: Page) {
   });
 }
 
+async function readFrames(page: Page) {
+  return page.evaluate(() => {
+    const raw = localStorage.getItem("m3e:doc");
+    if (!raw) return [];
+    return (JSON.parse(raw).frames ?? []).map((frame: { id: string; name?: string }) => ({
+      id: frame.id,
+      name: frame.name || "Screen",
+    }));
+  });
+}
+
 async function expectFocusInside(locator: Locator) {
   await expect.poll(async () => locator.evaluate((element) => element.contains(document.activeElement))).toBe(true);
 }
@@ -93,6 +104,30 @@ test("mobile primary sheets expose stable accessible controls and native activat
   await expect.poll(() => readFrameCount(page)).toBe(beforeFrames + 1);
   // Adding a Screen intentionally closes the mobile sheet; wait for the primary toolbar to become actionable again.
   await expect(page.getByTitle("Add button")).toBeVisible();
+
+  // Selected visual states must also be exposed to assistive technology.
+  await page.getByTitle("Settings").click();
+  const themeTab = page.getByRole("button", { name: "Theme", exact: true });
+  const aiTab = page.getByRole("button", { name: "AI", exact: true });
+  await expect(themeTab).toHaveAttribute("aria-pressed", "true");
+  await expect(aiTab).toHaveAttribute("aria-pressed", "false");
+  await aiTab.click();
+  await expect(themeTab).toHaveAttribute("aria-pressed", "false");
+  await expect(aiTab).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+
+  const frames = await readFrames(page);
+  expect(frames).toHaveLength(2);
+  await page.getByTitle("Layers").click();
+  const firstFrame = page.getByRole("button", { name: frames[0].name, exact: true });
+  const secondFrame = page.getByRole("button", { name: frames[1].name, exact: true });
+  await firstFrame.click();
+  await expect(firstFrame).toHaveAttribute("aria-pressed", "true");
+  await expect(secondFrame).toHaveAttribute("aria-pressed", "false");
+  await secondFrame.click();
+  await expect(firstFrame).toHaveAttribute("aria-pressed", "false");
+  await expect(secondFrame).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Close", exact: true }).click();
 
   const addEntry = page.getByTitle("Add button");
   await addEntry.focus();
