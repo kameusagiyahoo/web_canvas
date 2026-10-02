@@ -246,6 +246,7 @@ function FrameChips({
       <button
         key={id ?? "none"}
         onClick={() => onChange(id)}
+        aria-label={label}
         aria-pressed={on}
         className="m3-press"
         style={{
