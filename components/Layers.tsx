@@ -279,6 +279,7 @@ export function LayersPanel({
               <button
                 key={f.id}
                 onClick={() => onFrame(f.id)}
+                aria-label={f.name || t("screen", lang)}
                 aria-pressed={on}
                 className="m3-press"
                 style={{
