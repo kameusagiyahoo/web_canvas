@@ -114,7 +114,7 @@ test("mobile primary sheets expose stable accessible controls and native activat
   await aiTab.click();
   await expect(themeTab).toHaveAttribute("aria-pressed", "false");
   await expect(aiTab).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
 
   const frames = await readFrames(page);
   expect(frames).toHaveLength(2);
@@ -127,7 +127,7 @@ test("mobile primary sheets expose stable accessible controls and native activat
   await secondFrame.click();
   await expect(firstFrame).toHaveAttribute("aria-pressed", "false");
   await expect(secondFrame).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
 
   const addEntry = page.getByTitle("Add button");
   await addEntry.focus();
