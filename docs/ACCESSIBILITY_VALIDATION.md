@@ -57,7 +57,7 @@
 
 ## 自動E2Eとの境界
 
-`e2e/accessibility-workflow.e2e.ts` では、主要dialogの初期focus、Tab/Shift+Tab containment、Escape、focus restoreをpreflightとして固定します。
+`e2e/accessibility-workflow.e2e.ts` では、主要dialogの初期focus、Tab/Shift+Tab containment、Escape、focus restoreに加え、モバイルSettings・Layers・Action遷移先の選択状態が`aria-pressed`として切り替わることをpreflightとして固定します。
 
 さらにCIでは `e2e/mobile-practical-journey.e2e.ts` をChromiumに加えてPlaywright WebKit + iPhone mobile profileでも実行し、Screen追加、Part追加、Navigation編集、Preview、Project保存、reloadまでの主要スマホ操作がSafari系エンジンで破綻しないことをpreflightします。
 

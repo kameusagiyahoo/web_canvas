@@ -152,7 +152,7 @@ export function MobileInspector({
   };
 
   return (
-    <div>
+    <div data-testid="mobile-inspector">
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
         <div
           style={{
@@ -368,11 +368,11 @@ export function MobileInspector({
               return (
                 <>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    <button type="button" className="m3-press" onClick={() => setSlotAction(key, undefined)} style={{ height: 40, padding: "0 12px", borderRadius: 20, border: "none", background: !action ? p.primary : p.surfaceContainerHigh, color: !action ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700 }}>{t("none", lang)}</button>
-                    <button type="button" className="m3-press" onClick={() => setSlotAction(key, { to: BACK_TARGET, transition: "slide" })} style={{ height: 40, padding: "0 12px", borderRadius: 20, border: "none", background: action?.to === BACK_TARGET ? p.primary : p.surfaceContainerHigh, color: action?.to === BACK_TARGET ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700 }}>{t("goBack", lang)}</button>
+                    <button type="button" className="m3-press" aria-pressed={!action} onClick={() => setSlotAction(key, undefined)} style={{ height: 40, padding: "0 12px", borderRadius: 20, border: "none", background: !action ? p.primary : p.surfaceContainerHigh, color: !action ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700 }}>{t("none", lang)}</button>
+                    <button type="button" className="m3-press" aria-pressed={action?.to === BACK_TARGET} onClick={() => setSlotAction(key, { to: BACK_TARGET, transition: "slide" })} style={{ height: 40, padding: "0 12px", borderRadius: 20, border: "none", background: action?.to === BACK_TARGET ? p.primary : p.surfaceContainerHigh, color: action?.to === BACK_TARGET ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700 }}>{t("goBack", lang)}</button>
                     {frames.map((frame) => {
                       const on = action?.to === frame.id;
-                      return <button key={frame.id} type="button" className="m3-press" onClick={() => setSlotAction(key, { to: frame.id, transition: action?.transition ?? "slide" })} style={{ height: 40, maxWidth: 180, padding: "0 12px", borderRadius: 20, border: "none", background: on ? p.primary : p.surfaceContainerHigh, color: on ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{frame.name || t("screen", lang)}</button>;
+                      return <button key={frame.id} type="button" className="m3-press" aria-pressed={on} onClick={() => setSlotAction(key, { to: frame.id, transition: action?.transition ?? "slide" })} style={{ height: 40, maxWidth: 180, padding: "0 12px", borderRadius: 20, border: "none", background: on ? p.primary : p.surfaceContainerHigh, color: on ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{frame.name || t("screen", lang)}</button>;
                     })}
                   </div>
                   {action && action.to !== BACK_TARGET && (
@@ -385,11 +385,11 @@ export function MobileInspector({
         ) : (
           <>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              <button type="button" className="m3-press" onClick={() => onChange({ action: undefined })} style={{ height: 40, padding: "0 12px", borderRadius: 20, border: "none", background: !item.action ? p.primary : p.surfaceContainerHigh, color: !item.action ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700 }}>{t("none", lang)}</button>
-              <button type="button" className="m3-press" onClick={() => onChange({ action: { to: BACK_TARGET, transition: "slide" } })} style={{ height: 40, padding: "0 12px", borderRadius: 20, border: "none", background: item.action?.to === BACK_TARGET ? p.primary : p.surfaceContainerHigh, color: item.action?.to === BACK_TARGET ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700 }}>{t("goBack", lang)}</button>
+              <button type="button" className="m3-press" aria-pressed={!item.action} onClick={() => onChange({ action: undefined })} style={{ height: 40, padding: "0 12px", borderRadius: 20, border: "none", background: !item.action ? p.primary : p.surfaceContainerHigh, color: !item.action ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700 }}>{t("none", lang)}</button>
+              <button type="button" className="m3-press" aria-pressed={item.action?.to === BACK_TARGET} onClick={() => onChange({ action: { to: BACK_TARGET, transition: "slide" } })} style={{ height: 40, padding: "0 12px", borderRadius: 20, border: "none", background: item.action?.to === BACK_TARGET ? p.primary : p.surfaceContainerHigh, color: item.action?.to === BACK_TARGET ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700 }}>{t("goBack", lang)}</button>
               {frames.map((frame) => {
                 const on = item.action?.to === frame.id;
-                return <button key={frame.id} type="button" className="m3-press" onClick={() => onChange({ action: { to: frame.id, transition: item.action?.transition ?? "slide" } })} style={{ height: 40, maxWidth: 180, padding: "0 12px", borderRadius: 20, border: "none", background: on ? p.primary : p.surfaceContainerHigh, color: on ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{frame.name || t("screen", lang)}</button>;
+                return <button key={frame.id} type="button" className="m3-press" aria-pressed={on} onClick={() => onChange({ action: { to: frame.id, transition: item.action?.transition ?? "slide" } })} style={{ height: 40, maxWidth: 180, padding: "0 12px", borderRadius: 20, border: "none", background: on ? p.primary : p.surfaceContainerHigh, color: on ? p.onPrimary : p.onSurfaceVariant, fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{frame.name || t("screen", lang)}</button>;
               })}
             </div>
             {item.action && item.action.to !== BACK_TARGET && (

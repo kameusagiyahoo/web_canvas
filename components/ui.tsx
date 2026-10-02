@@ -89,6 +89,7 @@ export function Segmented<K extends string>({
             onClick={() => onChange(o.key)}
             title={o.title ?? o.label}
             aria-label={o.title ?? o.label}
+            aria-pressed={on}
             className="m3-press"
             style={{
               flex: (o.grow ?? grow) ? 1 : "0 0 auto",

@@ -58,6 +58,7 @@ ScreenはFrameから導出し、Action/API/linkを意味的な設計情報とし
 - Navigation Graph / Architecture Flowの全画面dialogに共通focus trap・Escape・focus restoreを適用しE2E化
 - Previewにも共通focus trap・focus restoreを適用し、Action付きPartのkeyboard activationをE2E化
 - Mobile practical journeyをChromiumに加えてPlaywright WebKit + iPhone profileでもCI実行し、Safari系エンジンをpreflight
+- Segmented control・Screen選択UI・モバイルAction遷移先の選択状態を`aria-pressed`で公開し、モバイルE2Eで状態遷移を固定
 
 次:
 
