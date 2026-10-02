@@ -96,9 +96,13 @@ test("mobile authoring journey creates, edits, previews, saves, and reloads one 
   await page.getByRole("button").filter({ hasText: "Favorite" }).first().click();
   await page.getByRole("button", { name: "Close (Esc)", exact: true }).click();
   await page.getByRole("button", { name: "Edit", exact: true }).click();
-  await page.getByRole("button", { name: secondName, exact: true }).click();
-  await page.getByTitle("Fade").click();
-  await page.getByRole("button", { name: "Done", exact: true }).click();
+  const inspector = page.getByTestId("mobile-inspector");
+  await expect(inspector).toBeVisible();
+  const secondTarget = inspector.getByRole("button", { name: secondName, exact: true });
+  await secondTarget.click();
+  await expect(secondTarget).toHaveAttribute("aria-pressed", "true");
+  await inspector.getByTitle("Fade").click();
+  await inspector.getByRole("button", { name: "Done", exact: true }).click();
 
   await expect.poll(async () => {
     const doc = (await readState(page)).doc as StoredDoc;
