@@ -1,4 +1,5 @@
 import { Doc, KIND_ORDER, Kind, VARIANTS, isPlatform } from "./tokens";
+import { isDataModel } from "./data-model-document";
 
 /**
  * Project files are versioned independently from the in-memory `Doc` model.
@@ -106,6 +107,9 @@ const validArchitecture = (value: unknown) =>
     Array.isArray(value.edges) &&
     value.edges.every(validArchitectureEdge));
 
+const validDataModel = (value: unknown) =>
+  value === undefined || isDataModel(value);
+
 /**
  * Version 0 is the historical raw `Doc` JSON format, before project files had
  * an explicit envelope. Keep this recognizer separate so that a future latest
@@ -118,6 +122,7 @@ const isLegacyProjectV0 = (value: unknown): value is Doc =>
   value.groups.every(validGroup) &&
   value.frames.every(validFrame) &&
   validArchitecture(value.architecture) &&
+  validDataModel(value.dataModel) &&
   (value.platform === undefined || isPlatform(value.platform));
 
 /** whether a value already has the latest document shape */
